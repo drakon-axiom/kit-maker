@@ -6,6 +6,13 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./contexts/AuthContext";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
+import Customers from "./pages/Customers";
+import SKUs from "./pages/SKUs";
+import Orders from "./pages/Orders";
+import Queue from "./pages/Queue";
+import Operator from "./pages/Operator";
+import Shipments from "./pages/Shipments";
+import Settings from "./pages/Settings";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Layout from "./components/Layout";
 import NotFound from "./pages/NotFound";
@@ -27,6 +34,76 @@ const App = () => (
                 <ProtectedRoute>
                   <Layout>
                     <Dashboard />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/customers"
+              element={
+                <ProtectedRoute requiredRole="admin">
+                  <Layout>
+                    <Customers />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/skus"
+              element={
+                <ProtectedRoute requiredRole="admin">
+                  <Layout>
+                    <SKUs />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/orders"
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Orders />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/queue"
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Queue />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/operator"
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Operator />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/shipments"
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Shipments />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/settings"
+              element={
+                <ProtectedRoute requiredRole="admin">
+                  <Layout>
+                    <Settings />
                   </Layout>
                 </ProtectedRoute>
               }
