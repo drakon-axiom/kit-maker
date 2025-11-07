@@ -9,6 +9,8 @@ import Dashboard from "./pages/Dashboard";
 import Customers from "./pages/Customers";
 import SKUs from "./pages/SKUs";
 import Orders from "./pages/Orders";
+import OrderNew from "./pages/OrderNew";
+import OrderDetail from "./pages/OrderDetail";
 import Queue from "./pages/Queue";
 import Operator from "./pages/Operator";
 import Shipments from "./pages/Shipments";
@@ -64,6 +66,26 @@ const App = () => (
                 <ProtectedRoute>
                   <Layout>
                     <Orders />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/orders/new"
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <OrderNew />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/orders/:id"
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <OrderDetail />
                   </Layout>
                 </ProtectedRoute>
               }
