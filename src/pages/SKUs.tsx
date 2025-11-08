@@ -14,6 +14,7 @@ import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
 
@@ -33,6 +34,7 @@ interface SKU {
   price_per_piece: number;
   active: boolean;
   use_tier_pricing: boolean;
+  size_ml: number | null;
   created_at: string;
   pricing_tiers?: PricingTier[];
 }
@@ -45,6 +47,7 @@ interface ImportRow {
   label_required: string;
   active: string;
   use_tier_pricing: string;
+  size_ml?: string;
   tier1_min?: string;
   tier1_max?: string;
   tier1_price?: string;
@@ -91,6 +94,7 @@ const SKUs = () => {
     price_per_piece: '',
     active: true,
     use_tier_pricing: false,
+    size_ml: '',
   });
   const [pricingTiers, setPricingTiers] = useState<PricingTier[]>([
     { min_quantity: 5, max_quantity: 10, price_per_kit: 0 },
@@ -146,6 +150,7 @@ const SKUs = () => {
         price_per_piece: parseFloat(formData.price_per_piece),
         active: formData.active,
         use_tier_pricing: formData.use_tier_pricing,
+        size_ml: formData.size_ml ? parseInt(formData.size_ml) : null,
       };
 
       let skuId = editingSKU?.id;
@@ -374,6 +379,7 @@ const SKUs = () => {
       label_required: row.label_required || 'false',
       active: row.active || 'true',
       use_tier_pricing: row.use_tier_pricing || 'false',
+      size_ml: row.size_ml || '',
       tier1_min: row.tier1_min || '',
       tier1_max: row.tier1_max || '',
       tier1_price: row.tier1_price || '',
@@ -507,6 +513,7 @@ const SKUs = () => {
           label_required: ['true', 'yes', '1'].includes(row.label_required.toLowerCase()),
           active: ['true', 'yes', '1'].includes(row.active.toLowerCase()) || row.active === '',
           use_tier_pricing: useTierPricing,
+          size_ml: row.size_ml ? parseInt(row.size_ml) : null,
         };
 
         if (row.action === 'update' && row.existingId) {
@@ -603,6 +610,7 @@ const SKUs = () => {
       {
         code: 'EXAMPLE-001',
         description: 'Example Product with Standard Pricing',
+        size_ml: '10',
         price_per_kit: '25.00',
         price_per_piece: '2.50',
         label_required: 'false',
@@ -627,6 +635,7 @@ const SKUs = () => {
       {
         code: 'EXAMPLE-002',
         description: 'Example Product with Tier Pricing',
+        size_ml: '30',
         price_per_kit: '0',
         price_per_piece: '2.50',
         label_required: 'true',
@@ -669,6 +678,7 @@ const SKUs = () => {
       price_per_piece: '',
       active: true,
       use_tier_pricing: false,
+      size_ml: '',
     });
     setPricingTiers([
       { min_quantity: 5, max_quantity: 10, price_per_kit: 0 },
@@ -690,6 +700,7 @@ const SKUs = () => {
       price_per_piece: sku.price_per_piece.toString(),
       active: sku.active,
       use_tier_pricing: sku.use_tier_pricing,
+      size_ml: sku.size_ml ? sku.size_ml.toString() : '',
     });
     
     // Load pricing tiers or use defaults
@@ -811,6 +822,26 @@ const SKUs = () => {
                   placeholder="Product description"
                   required
                 />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="size_ml">Size (ml)</Label>
+                <Select
+                  value={formData.size_ml}
+                  onValueChange={(value) => setFormData({ ...formData, size_ml: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select size" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="3">3 ml</SelectItem>
+                    <SelectItem value="5">5 ml</SelectItem>
+                    <SelectItem value="10">10 ml</SelectItem>
+                    <SelectItem value="20">20 ml</SelectItem>
+                    <SelectItem value="30">30 ml</SelectItem>
+                    <SelectItem value="50">50 ml</SelectItem>
+                    <SelectItem value="100">100 ml</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 {!formData.use_tier_pricing && (
@@ -971,6 +1002,7 @@ const SKUs = () => {
                   <TableHead className="w-10"></TableHead>
                   <TableHead>Code</TableHead>
                   <TableHead>Description</TableHead>
+                  <TableHead>Size</TableHead>
                   <TableHead>Piece Price</TableHead>
                   <TableHead>Label</TableHead>
                   <TableHead>Status</TableHead>
@@ -998,6 +1030,13 @@ const SKUs = () => {
                       </TableCell>
                       <TableCell className="font-mono font-medium">{sku.code}</TableCell>
                       <TableCell className="max-w-xs truncate">{sku.description}</TableCell>
+                      <TableCell>
+                        {sku.size_ml ? (
+                          <span className="text-sm">{sku.size_ml} ml</span>
+                        ) : (
+                          <span className="text-muted-foreground">-</span>
+                        )}
+                      </TableCell>
                       <TableCell>${sku.price_per_piece.toFixed(2)}</TableCell>
                       <TableCell>
                         {sku.label_required ? (
@@ -1025,7 +1064,7 @@ const SKUs = () => {
                     </TableRow>
                     {expandedRows.has(sku.id) && (
                       <TableRow>
-                        <TableCell colSpan={8} className="bg-muted/50">
+                        <TableCell colSpan={9} className="bg-muted/50">
                           <div className="py-2 px-4">
                             {sku.use_tier_pricing ? (
                               <>

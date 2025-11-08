@@ -528,6 +528,7 @@ export type Database = {
           label_required: boolean
           price_per_kit: number
           price_per_piece: number
+          size_ml: number | null
           updated_at: string
           use_tier_pricing: boolean
         }
@@ -540,6 +541,7 @@ export type Database = {
           label_required?: boolean
           price_per_kit: number
           price_per_piece: number
+          size_ml?: number | null
           updated_at?: string
           use_tier_pricing?: boolean
         }
@@ -552,6 +554,7 @@ export type Database = {
           label_required?: boolean
           price_per_kit?: number
           price_per_piece?: number
+          size_ml?: number | null
           updated_at?: string
           use_tier_pricing?: boolean
         }
