@@ -244,7 +244,7 @@ const OrderDetail = () => {
           <p className="text-muted-foreground mt-1">{order.customer.name}</p>
         </div>
         <div className="flex items-center gap-2">
-          {userRole === 'admin' && order.status === 'draft' && (
+          {userRole === 'admin' && (order.status === 'draft' || order.status === 'quoted') && (
             <Button variant="outline" onClick={() => navigate(`/orders/${id}/edit`)}>
               <Pencil className="h-4 w-4 mr-2" />
               Edit Order
