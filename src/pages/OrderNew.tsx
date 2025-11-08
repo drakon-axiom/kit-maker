@@ -41,6 +41,7 @@ const OrderNew = () => {
   const [selectedCustomer, setSelectedCustomer] = useState('');
   const [depositRequired, setDepositRequired] = useState(false);
   const [depositPercent, setDepositPercent] = useState(50);
+  const [labelRequired, setLabelRequired] = useState(false);
   const [lines, setLines] = useState<OrderLine[]>([]);
   const [kitSize, setKitSize] = useState(10);
   const [loading, setLoading] = useState(false);
@@ -201,6 +202,7 @@ const OrderNew = () => {
           deposit_required: depositRequired,
           deposit_amount: depositAmount,
           deposit_status: depositRequired ? 'unpaid' : 'paid',
+          label_required: labelRequired,
         }])
         .select()
         .single();
@@ -308,6 +310,17 @@ const OrderNew = () => {
                     <span className="text-sm text-muted-foreground">%</span>
                   </div>
                 )}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="labels">Labels Required</Label>
+                <Switch
+                  id="labels"
+                  checked={labelRequired}
+                  onCheckedChange={setLabelRequired}
+                />
               </div>
             </div>
           </CardContent>

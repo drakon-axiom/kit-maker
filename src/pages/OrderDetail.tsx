@@ -19,6 +19,7 @@ interface OrderDetail {
   deposit_required: boolean;
   deposit_amount: number;
   deposit_status: string;
+  label_required: boolean;
   eta_date: string | null;
   promised_date: string | null;
   created_at: string;
@@ -175,6 +176,12 @@ const OrderDetail = () => {
             <div className="flex justify-between">
               <span className="text-sm text-muted-foreground">Total Bottles</span>
               <span className="font-mono font-medium">{totalBottles}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-sm text-muted-foreground">Labels Required</span>
+              <Badge variant={order.label_required ? 'default' : 'outline'}>
+                {order.label_required ? 'Yes' : 'No'}
+              </Badge>
             </div>
             <div className="flex justify-between">
               <span className="text-sm text-muted-foreground">Subtotal</span>

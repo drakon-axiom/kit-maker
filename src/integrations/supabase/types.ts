@@ -357,6 +357,7 @@ export type Database = {
           eta_date: string | null
           human_uid: string
           id: string
+          label_required: boolean
           manual_payment_notes: string | null
           promised_date: string | null
           source_channel: string
@@ -374,6 +375,7 @@ export type Database = {
           eta_date?: string | null
           human_uid: string
           id?: string
+          label_required?: boolean
           manual_payment_notes?: string | null
           promised_date?: string | null
           source_channel?: string
@@ -391,6 +393,7 @@ export type Database = {
           eta_date?: string | null
           human_uid?: string
           id?: string
+          label_required?: boolean
           manual_payment_notes?: string | null
           promised_date?: string | null
           source_channel?: string
