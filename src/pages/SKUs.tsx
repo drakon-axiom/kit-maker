@@ -28,6 +28,7 @@ interface SKU {
   price_per_kit: number;
   price_per_piece: number;
   active: boolean;
+  use_tier_pricing: boolean;
   created_at: string;
   pricing_tiers?: PricingTier[];
 }
@@ -44,6 +45,7 @@ const SKUs = () => {
     price_per_kit: '',
     price_per_piece: '',
     active: true,
+    use_tier_pricing: false,
   });
   const [pricingTiers, setPricingTiers] = useState<PricingTier[]>([
     { min_quantity: 5, max_quantity: 10, price_per_kit: 0 },
@@ -97,6 +99,7 @@ const SKUs = () => {
         price_per_kit: parseFloat(formData.price_per_kit),
         price_per_piece: parseFloat(formData.price_per_piece),
         active: formData.active,
+        use_tier_pricing: formData.use_tier_pricing,
       };
 
       let skuId = editingSKU?.id;
@@ -114,6 +117,8 @@ const SKUs = () => {
           .from('sku_pricing_tiers')
           .delete()
           .eq('sku_id', editingSKU.id);
+        
+        skuId = editingSKU.id;
       } else {
         const { data, error } = await supabase
           .from('skus')
@@ -125,19 +130,21 @@ const SKUs = () => {
         skuId = data.id;
       }
 
-      // Insert pricing tiers
-      const tierInserts = pricingTiers.map(tier => ({
-        sku_id: skuId,
-        min_quantity: tier.min_quantity,
-        max_quantity: tier.max_quantity,
-        price_per_kit: tier.price_per_kit,
-      }));
+      // Insert pricing tiers only if tier pricing is enabled
+      if (formData.use_tier_pricing) {
+        const tierInserts = pricingTiers.map(tier => ({
+          sku_id: skuId,
+          min_quantity: tier.min_quantity,
+          max_quantity: tier.max_quantity,
+          price_per_kit: tier.price_per_kit,
+        }));
 
-      const { error: tiersError } = await supabase
-        .from('sku_pricing_tiers')
-        .insert(tierInserts);
+        const { error: tiersError } = await supabase
+          .from('sku_pricing_tiers')
+          .insert(tierInserts);
 
-      if (tiersError) throw tiersError;
+        if (tiersError) throw tiersError;
+      }
 
       toast({ 
         title: 'Success', 
@@ -164,6 +171,7 @@ const SKUs = () => {
       price_per_kit: '',
       price_per_piece: '',
       active: true,
+      use_tier_pricing: false,
     });
     setPricingTiers([
       { min_quantity: 5, max_quantity: 10, price_per_kit: 0 },
@@ -184,6 +192,7 @@ const SKUs = () => {
       price_per_kit: sku.price_per_kit.toString(),
       price_per_piece: sku.price_per_piece.toString(),
       active: sku.active,
+      use_tier_pricing: sku.use_tier_pricing,
     });
     
     // Load pricing tiers or use defaults
@@ -194,6 +203,15 @@ const SKUs = () => {
         max_quantity: t.max_quantity,
         price_per_kit: t.price_per_kit
       })));
+    } else {
+      // Reset to defaults if no tiers
+      setPricingTiers([
+        { min_quantity: 5, max_quantity: 10, price_per_kit: 0 },
+        { min_quantity: 11, max_quantity: 25, price_per_kit: 0 },
+        { min_quantity: 26, max_quantity: 50, price_per_kit: 0 },
+        { min_quantity: 51, max_quantity: 99, price_per_kit: 0 },
+        { min_quantity: 100, max_quantity: null, price_per_kit: 0 },
+      ]);
     }
     
     setDialogOpen(true);
@@ -298,6 +316,21 @@ const SKUs = () => {
                 />
               </div>
               
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="use_tier_pricing">Use Tier Pricing</Label>
+                  <Switch
+                    id="use_tier_pricing"
+                    checked={formData.use_tier_pricing}
+                    onCheckedChange={(checked) => setFormData({ ...formData, use_tier_pricing: checked })}
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Enable quantity-based pricing tiers for bulk orders
+                </p>
+              </div>
+              
+              {formData.use_tier_pricing && (
               <div className="space-y-4">
                 <div className="flex justify-between items-center">
                   <Label>Kit Pricing Tiers *</Label>
@@ -356,6 +389,7 @@ const SKUs = () => {
                   ))}
                 </div>
               </div>
+              )}
               <div className="flex items-center space-x-2">
                 <Switch
                   id="label_required"
@@ -450,24 +484,32 @@ const SKUs = () => {
                       <TableRow>
                         <TableCell colSpan={7} className="bg-muted/50">
                           <div className="py-2 px-4">
-                            <div className="text-sm font-semibold mb-2">Kit Pricing Tiers:</div>
-                            <div className="grid grid-cols-4 gap-4">
-                              {sku.pricing_tiers && sku.pricing_tiers.length > 0 ? (
-                                sku.pricing_tiers.map((tier, idx) => (
-                                  <div key={idx} className="bg-background p-3 rounded-md border">
-                                    <div className="text-xs text-muted-foreground mb-1">
-                                      {tier.min_quantity} - {tier.max_quantity || '∞'} kits
-                                    </div>
-                                    <div className="text-lg font-semibold">
-                                      ${tier.price_per_kit.toFixed(2)}
-                                    </div>
-                                    <div className="text-xs text-muted-foreground">per kit</div>
-                                  </div>
-                                ))
-                              ) : (
-                                <div className="text-sm text-muted-foreground">No pricing tiers</div>
-                              )}
-                            </div>
+                            {sku.use_tier_pricing ? (
+                              <>
+                                <div className="text-sm font-semibold mb-2">Kit Pricing Tiers:</div>
+                                <div className="grid grid-cols-4 gap-4">
+                                  {sku.pricing_tiers && sku.pricing_tiers.length > 0 ? (
+                                    sku.pricing_tiers.map((tier, idx) => (
+                                      <div key={idx} className="bg-background p-3 rounded-md border">
+                                        <div className="text-xs text-muted-foreground mb-1">
+                                          {tier.min_quantity} - {tier.max_quantity || '∞'} kits
+                                        </div>
+                                        <div className="text-lg font-semibold">
+                                          ${tier.price_per_kit.toFixed(2)}
+                                        </div>
+                                        <div className="text-xs text-muted-foreground">per kit</div>
+                                      </div>
+                                    ))
+                                  ) : (
+                                    <div className="text-sm text-muted-foreground">No pricing tiers configured</div>
+                                  )}
+                                </div>
+                              </>
+                            ) : (
+                              <div className="text-sm text-muted-foreground">
+                                Standard pricing: ${sku.price_per_kit.toFixed(2)} per kit (no tiers)
+                              </div>
+                            )}
                           </div>
                         </TableCell>
                       </TableRow>

@@ -29,6 +29,7 @@ interface SKU {
   description: string;
   price_per_kit: number;
   price_per_piece: number;
+  use_tier_pricing: boolean;
   pricing_tiers?: PricingTier[];
 }
 
@@ -139,7 +140,7 @@ const OrderEdit = () => {
   };
 
   const getPriceForQuantity = (sku: SKU, quantity: number): number => {
-    if (!sku.pricing_tiers || sku.pricing_tiers.length === 0) {
+    if (!sku.use_tier_pricing || !sku.pricing_tiers || sku.pricing_tiers.length === 0) {
       return sku.price_per_kit;
     }
 
@@ -148,6 +149,13 @@ const OrderEdit = () => {
     );
 
     return tier ? tier.price_per_kit : sku.price_per_kit;
+  };
+
+  const getMinimumOrderQuantity = (sku: SKU): number => {
+    if (!sku.use_tier_pricing || !sku.pricing_tiers || sku.pricing_tiers.length === 0) {
+      return 1;
+    }
+    return Math.min(...sku.pricing_tiers.map(t => t.min_quantity));
   };
 
   const addLine = () => {
@@ -186,6 +194,13 @@ const OrderEdit = () => {
         line.sku_id = sku.id;
         line.sku_code = sku.code;
         line.sku_description = sku.description;
+        
+        // Set quantity to MOQ if tier pricing is enabled
+        if (line.sell_mode === 'kit' && sku.use_tier_pricing) {
+          const moq = getMinimumOrderQuantity(sku);
+          line.qty_entered = Math.max(line.qty_entered, moq);
+        }
+        
         if (line.sell_mode === 'kit') {
           line.unit_price = getPriceForQuantity(sku, line.qty_entered);
         } else {
@@ -196,6 +211,13 @@ const OrderEdit = () => {
       const sku = skus.find(s => s.id === line.sku_id);
       if (sku) {
         line.sell_mode = value as 'kit' | 'piece';
+        
+        // Set quantity to MOQ if switching to kit mode with tier pricing
+        if (value === 'kit' && sku.use_tier_pricing) {
+          const moq = getMinimumOrderQuantity(sku);
+          line.qty_entered = Math.max(line.qty_entered, moq);
+        }
+        
         if (value === 'kit') {
           line.unit_price = getPriceForQuantity(sku, line.qty_entered);
         } else {
@@ -203,13 +225,29 @@ const OrderEdit = () => {
         }
       }
     } else if (field === 'qty_entered') {
-      line.qty_entered = parseInt(value) || 0;
-      // Update price based on quantity tier for kit mode
-      if (line.sell_mode === 'kit') {
-        const sku = skus.find(s => s.id === line.sku_id);
-        if (sku) {
-          line.unit_price = getPriceForQuantity(sku, line.qty_entered);
+      const enteredQty = parseInt(value) || 0;
+      const sku = skus.find(s => s.id === line.sku_id);
+      
+      // Enforce MOQ for kit mode with tier pricing
+      if (line.sell_mode === 'kit' && sku?.use_tier_pricing) {
+        const moq = getMinimumOrderQuantity(sku);
+        if (enteredQty < moq && enteredQty > 0) {
+          toast({
+            title: 'Minimum Order Quantity',
+            description: `This product requires a minimum order of ${moq} kits`,
+            variant: 'destructive',
+          });
+          line.qty_entered = moq;
+        } else {
+          line.qty_entered = enteredQty;
         }
+      } else {
+        line.qty_entered = enteredQty;
+      }
+      
+      // Update price based on quantity tier for kit mode
+      if (line.sell_mode === 'kit' && sku) {
+        line.unit_price = getPriceForQuantity(sku, line.qty_entered);
       }
     }
 
@@ -476,13 +514,29 @@ const OrderEdit = () => {
                         </Select>
                       </TableCell>
                       <TableCell>
-                        <Input
-                          type="number"
-                          min="1"
-                          value={line.qty_entered}
-                          onChange={(e) => updateLine(index, 'qty_entered', e.target.value)}
-                          className="w-20"
-                        />
+                        <div>
+                          <Input
+                            type="number"
+                            min={line.sell_mode === 'kit' ? (() => {
+                              const sku = skus.find(s => s.id === line.sku_id);
+                              return sku?.use_tier_pricing ? getMinimumOrderQuantity(sku) : 1;
+                            })() : 1}
+                            value={line.qty_entered}
+                            onChange={(e) => updateLine(index, 'qty_entered', e.target.value)}
+                            className="w-20"
+                          />
+                          {line.sell_mode === 'kit' && (() => {
+                            const sku = skus.find(s => s.id === line.sku_id);
+                            if (sku?.use_tier_pricing) {
+                              const moq = getMinimumOrderQuantity(sku);
+                              return (
+                                <div className="text-xs text-muted-foreground mt-1">
+                                  Min: {moq}
+                                </div>
+                              );
+                            }
+                          })()}
+                        </div>
                       </TableCell>
                       <TableCell className="font-mono">{line.bottle_qty}</TableCell>
                       <TableCell>${line.unit_price.toFixed(2)}</TableCell>

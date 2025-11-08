@@ -529,6 +529,7 @@ export type Database = {
           price_per_kit: number
           price_per_piece: number
           updated_at: string
+          use_tier_pricing: boolean
         }
         Insert: {
           active?: boolean
@@ -540,6 +541,7 @@ export type Database = {
           price_per_kit: number
           price_per_piece: number
           updated_at?: string
+          use_tier_pricing?: boolean
         }
         Update: {
           active?: boolean
@@ -551,6 +553,7 @@ export type Database = {
           price_per_kit?: number
           price_per_piece?: number
           updated_at?: string
+          use_tier_pricing?: boolean
         }
         Relationships: []
       }
