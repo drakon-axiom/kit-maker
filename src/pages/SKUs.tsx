@@ -246,7 +246,7 @@ const SKUs = () => {
               Add SKU
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-2xl">
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>{editingSKU ? 'Edit SKU' : 'Add New SKU'}</DialogTitle>
               <DialogDescription>
