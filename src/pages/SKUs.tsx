@@ -304,16 +304,31 @@ const SKUs = () => {
                   required
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="price_per_piece">Price per Piece ($) *</Label>
-                <Input
-                  id="price_per_piece"
-                  type="number"
-                  step="0.01"
-                  value={formData.price_per_piece}
-                  onChange={(e) => setFormData({ ...formData, price_per_piece: e.target.value })}
-                  required
-                />
+              <div className="grid grid-cols-2 gap-4">
+                {!formData.use_tier_pricing && (
+                  <div className="space-y-2">
+                    <Label htmlFor="price_per_kit">Price per Kit ($) *</Label>
+                    <Input
+                      id="price_per_kit"
+                      type="number"
+                      step="0.01"
+                      value={formData.price_per_kit}
+                      onChange={(e) => setFormData({ ...formData, price_per_kit: e.target.value })}
+                      required
+                    />
+                  </div>
+                )}
+                <div className="space-y-2">
+                  <Label htmlFor="price_per_piece">Price per Piece ($) *</Label>
+                  <Input
+                    id="price_per_piece"
+                    type="number"
+                    step="0.01"
+                    value={formData.price_per_piece}
+                    onChange={(e) => setFormData({ ...formData, price_per_piece: e.target.value })}
+                    required
+                  />
+                </div>
               </div>
               
               <div className="space-y-2">
