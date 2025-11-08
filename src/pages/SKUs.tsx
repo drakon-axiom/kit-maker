@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
@@ -7,12 +7,15 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Plus, Pencil, Loader2, Trash2, ChevronDown, ChevronRight, Check } from 'lucide-react';
+import { Plus, Pencil, Loader2, Trash2, ChevronDown, ChevronRight, Check, Upload, AlertCircle } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import Papa from 'papaparse';
+import * as XLSX from 'xlsx';
 
 interface PricingTier {
   id?: string;
@@ -34,6 +37,16 @@ interface SKU {
   pricing_tiers?: PricingTier[];
 }
 
+interface ImportRow {
+  code: string;
+  description: string;
+  price_per_kit: string;
+  price_per_piece: string;
+  label_required: string;
+  active: string;
+  errors?: string[];
+}
+
 const SKUs = () => {
   const [skus, setSKUs] = useState<SKU[]>([]);
   const [loading, setLoading] = useState(true);
@@ -47,6 +60,10 @@ const SKUs = () => {
     label_required: false,
     price_per_piece: '',
   });
+  const [importOpen, setImportOpen] = useState(false);
+  const [importData, setImportData] = useState<ImportRow[]>([]);
+  const [importing, setImporting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [formData, setFormData] = useState({
     code: '',
     description: '',
@@ -250,6 +267,173 @@ const SKUs = () => {
     }
   };
 
+  const validateImportRow = (row: any, index: number): ImportRow => {
+    const errors: string[] = [];
+    
+    if (!row.code || row.code.trim() === '') {
+      errors.push('Code is required');
+    }
+    
+    if (!row.description || row.description.trim() === '') {
+      errors.push('Description is required');
+    }
+    
+    const pricePerKit = parseFloat(row.price_per_kit);
+    if (isNaN(pricePerKit) || pricePerKit < 0) {
+      errors.push('Price per kit must be a valid positive number');
+    }
+    
+    const pricePerPiece = parseFloat(row.price_per_piece);
+    if (isNaN(pricePerPiece) || pricePerPiece < 0) {
+      errors.push('Price per piece must be a valid positive number');
+    }
+    
+    const labelRequired = row.label_required?.toString().toLowerCase();
+    if (labelRequired && !['true', 'false', 'yes', 'no', '1', '0'].includes(labelRequired)) {
+      errors.push('Label required must be true/false, yes/no, or 1/0');
+    }
+    
+    const active = row.active?.toString().toLowerCase();
+    if (active && !['true', 'false', 'yes', 'no', '1', '0'].includes(active)) {
+      errors.push('Active must be true/false, yes/no, or 1/0');
+    }
+    
+    return {
+      code: row.code || '',
+      description: row.description || '',
+      price_per_kit: row.price_per_kit || '',
+      price_per_piece: row.price_per_piece || '',
+      label_required: row.label_required || 'false',
+      active: row.active || 'true',
+      errors: errors.length > 0 ? errors : undefined,
+    };
+  };
+
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const fileExtension = file.name.split('.').pop()?.toLowerCase();
+
+    if (fileExtension === 'csv') {
+      Papa.parse(file, {
+        header: true,
+        skipEmptyLines: true,
+        complete: (results) => {
+          const validatedData = results.data.map((row, index) => validateImportRow(row, index));
+          setImportData(validatedData);
+        },
+        error: (error) => {
+          toast({
+            title: 'Error parsing CSV',
+            description: error.message,
+            variant: 'destructive',
+          });
+        },
+      });
+    } else if (['xlsx', 'xls'].includes(fileExtension || '')) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const data = new Uint8Array(e.target?.result as ArrayBuffer);
+          const workbook = XLSX.read(data, { type: 'array' });
+          const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+          const jsonData = XLSX.utils.sheet_to_json(firstSheet);
+          const validatedData = jsonData.map((row, index) => validateImportRow(row, index));
+          setImportData(validatedData);
+        } catch (error: any) {
+          toast({
+            title: 'Error parsing Excel file',
+            description: error.message,
+            variant: 'destructive',
+          });
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    } else {
+      toast({
+        title: 'Invalid file format',
+        description: 'Please upload a CSV or Excel file',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleImport = async () => {
+    const validRows = importData.filter(row => !row.errors);
+    
+    if (validRows.length === 0) {
+      toast({
+        title: 'No valid rows',
+        description: 'Please fix all errors before importing',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setImporting(true);
+
+    try {
+      const insertData = validRows.map(row => ({
+        code: row.code.trim(),
+        description: row.description.trim(),
+        price_per_kit: parseFloat(row.price_per_kit),
+        price_per_piece: parseFloat(row.price_per_piece),
+        label_required: ['true', 'yes', '1'].includes(row.label_required.toLowerCase()),
+        active: ['true', 'yes', '1'].includes(row.active.toLowerCase()) || row.active === '',
+        use_tier_pricing: false,
+      }));
+
+      const { error } = await supabase
+        .from('skus')
+        .insert(insertData);
+
+      if (error) throw error;
+
+      toast({
+        title: 'Success',
+        description: `Imported ${validRows.length} SKU(s) successfully`,
+      });
+
+      setImportOpen(false);
+      setImportData([]);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+      fetchSKUs();
+    } catch (error: any) {
+      toast({
+        title: 'Error importing SKUs',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const downloadTemplate = () => {
+    const template = [
+      {
+        code: 'EXAMPLE-001',
+        description: 'Example Product Description',
+        price_per_kit: '25.00',
+        price_per_piece: '2.50',
+        label_required: 'false',
+        active: 'true',
+      }
+    ];
+
+    const csv = Papa.unparse(template);
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'sku_import_template.csv';
+    a.click();
+    window.URL.revokeObjectURL(url);
+  };
+
   const resetForm = () => {
     setFormData({
       code: '',
@@ -348,6 +532,10 @@ const SKUs = () => {
               Edit {selectedSKUs.size} Selected
             </Button>
           )}
+          <Button variant="outline" onClick={() => setImportOpen(true)}>
+            <Upload className="mr-2 h-4 w-4" />
+            Import
+          </Button>
           <Dialog open={dialogOpen} onOpenChange={(open) => {
             setDialogOpen(open);
             if (!open) resetForm();
@@ -650,6 +838,130 @@ const SKUs = () => {
           )}
         </CardContent>
       </Card>
+
+      {/* Import Dialog */}
+      <Dialog open={importOpen} onOpenChange={(open) => {
+        setImportOpen(open);
+        if (!open) {
+          setImportData([]);
+          if (fileInputRef.current) {
+            fileInputRef.current.value = '';
+          }
+        }
+      }}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Import SKUs from File</DialogTitle>
+            <DialogDescription>
+              Upload a CSV or Excel file to bulk import products
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <Alert>
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>Required Format</AlertTitle>
+              <AlertDescription>
+                Your file must include columns: <strong>code</strong>, <strong>description</strong>, <strong>price_per_kit</strong>, <strong>price_per_piece</strong>, <strong>label_required</strong>, <strong>active</strong>
+              </AlertDescription>
+            </Alert>
+            
+            <div className="flex gap-2">
+              <Input
+                ref={fileInputRef}
+                type="file"
+                accept=".csv,.xlsx,.xls"
+                onChange={handleFileUpload}
+                className="flex-1"
+              />
+              <Button variant="outline" onClick={downloadTemplate}>
+                Download Template
+              </Button>
+            </div>
+
+            {importData.length > 0 && (
+              <>
+                <div className="flex items-center justify-between">
+                  <div className="text-sm text-muted-foreground">
+                    {importData.filter(r => !r.errors).length} valid rows, {importData.filter(r => r.errors).length} with errors
+                  </div>
+                </div>
+
+                <div className="border rounded-md max-h-96 overflow-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Code</TableHead>
+                        <TableHead>Description</TableHead>
+                        <TableHead>Kit Price</TableHead>
+                        <TableHead>Piece Price</TableHead>
+                        <TableHead>Label</TableHead>
+                        <TableHead>Active</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {importData.map((row, index) => (
+                        <TableRow key={index} className={row.errors ? 'bg-destructive/10' : ''}>
+                          <TableCell>
+                            {row.errors ? (
+                              <Badge variant="destructive">Error</Badge>
+                            ) : (
+                              <Badge className="bg-success">Valid</Badge>
+                            )}
+                          </TableCell>
+                          <TableCell className="font-mono">{row.code}</TableCell>
+                          <TableCell className="max-w-xs truncate">{row.description}</TableCell>
+                          <TableCell>${row.price_per_kit}</TableCell>
+                          <TableCell>${row.price_per_piece}</TableCell>
+                          <TableCell>{row.label_required}</TableCell>
+                          <TableCell>{row.active}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+
+                {importData.some(r => r.errors) && (
+                  <Alert variant="destructive">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertTitle>Validation Errors</AlertTitle>
+                    <AlertDescription>
+                      <div className="mt-2 space-y-1">
+                        {importData.map((row, index) => 
+                          row.errors?.map((error, errIdx) => (
+                            <div key={`${index}-${errIdx}`} className="text-sm">
+                              Row {index + 1}: {error}
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </AlertDescription>
+                  </Alert>
+                )}
+
+                <div className="flex gap-2 justify-end">
+                  <Button variant="outline" onClick={() => setImportOpen(false)} disabled={importing}>
+                    Cancel
+                  </Button>
+                  <Button 
+                    onClick={handleImport} 
+                    disabled={importing || importData.filter(r => !r.errors).length === 0}
+                  >
+                    {importing ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Importing...
+                      </>
+                    ) : (
+                      `Import ${importData.filter(r => !r.errors).length} SKU(s)`
+                    )}
+                  </Button>
+                </div>
+              </>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Bulk Edit Dialog */}
       <Dialog open={bulkEditOpen} onOpenChange={setBulkEditOpen}>
