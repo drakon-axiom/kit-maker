@@ -7,10 +7,18 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Plus, Pencil, Loader2 } from 'lucide-react';
+import { Plus, Pencil, Loader2, Trash2, ChevronDown, ChevronRight } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+
+interface PricingTier {
+  id?: string;
+  min_quantity: number;
+  max_quantity: number | null;
+  price_per_kit: number;
+}
 
 interface SKU {
   id: string;
@@ -21,6 +29,7 @@ interface SKU {
   price_per_piece: number;
   active: boolean;
   created_at: string;
+  pricing_tiers?: PricingTier[];
 }
 
 const SKUs = () => {
@@ -36,6 +45,14 @@ const SKUs = () => {
     price_per_piece: '',
     active: true,
   });
+  const [pricingTiers, setPricingTiers] = useState<PricingTier[]>([
+    { min_quantity: 5, max_quantity: 10, price_per_kit: 0 },
+    { min_quantity: 11, max_quantity: 25, price_per_kit: 0 },
+    { min_quantity: 26, max_quantity: 50, price_per_kit: 0 },
+    { min_quantity: 51, max_quantity: 99, price_per_kit: 0 },
+    { min_quantity: 100, max_quantity: null, price_per_kit: 0 },
+  ]);
+  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const { toast } = useToast();
 
   useEffect(() => {
@@ -46,11 +63,18 @@ const SKUs = () => {
     try {
       const { data, error } = await supabase
         .from('skus')
-        .select('*')
+        .select(`
+          *,
+          pricing_tiers:sku_pricing_tiers(*)
+        `)
         .order('code');
 
       if (error) throw error;
-      setSKUs(data || []);
+      const skusWithTiers = (data || []).map(sku => ({
+        ...sku,
+        pricing_tiers: sku.pricing_tiers?.sort((a: PricingTier, b: PricingTier) => a.min_quantity - b.min_quantity) || []
+      }));
+      setSKUs(skusWithTiers);
     } catch (error: any) {
       toast({
         title: 'Error',
@@ -75,6 +99,8 @@ const SKUs = () => {
         active: formData.active,
       };
 
+      let skuId = editingSKU?.id;
+
       if (editingSKU) {
         const { error } = await supabase
           .from('skus')
@@ -82,15 +108,41 @@ const SKUs = () => {
           .eq('id', editingSKU.id);
 
         if (error) throw error;
-        toast({ title: 'Success', description: 'SKU updated successfully' });
+
+        // Delete existing tiers
+        await supabase
+          .from('sku_pricing_tiers')
+          .delete()
+          .eq('sku_id', editingSKU.id);
       } else {
-        const { error } = await supabase
+        const { data, error } = await supabase
           .from('skus')
-          .insert([payload]);
+          .insert([payload])
+          .select()
+          .single();
 
         if (error) throw error;
-        toast({ title: 'Success', description: 'SKU created successfully' });
+        skuId = data.id;
       }
+
+      // Insert pricing tiers
+      const tierInserts = pricingTiers.map(tier => ({
+        sku_id: skuId,
+        min_quantity: tier.min_quantity,
+        max_quantity: tier.max_quantity,
+        price_per_kit: tier.price_per_kit,
+      }));
+
+      const { error: tiersError } = await supabase
+        .from('sku_pricing_tiers')
+        .insert(tierInserts);
+
+      if (tiersError) throw tiersError;
+
+      toast({ 
+        title: 'Success', 
+        description: editingSKU ? 'SKU updated successfully' : 'SKU created successfully' 
+      });
 
       setDialogOpen(false);
       resetForm();
@@ -113,6 +165,13 @@ const SKUs = () => {
       price_per_piece: '',
       active: true,
     });
+    setPricingTiers([
+      { min_quantity: 5, max_quantity: 10, price_per_kit: 0 },
+      { min_quantity: 11, max_quantity: 25, price_per_kit: 0 },
+      { min_quantity: 26, max_quantity: 50, price_per_kit: 0 },
+      { min_quantity: 51, max_quantity: 99, price_per_kit: 0 },
+      { min_quantity: 100, max_quantity: null, price_per_kit: 0 },
+    ]);
     setEditingSKU(null);
   };
 
@@ -126,7 +185,48 @@ const SKUs = () => {
       price_per_piece: sku.price_per_piece.toString(),
       active: sku.active,
     });
+    
+    // Load pricing tiers or use defaults
+    if (sku.pricing_tiers && sku.pricing_tiers.length > 0) {
+      setPricingTiers(sku.pricing_tiers.map(t => ({
+        id: t.id,
+        min_quantity: t.min_quantity,
+        max_quantity: t.max_quantity,
+        price_per_kit: t.price_per_kit
+      })));
+    }
+    
     setDialogOpen(true);
+  };
+
+  const updateTier = (index: number, field: keyof PricingTier, value: any) => {
+    const newTiers = [...pricingTiers];
+    newTiers[index] = { ...newTiers[index], [field]: value };
+    setPricingTiers(newTiers);
+  };
+
+  const addTier = () => {
+    const lastTier = pricingTiers[pricingTiers.length - 1];
+    const newMin = lastTier.max_quantity ? lastTier.max_quantity + 1 : 100;
+    setPricingTiers([...pricingTiers, {
+      min_quantity: newMin,
+      max_quantity: newMin + 10,
+      price_per_kit: 0
+    }]);
+  };
+
+  const removeTier = (index: number) => {
+    setPricingTiers(pricingTiers.filter((_, i) => i !== index));
+  };
+
+  const toggleRow = (skuId: string) => {
+    const newExpanded = new Set(expandedRows);
+    if (newExpanded.has(skuId)) {
+      newExpanded.delete(skuId);
+    } else {
+      newExpanded.add(skuId);
+    }
+    setExpandedRows(newExpanded);
   };
 
   return (
@@ -186,28 +286,74 @@ const SKUs = () => {
                   required
                 />
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="price_per_kit">Price per Kit ($) *</Label>
-                  <Input
-                    id="price_per_kit"
-                    type="number"
-                    step="0.01"
-                    value={formData.price_per_kit}
-                    onChange={(e) => setFormData({ ...formData, price_per_kit: e.target.value })}
-                    required
-                  />
+              <div className="space-y-2">
+                <Label htmlFor="price_per_piece">Price per Piece ($) *</Label>
+                <Input
+                  id="price_per_piece"
+                  type="number"
+                  step="0.01"
+                  value={formData.price_per_piece}
+                  onChange={(e) => setFormData({ ...formData, price_per_piece: e.target.value })}
+                  required
+                />
+              </div>
+              
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <Label>Kit Pricing Tiers *</Label>
+                  <Button type="button" variant="outline" size="sm" onClick={addTier}>
+                    <Plus className="h-3 w-3 mr-1" />
+                    Add Tier
+                  </Button>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="price_per_piece">Price per Piece ($) *</Label>
-                  <Input
-                    id="price_per_piece"
-                    type="number"
-                    step="0.01"
-                    value={formData.price_per_piece}
-                    onChange={(e) => setFormData({ ...formData, price_per_piece: e.target.value })}
-                    required
-                  />
+                  {pricingTiers.map((tier, index) => (
+                    <div key={index} className="grid grid-cols-12 gap-2 items-end">
+                      <div className="col-span-3 space-y-1">
+                        <Label className="text-xs">Min Qty</Label>
+                        <Input
+                          type="number"
+                          min="1"
+                          value={tier.min_quantity}
+                          onChange={(e) => updateTier(index, 'min_quantity', parseInt(e.target.value) || 0)}
+                          required
+                        />
+                      </div>
+                      <div className="col-span-3 space-y-1">
+                        <Label className="text-xs">Max Qty</Label>
+                        <Input
+                          type="number"
+                          min="1"
+                          placeholder="Unlimited"
+                          value={tier.max_quantity || ''}
+                          onChange={(e) => updateTier(index, 'max_quantity', e.target.value ? parseInt(e.target.value) : null)}
+                        />
+                      </div>
+                      <div className="col-span-5 space-y-1">
+                        <Label className="text-xs">Price per Kit ($)</Label>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={tier.price_per_kit}
+                          onChange={(e) => updateTier(index, 'price_per_kit', parseFloat(e.target.value) || 0)}
+                          required
+                        />
+                      </div>
+                      <div className="col-span-1">
+                        {pricingTiers.length > 1 && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removeTier(index)}
+                          >
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
               <div className="flex items-center space-x-2">
@@ -251,9 +397,9 @@ const SKUs = () => {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-10"></TableHead>
                   <TableHead>Code</TableHead>
                   <TableHead>Description</TableHead>
-                  <TableHead>Kit Price</TableHead>
                   <TableHead>Piece Price</TableHead>
                   <TableHead>Label</TableHead>
                   <TableHead>Status</TableHead>
@@ -262,35 +408,71 @@ const SKUs = () => {
               </TableHeader>
               <TableBody>
                 {skus.map((sku) => (
-                  <TableRow key={sku.id}>
-                    <TableCell className="font-mono font-medium">{sku.code}</TableCell>
-                    <TableCell className="max-w-xs truncate">{sku.description}</TableCell>
-                    <TableCell>${sku.price_per_kit.toFixed(2)}</TableCell>
-                    <TableCell>${sku.price_per_piece.toFixed(2)}</TableCell>
-                    <TableCell>
-                      {sku.label_required ? (
-                        <Badge variant="secondary">Required</Badge>
-                      ) : (
-                        <span className="text-muted-foreground">-</span>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {sku.active ? (
-                        <Badge className="bg-success">Active</Badge>
-                      ) : (
-                        <Badge variant="outline">Inactive</Badge>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => openEditDialog(sku)}
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
+                  <>
+                    <TableRow key={sku.id} className="cursor-pointer" onClick={() => toggleRow(sku.id)}>
+                      <TableCell>
+                        <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
+                          {expandedRows.has(sku.id) ? (
+                            <ChevronDown className="h-4 w-4" />
+                          ) : (
+                            <ChevronRight className="h-4 w-4" />
+                          )}
+                        </Button>
+                      </TableCell>
+                      <TableCell className="font-mono font-medium">{sku.code}</TableCell>
+                      <TableCell className="max-w-xs truncate">{sku.description}</TableCell>
+                      <TableCell>${sku.price_per_piece.toFixed(2)}</TableCell>
+                      <TableCell>
+                        {sku.label_required ? (
+                          <Badge variant="secondary">Required</Badge>
+                        ) : (
+                          <span className="text-muted-foreground">-</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {sku.active ? (
+                          <Badge className="bg-success">Active</Badge>
+                        ) : (
+                          <Badge variant="outline">Inactive</Badge>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => openEditDialog(sku)}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                    {expandedRows.has(sku.id) && (
+                      <TableRow>
+                        <TableCell colSpan={7} className="bg-muted/50">
+                          <div className="py-2 px-4">
+                            <div className="text-sm font-semibold mb-2">Kit Pricing Tiers:</div>
+                            <div className="grid grid-cols-4 gap-4">
+                              {sku.pricing_tiers && sku.pricing_tiers.length > 0 ? (
+                                sku.pricing_tiers.map((tier, idx) => (
+                                  <div key={idx} className="bg-background p-3 rounded-md border">
+                                    <div className="text-xs text-muted-foreground mb-1">
+                                      {tier.min_quantity} - {tier.max_quantity || '∞'} kits
+                                    </div>
+                                    <div className="text-lg font-semibold">
+                                      ${tier.price_per_kit.toFixed(2)}
+                                    </div>
+                                    <div className="text-xs text-muted-foreground">per kit</div>
+                                  </div>
+                                ))
+                              ) : (
+                                <div className="text-sm text-muted-foreground">No pricing tiers</div>
+                              )}
+                            </div>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </>
                 ))}
               </TableBody>
             </Table>

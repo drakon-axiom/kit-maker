@@ -16,12 +16,20 @@ interface Customer {
   name: string;
 }
 
+interface PricingTier {
+  id: string;
+  min_quantity: number;
+  max_quantity: number | null;
+  price_per_kit: number;
+}
+
 interface SKU {
   id: string;
   code: string;
   description: string;
   price_per_kit: number;
   price_per_piece: number;
+  pricing_tiers?: PricingTier[];
 }
 
 interface OrderLine {
@@ -56,7 +64,10 @@ const OrderNew = () => {
     try {
       const [customersRes, skusRes, settingsRes] = await Promise.all([
         supabase.from('customers').select('id, name').order('name'),
-        supabase.from('skus').select('*').eq('active', true).order('code'),
+        supabase.from('skus').select(`
+          *,
+          pricing_tiers:sku_pricing_tiers(*)
+        `).eq('active', true).order('code'),
         supabase.from('settings').select('*'),
       ]);
 
@@ -65,7 +76,11 @@ const OrderNew = () => {
       if (settingsRes.error) throw settingsRes.error;
 
       setCustomers(customersRes.data || []);
-      setSKUs(skusRes.data || []);
+      const skusWithTiers = (skusRes.data || []).map(sku => ({
+        ...sku,
+        pricing_tiers: sku.pricing_tiers?.sort((a: PricingTier, b: PricingTier) => a.min_quantity - b.min_quantity) || []
+      }));
+      setSKUs(skusWithTiers);
 
       const kitSizeSetting = settingsRes.data?.find(s => s.key === 'kit_size');
       const depositSetting = settingsRes.data?.find(s => s.key === 'default_deposit_percent');
@@ -81,6 +96,18 @@ const OrderNew = () => {
     }
   };
 
+  const getPriceForQuantity = (sku: SKU, quantity: number): number => {
+    if (!sku.pricing_tiers || sku.pricing_tiers.length === 0) {
+      return sku.price_per_kit;
+    }
+
+    const tier = sku.pricing_tiers.find(t => 
+      quantity >= t.min_quantity && (t.max_quantity === null || quantity <= t.max_quantity)
+    );
+
+    return tier ? tier.price_per_kit : sku.price_per_kit;
+  };
+
   const addLine = () => {
     if (skus.length === 0) {
       toast({
@@ -92,14 +119,16 @@ const OrderNew = () => {
     }
 
     const firstSKU = skus[0];
+    const kitQty = 1;
+    const unitPrice = getPriceForQuantity(firstSKU, kitQty);
     const newLine: OrderLine = {
       sku_id: firstSKU.id,
       sku_code: firstSKU.code,
       sku_description: firstSKU.description,
       sell_mode: 'kit',
-      qty_entered: 1,
-      unit_price: firstSKU.price_per_kit,
-      line_subtotal: firstSKU.price_per_kit,
+      qty_entered: kitQty,
+      unit_price: unitPrice,
+      line_subtotal: unitPrice,
       bottle_qty: kitSize,
     };
     setLines([...lines, newLine]);
@@ -115,16 +144,31 @@ const OrderNew = () => {
         line.sku_id = sku.id;
         line.sku_code = sku.code;
         line.sku_description = sku.description;
-        line.unit_price = line.sell_mode === 'kit' ? sku.price_per_kit : sku.price_per_piece;
+        if (line.sell_mode === 'kit') {
+          line.unit_price = getPriceForQuantity(sku, line.qty_entered);
+        } else {
+          line.unit_price = sku.price_per_piece;
+        }
       }
     } else if (field === 'sell_mode') {
       const sku = skus.find(s => s.id === line.sku_id);
       if (sku) {
         line.sell_mode = value as 'kit' | 'piece';
-        line.unit_price = value === 'kit' ? sku.price_per_kit : sku.price_per_piece;
+        if (value === 'kit') {
+          line.unit_price = getPriceForQuantity(sku, line.qty_entered);
+        } else {
+          line.unit_price = sku.price_per_piece;
+        }
       }
     } else if (field === 'qty_entered') {
       line.qty_entered = parseInt(value) || 0;
+      // Update price based on quantity tier for kit mode
+      if (line.sell_mode === 'kit') {
+        const sku = skus.find(s => s.id === line.sku_id);
+        if (sku) {
+          line.unit_price = getPriceForQuantity(sku, line.qty_entered);
+        }
+      }
     }
 
     // Recalculate

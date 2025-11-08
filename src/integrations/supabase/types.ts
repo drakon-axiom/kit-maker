@@ -480,6 +480,44 @@ export type Database = {
           },
         ]
       }
+      sku_pricing_tiers: {
+        Row: {
+          created_at: string
+          id: string
+          max_quantity: number | null
+          min_quantity: number
+          price_per_kit: number
+          sku_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          max_quantity?: number | null
+          min_quantity: number
+          price_per_kit: number
+          sku_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          max_quantity?: number | null
+          min_quantity?: number
+          price_per_kit?: number
+          sku_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sku_pricing_tiers_sku_id_fkey"
+            columns: ["sku_id"]
+            isOneToOne: false
+            referencedRelation: "skus"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       skus: {
         Row: {
           active: boolean
