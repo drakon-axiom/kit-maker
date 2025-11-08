@@ -14,7 +14,6 @@ import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
 
@@ -34,9 +33,9 @@ interface SKU {
   price_per_piece: number;
   active: boolean;
   use_tier_pricing: boolean;
-  size_ml: number | null;
   created_at: string;
   pricing_tiers?: PricingTier[];
+  sizes?: Array<{ id: string; size_ml: number }>;
 }
 
 interface ImportRow {
@@ -47,7 +46,7 @@ interface ImportRow {
   label_required: string;
   active: string;
   use_tier_pricing: string;
-  size_ml?: string;
+  sizes?: string;
   tier1_min?: string;
   tier1_max?: string;
   tier1_price?: string;
@@ -67,6 +66,7 @@ interface ImportRow {
   action?: 'create' | 'update';
   existingId?: string;
   tiers?: Array<{ min_quantity: number; max_quantity: number | null; price_per_kit: number }>;
+  sizesArray?: number[];
 }
 
 const SKUs = () => {
@@ -94,7 +94,7 @@ const SKUs = () => {
     price_per_piece: '',
     active: true,
     use_tier_pricing: false,
-    size_ml: '',
+    sizes: [] as number[],
   });
   const [pricingTiers, setPricingTiers] = useState<PricingTier[]>([
     { min_quantity: 5, max_quantity: 10, price_per_kit: 0 },
@@ -116,14 +116,16 @@ const SKUs = () => {
         .from('skus')
         .select(`
           *,
-          pricing_tiers:sku_pricing_tiers(*)
+          pricing_tiers:sku_pricing_tiers(*),
+          sizes:sku_sizes(id, size_ml)
         `)
         .order('code');
 
       if (error) throw error;
       const skusWithTiers = (data || []).map(sku => ({
         ...sku,
-        pricing_tiers: sku.pricing_tiers?.sort((a: PricingTier, b: PricingTier) => a.min_quantity - b.min_quantity) || []
+        pricing_tiers: sku.pricing_tiers?.sort((a: PricingTier, b: PricingTier) => a.min_quantity - b.min_quantity) || [],
+        sizes: sku.sizes?.sort((a: any, b: any) => a.size_ml - b.size_ml) || []
       }));
       setSKUs(skusWithTiers);
     } catch (error: any) {
@@ -150,7 +152,6 @@ const SKUs = () => {
         price_per_piece: parseFloat(formData.price_per_piece),
         active: formData.active,
         use_tier_pricing: formData.use_tier_pricing,
-        size_ml: formData.size_ml ? parseInt(formData.size_ml) : null,
       };
 
       let skuId = editingSKU?.id;
@@ -163,9 +164,14 @@ const SKUs = () => {
 
         if (error) throw error;
 
-        // Delete existing tiers
+        // Delete existing tiers and sizes
         await supabase
           .from('sku_pricing_tiers')
+          .delete()
+          .eq('sku_id', editingSKU.id);
+        
+        await supabase
+          .from('sku_sizes')
           .delete()
           .eq('sku_id', editingSKU.id);
         
@@ -179,6 +185,20 @@ const SKUs = () => {
 
         if (error) throw error;
         skuId = data.id;
+      }
+
+      // Insert sizes
+      if (formData.sizes.length > 0) {
+        const sizeInserts = formData.sizes.map(size => ({
+          sku_id: skuId,
+          size_ml: size,
+        }));
+
+        const { error: sizesError } = await supabase
+          .from('sku_sizes')
+          .insert(sizeInserts);
+
+        if (sizesError) throw sizesError;
       }
 
       // Insert pricing tiers only if tier pricing is enabled
@@ -294,6 +314,7 @@ const SKUs = () => {
   const validateImportRow = (row: any, index: number): ImportRow => {
     const errors: string[] = [];
     const tiers: Array<{ min_quantity: number; max_quantity: number | null; price_per_kit: number }> = [];
+    const sizesArray: number[] = [];
     
     if (!row.code || row.code.trim() === '') {
       errors.push('Code is required');
@@ -301,6 +322,22 @@ const SKUs = () => {
     
     if (!row.description || row.description.trim() === '') {
       errors.push('Description is required');
+    }
+
+    // Validate sizes
+    if (row.sizes) {
+      const sizeStr = row.sizes.toString().trim();
+      if (sizeStr) {
+        const sizes = sizeStr.split(',').map((s: string) => parseInt(s.trim()));
+        const validSizes = [3, 5, 10, 20, 30, 50, 100];
+        for (const size of sizes) {
+          if (isNaN(size) || !validSizes.includes(size)) {
+            errors.push(`Invalid size: ${size}. Must be one of: 3, 5, 10, 20, 30, 50, 100`);
+          } else {
+            sizesArray.push(size);
+          }
+        }
+      }
     }
     
     const useTierPricing = ['true', 'yes', '1'].includes(row.use_tier_pricing?.toString().toLowerCase());
@@ -379,7 +416,7 @@ const SKUs = () => {
       label_required: row.label_required || 'false',
       active: row.active || 'true',
       use_tier_pricing: row.use_tier_pricing || 'false',
-      size_ml: row.size_ml || '',
+      sizes: row.sizes || '',
       tier1_min: row.tier1_min || '',
       tier1_max: row.tier1_max || '',
       tier1_price: row.tier1_price || '',
@@ -396,6 +433,7 @@ const SKUs = () => {
       tier5_max: row.tier5_max || '',
       tier5_price: row.tier5_price || '',
       tiers: tiers.length > 0 ? tiers : undefined,
+      sizesArray: sizesArray.length > 0 ? sizesArray : undefined,
       errors: errors.length > 0 ? errors : undefined,
     };
   };
@@ -513,20 +551,19 @@ const SKUs = () => {
           label_required: ['true', 'yes', '1'].includes(row.label_required.toLowerCase()),
           active: ['true', 'yes', '1'].includes(row.active.toLowerCase()) || row.active === '',
           use_tier_pricing: useTierPricing,
-          size_ml: row.size_ml ? parseInt(row.size_ml) : null,
         };
 
         if (row.action === 'update' && row.existingId) {
-          toUpdate.push({ id: row.existingId, ...skuData, tiers: row.tiers });
+          toUpdate.push({ id: row.existingId, ...skuData, tiers: row.tiers, sizes: row.sizesArray });
         } else {
-          toInsert.push({ ...skuData, tiers: row.tiers });
+          toInsert.push({ ...skuData, tiers: row.tiers, sizes: row.sizesArray });
         }
       });
 
       // Perform inserts for new SKUs
       if (toInsert.length > 0) {
         for (const sku of toInsert) {
-          const { tiers, ...skuData } = sku;
+          const { tiers, sizes, ...skuData } = sku;
           
           const { data: newSKU, error: insertError } = await supabase
             .from('skus')
@@ -535,6 +572,20 @@ const SKUs = () => {
             .single();
 
           if (insertError) throw insertError;
+
+          // Insert sizes
+          if (sizes && sizes.length > 0) {
+            const sizeInserts = sizes.map((size: number) => ({
+              sku_id: newSKU.id,
+              size_ml: size,
+            }));
+
+            const { error: sizesError } = await supabase
+              .from('sku_sizes')
+              .insert(sizeInserts);
+
+            if (sizesError) throw sizesError;
+          }
 
           // Insert pricing tiers if provided
           if (tiers && tiers.length > 0) {
@@ -554,7 +605,7 @@ const SKUs = () => {
 
       // Perform updates for existing SKUs
       for (const sku of toUpdate) {
-        const { id, tiers, ...updateData } = sku;
+        const { id, tiers, sizes, ...updateData } = sku;
         
         const { error: updateError } = await supabase
           .from('skus')
@@ -563,12 +614,32 @@ const SKUs = () => {
 
         if (updateError) throw updateError;
 
-        // Delete existing tiers and insert new ones
+        // Delete existing tiers and sizes
         await supabase
           .from('sku_pricing_tiers')
           .delete()
           .eq('sku_id', id);
 
+        await supabase
+          .from('sku_sizes')
+          .delete()
+          .eq('sku_id', id);
+
+        // Insert new sizes
+        if (sizes && sizes.length > 0) {
+          const sizeInserts = sizes.map((size: number) => ({
+            sku_id: id,
+            size_ml: size,
+          }));
+
+          const { error: sizesError } = await supabase
+            .from('sku_sizes')
+            .insert(sizeInserts);
+
+          if (sizesError) throw sizesError;
+        }
+
+        // Insert new tiers
         if (tiers && tiers.length > 0) {
           const tierInserts = tiers.map((tier: any) => ({
             sku_id: id,
@@ -610,7 +681,7 @@ const SKUs = () => {
       {
         code: 'EXAMPLE-001',
         description: 'Example Product with Standard Pricing',
-        size_ml: '10',
+        sizes: '10,20,30',
         price_per_kit: '25.00',
         price_per_piece: '2.50',
         label_required: 'false',
@@ -635,7 +706,7 @@ const SKUs = () => {
       {
         code: 'EXAMPLE-002',
         description: 'Example Product with Tier Pricing',
-        size_ml: '30',
+        sizes: '50,100',
         price_per_kit: '0',
         price_per_piece: '2.50',
         label_required: 'true',
@@ -678,7 +749,7 @@ const SKUs = () => {
       price_per_piece: '',
       active: true,
       use_tier_pricing: false,
-      size_ml: '',
+      sizes: [],
     });
     setPricingTiers([
       { min_quantity: 5, max_quantity: 10, price_per_kit: 0 },
@@ -700,7 +771,7 @@ const SKUs = () => {
       price_per_piece: sku.price_per_piece.toString(),
       active: sku.active,
       use_tier_pricing: sku.use_tier_pricing,
-      size_ml: sku.size_ml ? sku.size_ml.toString() : '',
+      sizes: sku.sizes?.map(s => s.size_ml) || [],
     });
     
     // Load pricing tiers or use defaults
@@ -723,6 +794,13 @@ const SKUs = () => {
     }
     
     setDialogOpen(true);
+  };
+
+  const toggleSize = (size: number) => {
+    const newSizes = formData.sizes.includes(size)
+      ? formData.sizes.filter(s => s !== size)
+      : [...formData.sizes, size].sort((a, b) => a - b);
+    setFormData({ ...formData, sizes: newSizes });
   };
 
   const updateTier = (index: number, field: keyof PricingTier, value: any) => {
@@ -824,24 +902,24 @@ const SKUs = () => {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="size_ml">Size (ml)</Label>
-                <Select
-                  value={formData.size_ml}
-                  onValueChange={(value) => setFormData({ ...formData, size_ml: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select size" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="3">3 ml</SelectItem>
-                    <SelectItem value="5">5 ml</SelectItem>
-                    <SelectItem value="10">10 ml</SelectItem>
-                    <SelectItem value="20">20 ml</SelectItem>
-                    <SelectItem value="30">30 ml</SelectItem>
-                    <SelectItem value="50">50 ml</SelectItem>
-                    <SelectItem value="100">100 ml</SelectItem>
-                  </SelectContent>
-                </Select>
+                <Label>Size Variants (ml)</Label>
+                <div className="grid grid-cols-4 gap-2">
+                  {[3, 5, 10, 20, 30, 50, 100].map((size) => (
+                    <div key={size} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`size-${size}`}
+                        checked={formData.sizes.includes(size)}
+                        onCheckedChange={() => toggleSize(size)}
+                      />
+                      <Label htmlFor={`size-${size}`} className="cursor-pointer">
+                        {size} ml
+                      </Label>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Select one or more size variants for this product
+                </p>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 {!formData.use_tier_pricing && (
@@ -1002,7 +1080,7 @@ const SKUs = () => {
                   <TableHead className="w-10"></TableHead>
                   <TableHead>Code</TableHead>
                   <TableHead>Description</TableHead>
-                  <TableHead>Size</TableHead>
+                  <TableHead>Sizes</TableHead>
                   <TableHead>Piece Price</TableHead>
                   <TableHead>Label</TableHead>
                   <TableHead>Status</TableHead>
@@ -1031,10 +1109,16 @@ const SKUs = () => {
                       <TableCell className="font-mono font-medium">{sku.code}</TableCell>
                       <TableCell className="max-w-xs truncate">{sku.description}</TableCell>
                       <TableCell>
-                        {sku.size_ml ? (
-                          <span className="text-sm">{sku.size_ml} ml</span>
+                        {sku.sizes && sku.sizes.length > 0 ? (
+                          <div className="flex flex-wrap gap-1">
+                            {sku.sizes.map((size) => (
+                              <Badge key={size.id} variant="outline" className="text-xs">
+                                {size.size_ml}ml
+                              </Badge>
+                            ))}
+                          </div>
                         ) : (
-                          <span className="text-muted-foreground">-</span>
+                          <span className="text-muted-foreground text-xs">No sizes</span>
                         )}
                       </TableCell>
                       <TableCell>${sku.price_per_piece.toFixed(2)}</TableCell>
@@ -1127,7 +1211,10 @@ const SKUs = () => {
               <AlertTitle>Required Format</AlertTitle>
               <AlertDescription className="space-y-2">
                 <div>
-                  <strong>Required columns:</strong> code, description, price_per_piece, label_required, active, use_tier_pricing
+                  <strong>Required columns:</strong> code, description, sizes, price_per_piece, label_required, active, use_tier_pricing
+                </div>
+                <div>
+                  <strong>Sizes:</strong> Comma-separated list of sizes (e.g., "10,20,30" for 10ml, 20ml, and 30ml variants)
                 </div>
                 <div>
                   <strong>Standard pricing:</strong> Set use_tier_pricing=false and provide price_per_kit

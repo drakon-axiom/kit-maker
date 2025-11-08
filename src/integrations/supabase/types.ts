@@ -518,6 +518,35 @@ export type Database = {
           },
         ]
       }
+      sku_sizes: {
+        Row: {
+          created_at: string
+          id: string
+          size_ml: number
+          sku_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          size_ml: number
+          sku_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          size_ml?: number
+          sku_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sku_sizes_sku_id_fkey"
+            columns: ["sku_id"]
+            isOneToOne: false
+            referencedRelation: "skus"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       skus: {
         Row: {
           active: boolean
@@ -528,7 +557,6 @@ export type Database = {
           label_required: boolean
           price_per_kit: number
           price_per_piece: number
-          size_ml: number | null
           updated_at: string
           use_tier_pricing: boolean
         }
@@ -541,7 +569,6 @@ export type Database = {
           label_required?: boolean
           price_per_kit: number
           price_per_piece: number
-          size_ml?: number | null
           updated_at?: string
           use_tier_pricing?: boolean
         }
@@ -554,7 +581,6 @@ export type Database = {
           label_required?: boolean
           price_per_kit?: number
           price_per_piece?: number
-          size_ml?: number | null
           updated_at?: string
           use_tier_pricing?: boolean
         }
