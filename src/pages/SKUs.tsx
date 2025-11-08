@@ -44,9 +44,26 @@ interface ImportRow {
   price_per_piece: string;
   label_required: string;
   active: string;
+  use_tier_pricing: string;
+  tier1_min?: string;
+  tier1_max?: string;
+  tier1_price?: string;
+  tier2_min?: string;
+  tier2_max?: string;
+  tier2_price?: string;
+  tier3_min?: string;
+  tier3_max?: string;
+  tier3_price?: string;
+  tier4_min?: string;
+  tier4_max?: string;
+  tier4_price?: string;
+  tier5_min?: string;
+  tier5_max?: string;
+  tier5_price?: string;
   errors?: string[];
   action?: 'create' | 'update';
   existingId?: string;
+  tiers?: Array<{ min_quantity: number; max_quantity: number | null; price_per_kit: number }>;
 }
 
 const SKUs = () => {
@@ -271,6 +288,7 @@ const SKUs = () => {
 
   const validateImportRow = (row: any, index: number): ImportRow => {
     const errors: string[] = [];
+    const tiers: Array<{ min_quantity: number; max_quantity: number | null; price_per_kit: number }> = [];
     
     if (!row.code || row.code.trim() === '') {
       errors.push('Code is required');
@@ -280,9 +298,13 @@ const SKUs = () => {
       errors.push('Description is required');
     }
     
-    const pricePerKit = parseFloat(row.price_per_kit);
-    if (isNaN(pricePerKit) || pricePerKit < 0) {
-      errors.push('Price per kit must be a valid positive number');
+    const useTierPricing = ['true', 'yes', '1'].includes(row.use_tier_pricing?.toString().toLowerCase());
+    
+    if (!useTierPricing) {
+      const pricePerKit = parseFloat(row.price_per_kit);
+      if (isNaN(pricePerKit) || pricePerKit < 0) {
+        errors.push('Price per kit must be a valid positive number');
+      }
     }
     
     const pricePerPiece = parseFloat(row.price_per_piece);
@@ -291,13 +313,57 @@ const SKUs = () => {
     }
     
     const labelRequired = row.label_required?.toString().toLowerCase();
-    if (labelRequired && !['true', 'false', 'yes', 'no', '1', '0'].includes(labelRequired)) {
+    if (labelRequired && !['true', 'false', 'yes', 'no', '1', '0', ''].includes(labelRequired)) {
       errors.push('Label required must be true/false, yes/no, or 1/0');
     }
     
     const active = row.active?.toString().toLowerCase();
-    if (active && !['true', 'false', 'yes', 'no', '1', '0'].includes(active)) {
+    if (active && !['true', 'false', 'yes', 'no', '1', '0', ''].includes(active)) {
       errors.push('Active must be true/false, yes/no, or 1/0');
+    }
+
+    // Validate pricing tiers if use_tier_pricing is true
+    if (useTierPricing) {
+      for (let i = 1; i <= 5; i++) {
+        const minKey = `tier${i}_min` as keyof typeof row;
+        const maxKey = `tier${i}_max` as keyof typeof row;
+        const priceKey = `tier${i}_price` as keyof typeof row;
+        
+        const minQty = row[minKey];
+        const maxQty = row[maxKey];
+        const price = row[priceKey];
+        
+        // If any tier field is provided, validate all three
+        if (minQty || maxQty || price) {
+          const min = parseInt(minQty);
+          const max = maxQty ? parseInt(maxQty) : null;
+          const tierPrice = parseFloat(price);
+          
+          if (isNaN(min) || min < 1) {
+            errors.push(`Tier ${i}: min quantity must be a positive number`);
+          }
+          
+          if (maxQty && (isNaN(max!) || max! < min)) {
+            errors.push(`Tier ${i}: max quantity must be greater than min quantity`);
+          }
+          
+          if (isNaN(tierPrice) || tierPrice < 0) {
+            errors.push(`Tier ${i}: price must be a valid positive number`);
+          }
+          
+          if (!errors.some(e => e.startsWith(`Tier ${i}:`))) {
+            tiers.push({
+              min_quantity: min,
+              max_quantity: max,
+              price_per_kit: tierPrice,
+            });
+          }
+        }
+      }
+      
+      if (tiers.length === 0) {
+        errors.push('At least one pricing tier is required when use_tier_pricing is true');
+      }
     }
     
     return {
@@ -307,6 +373,23 @@ const SKUs = () => {
       price_per_piece: row.price_per_piece || '',
       label_required: row.label_required || 'false',
       active: row.active || 'true',
+      use_tier_pricing: row.use_tier_pricing || 'false',
+      tier1_min: row.tier1_min || '',
+      tier1_max: row.tier1_max || '',
+      tier1_price: row.tier1_price || '',
+      tier2_min: row.tier2_min || '',
+      tier2_max: row.tier2_max || '',
+      tier2_price: row.tier2_price || '',
+      tier3_min: row.tier3_min || '',
+      tier3_max: row.tier3_max || '',
+      tier3_price: row.tier3_price || '',
+      tier4_min: row.tier4_min || '',
+      tier4_max: row.tier4_max || '',
+      tier4_price: row.tier4_price || '',
+      tier5_min: row.tier5_min || '',
+      tier5_max: row.tier5_max || '',
+      tier5_price: row.tier5_price || '',
+      tiers: tiers.length > 0 ? tiers : undefined,
       errors: errors.length > 0 ? errors : undefined,
     };
   };
@@ -414,41 +497,83 @@ const SKUs = () => {
       const toUpdate: any[] = [];
 
       validRows.forEach(row => {
+        const useTierPricing = ['true', 'yes', '1'].includes(row.use_tier_pricing.toLowerCase());
+        
         const skuData = {
           code: row.code.trim(),
           description: row.description.trim(),
-          price_per_kit: parseFloat(row.price_per_kit),
+          price_per_kit: useTierPricing ? 0 : parseFloat(row.price_per_kit),
           price_per_piece: parseFloat(row.price_per_piece),
           label_required: ['true', 'yes', '1'].includes(row.label_required.toLowerCase()),
           active: ['true', 'yes', '1'].includes(row.active.toLowerCase()) || row.active === '',
-          use_tier_pricing: false,
+          use_tier_pricing: useTierPricing,
         };
 
         if (row.action === 'update' && row.existingId) {
-          toUpdate.push({ id: row.existingId, ...skuData });
+          toUpdate.push({ id: row.existingId, ...skuData, tiers: row.tiers });
         } else {
-          toInsert.push(skuData);
+          toInsert.push({ ...skuData, tiers: row.tiers });
         }
       });
 
       // Perform inserts for new SKUs
       if (toInsert.length > 0) {
-        const { error: insertError } = await supabase
-          .from('skus')
-          .insert(toInsert);
+        for (const sku of toInsert) {
+          const { tiers, ...skuData } = sku;
+          
+          const { data: newSKU, error: insertError } = await supabase
+            .from('skus')
+            .insert([skuData])
+            .select()
+            .single();
 
-        if (insertError) throw insertError;
+          if (insertError) throw insertError;
+
+          // Insert pricing tiers if provided
+          if (tiers && tiers.length > 0) {
+            const tierInserts = tiers.map((tier: any) => ({
+              sku_id: newSKU.id,
+              ...tier,
+            }));
+
+            const { error: tiersError } = await supabase
+              .from('sku_pricing_tiers')
+              .insert(tierInserts);
+
+            if (tiersError) throw tiersError;
+          }
+        }
       }
 
       // Perform updates for existing SKUs
       for (const sku of toUpdate) {
-        const { id, ...updateData } = sku;
+        const { id, tiers, ...updateData } = sku;
+        
         const { error: updateError } = await supabase
           .from('skus')
           .update(updateData)
           .eq('id', id);
 
         if (updateError) throw updateError;
+
+        // Delete existing tiers and insert new ones
+        await supabase
+          .from('sku_pricing_tiers')
+          .delete()
+          .eq('sku_id', id);
+
+        if (tiers && tiers.length > 0) {
+          const tierInserts = tiers.map((tier: any) => ({
+            sku_id: id,
+            ...tier,
+          }));
+
+          const { error: tiersError } = await supabase
+            .from('sku_pricing_tiers')
+            .insert(tierInserts);
+
+          if (tiersError) throw tiersError;
+        }
       }
 
       toast({
@@ -477,11 +602,51 @@ const SKUs = () => {
     const template = [
       {
         code: 'EXAMPLE-001',
-        description: 'Example Product Description',
+        description: 'Example Product with Standard Pricing',
         price_per_kit: '25.00',
         price_per_piece: '2.50',
         label_required: 'false',
         active: 'true',
+        use_tier_pricing: 'false',
+        tier1_min: '',
+        tier1_max: '',
+        tier1_price: '',
+        tier2_min: '',
+        tier2_max: '',
+        tier2_price: '',
+        tier3_min: '',
+        tier3_max: '',
+        tier3_price: '',
+        tier4_min: '',
+        tier4_max: '',
+        tier4_price: '',
+        tier5_min: '',
+        tier5_max: '',
+        tier5_price: '',
+      },
+      {
+        code: 'EXAMPLE-002',
+        description: 'Example Product with Tier Pricing',
+        price_per_kit: '0',
+        price_per_piece: '2.50',
+        label_required: 'true',
+        active: 'true',
+        use_tier_pricing: 'true',
+        tier1_min: '5',
+        tier1_max: '10',
+        tier1_price: '20.00',
+        tier2_min: '11',
+        tier2_max: '25',
+        tier2_price: '18.00',
+        tier3_min: '26',
+        tier3_max: '50',
+        tier3_price: '16.00',
+        tier4_min: '51',
+        tier4_max: '99',
+        tier4_price: '14.00',
+        tier5_min: '100',
+        tier5_max: '',
+        tier5_price: '12.00',
       }
     ];
 
@@ -921,8 +1086,19 @@ const SKUs = () => {
             <Alert>
               <AlertCircle className="h-4 w-4" />
               <AlertTitle>Required Format</AlertTitle>
-              <AlertDescription>
-                Your file must include columns: <strong>code</strong>, <strong>description</strong>, <strong>price_per_kit</strong>, <strong>price_per_piece</strong>, <strong>label_required</strong>, <strong>active</strong>
+              <AlertDescription className="space-y-2">
+                <div>
+                  <strong>Required columns:</strong> code, description, price_per_piece, label_required, active, use_tier_pricing
+                </div>
+                <div>
+                  <strong>Standard pricing:</strong> Set use_tier_pricing=false and provide price_per_kit
+                </div>
+                <div>
+                  <strong>Tier pricing:</strong> Set use_tier_pricing=true and fill tier columns (tier1_min, tier1_max, tier1_price, etc.)
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  Leave tier max empty for unlimited. Download template for examples.
+                </div>
               </AlertDescription>
             </Alert>
             
