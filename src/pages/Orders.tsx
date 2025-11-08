@@ -28,6 +28,8 @@ const statusColors: Record<string, string> = {
   deposit_due: 'bg-warning',
   in_queue: 'bg-purple-500',
   in_production: 'bg-primary',
+  in_labeling: 'bg-indigo-500',
+  in_packing: 'bg-cyan-500',
   packed: 'bg-success',
   invoiced: 'bg-orange-500',
   payment_due: 'bg-warning',

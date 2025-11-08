@@ -72,6 +72,8 @@ const statusColors: Record<string, string> = {
   deposit_due: 'bg-warning',
   in_queue: 'bg-purple-500',
   in_production: 'bg-primary',
+  in_labeling: 'bg-indigo-500',
+  in_packing: 'bg-cyan-500',
   packed: 'bg-success',
   invoiced: 'bg-orange-500',
   payment_due: 'bg-warning',
@@ -317,6 +319,8 @@ const OrderDetail = () => {
                   <SelectItem value="deposit_due">Deposit Due</SelectItem>
                   <SelectItem value="in_queue">In Queue</SelectItem>
                   <SelectItem value="in_production">In Production</SelectItem>
+                  <SelectItem value="in_labeling">In Labeling</SelectItem>
+                  <SelectItem value="in_packing">In Packing</SelectItem>
                   <SelectItem value="packed">Packed</SelectItem>
                   <SelectItem value="invoiced">Invoiced</SelectItem>
                   <SelectItem value="payment_due">Payment Due</SelectItem>
