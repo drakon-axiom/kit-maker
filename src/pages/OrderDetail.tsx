@@ -7,8 +7,25 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { ArrowLeft, Loader2, DollarSign, Package, Pencil } from 'lucide-react';
+import { ArrowLeft, Loader2, DollarSign, Package, Pencil, Trash2 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 interface OrderDetail {
   id: string;
@@ -63,6 +80,9 @@ const OrderDetail = () => {
   const { toast } = useToast();
   const [order, setOrder] = useState<OrderDetail | null>(null);
   const [loading, setLoading] = useState(true);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleteMode, setDeleteMode] = useState<'soft' | 'hard'>('soft');
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     if (id) {
@@ -104,6 +124,85 @@ const OrderDetail = () => {
     ).join(' ');
   };
 
+  const handleDelete = async () => {
+    if (!order) return;
+    
+    setDeleting(true);
+    try {
+      if (deleteMode === 'soft') {
+        // Soft delete: Update status to cancelled
+        const { error } = await supabase
+          .from('sales_orders')
+          .update({ status: 'cancelled' })
+          .eq('id', id);
+
+        if (error) throw error;
+
+        // Audit log
+        await supabase.from('audit_log').insert([{
+          action: 'update',
+          entity: 'sales_order',
+          entity_id: id,
+          after: { status: 'cancelled' },
+        }]);
+
+        toast({
+          title: 'Order Cancelled',
+          description: `Order ${order.human_uid} has been cancelled`,
+        });
+
+        // Refresh the order
+        fetchOrder();
+      } else {
+        // Hard delete: Delete order and related records
+        // First delete order lines
+        const { error: linesError } = await supabase
+          .from('sales_order_lines')
+          .delete()
+          .eq('so_id', id);
+
+        if (linesError) throw linesError;
+
+        // Delete order
+        const { error: orderError } = await supabase
+          .from('sales_orders')
+          .delete()
+          .eq('id', id);
+
+        if (orderError) throw orderError;
+
+        // Audit log
+        await supabase.from('audit_log').insert([{
+          action: 'delete',
+          entity: 'sales_order',
+          entity_id: id,
+          before: { order_uid: order.human_uid },
+        }]);
+
+        toast({
+          title: 'Order Deleted',
+          description: `Order ${order.human_uid} has been permanently deleted`,
+        });
+
+        navigate('/orders');
+      }
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } finally {
+      setDeleting(false);
+      setDeleteDialogOpen(false);
+    }
+  };
+
+  const openDeleteDialog = (mode: 'soft' | 'hard') => {
+    setDeleteMode(mode);
+    setDeleteDialogOpen(true);
+  };
+
   const totalBottles = order?.sales_order_lines.reduce((sum, line) => sum + line.bottle_qty, 0) || 0;
 
   if (loading) {
@@ -138,15 +237,35 @@ const OrderDetail = () => {
           <h1 className="text-3xl font-bold tracking-tight font-mono">{order.human_uid}</h1>
           <p className="text-muted-foreground mt-1">{order.customer.name}</p>
         </div>
-        {userRole === 'admin' && order.status === 'draft' && (
-          <Button variant="outline" onClick={() => navigate(`/orders/${id}/edit`)}>
-            <Pencil className="h-4 w-4 mr-2" />
-            Edit Order
-          </Button>
-        )}
-        <Badge className={statusColors[order.status] || 'bg-muted'}>
-          {formatStatus(order.status)}
-        </Badge>
+        <div className="flex items-center gap-2">
+          {userRole === 'admin' && order.status === 'draft' && (
+            <Button variant="outline" onClick={() => navigate(`/orders/${id}/edit`)}>
+              <Pencil className="h-4 w-4 mr-2" />
+              Edit Order
+            </Button>
+          )}
+          {userRole === 'admin' && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="icon">
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => openDeleteDialog('soft')}>
+                  <span className="text-warning">Cancel Order</span>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => openDeleteDialog('hard')}>
+                  <span className="text-destructive">Delete Permanently</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+          <Badge className={statusColors[order.status] || 'bg-muted'}>
+            {formatStatus(order.status)}
+          </Badge>
+        </div>
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">
@@ -275,6 +394,39 @@ const OrderDetail = () => {
           </CardContent>
         </Card>
       )}
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {deleteMode === 'soft' ? 'Cancel Order?' : 'Delete Order Permanently?'}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {deleteMode === 'soft' ? (
+                <>
+                  This will mark order <span className="font-mono font-semibold">{order?.human_uid}</span> as cancelled. 
+                  The order will remain in the system for record keeping.
+                </>
+              ) : (
+                <>
+                  This will permanently delete order <span className="font-mono font-semibold">{order?.human_uid}</span> and 
+                  all its line items. This action cannot be undone.
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              disabled={deleting}
+              className={deleteMode === 'hard' ? 'bg-destructive hover:bg-destructive/90' : ''}
+            >
+              {deleting ? 'Processing...' : deleteMode === 'soft' ? 'Cancel Order' : 'Delete Permanently'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
