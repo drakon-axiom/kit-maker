@@ -11,6 +11,7 @@ import SKUs from "./pages/SKUs";
 import Orders from "./pages/Orders";
 import OrderNew from "./pages/OrderNew";
 import OrderDetail from "./pages/OrderDetail";
+import OrderEdit from "./pages/OrderEdit";
 import Queue from "./pages/Queue";
 import Operator from "./pages/Operator";
 import Shipments from "./pages/Shipments";
@@ -86,6 +87,16 @@ const App = () => (
                 <ProtectedRoute>
                   <Layout>
                     <OrderDetail />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/orders/:id/edit"
+              element={
+                <ProtectedRoute requiredRole="admin">
+                  <Layout>
+                    <OrderEdit />
                   </Layout>
                 </ProtectedRoute>
               }

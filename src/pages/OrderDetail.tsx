@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { ArrowLeft, Loader2, DollarSign, Package } from 'lucide-react';
+import { ArrowLeft, Loader2, DollarSign, Package, Pencil } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 
 interface OrderDetail {
@@ -138,6 +138,12 @@ const OrderDetail = () => {
           <h1 className="text-3xl font-bold tracking-tight font-mono">{order.human_uid}</h1>
           <p className="text-muted-foreground mt-1">{order.customer.name}</p>
         </div>
+        {userRole === 'admin' && order.status === 'draft' && (
+          <Button variant="outline" onClick={() => navigate(`/orders/${id}/edit`)}>
+            <Pencil className="h-4 w-4 mr-2" />
+            Edit Order
+          </Button>
+        )}
         <Badge className={statusColors[order.status] || 'bg-muted'}>
           {formatStatus(order.status)}
         </Badge>
