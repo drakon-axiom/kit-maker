@@ -613,6 +613,9 @@ export type Database = {
         | "ready_to_ship"
         | "shipped"
         | "cancelled"
+        | "on_hold_customer"
+        | "on_hold_internal"
+        | "on_hold_materials"
       payment_method: "cash" | "check" | "ach" | "wire" | "other"
       sell_mode: "kit" | "piece"
       step_status: "pending" | "wip" | "done"
@@ -761,6 +764,9 @@ export const Constants = {
         "ready_to_ship",
         "shipped",
         "cancelled",
+        "on_hold_customer",
+        "on_hold_internal",
+        "on_hold_materials",
       ],
       payment_method: ["cash", "check", "ach", "wire", "other"],
       sell_mode: ["kit", "piece"],

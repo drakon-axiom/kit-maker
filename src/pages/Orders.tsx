@@ -34,6 +34,9 @@ const statusColors: Record<string, string> = {
   ready_to_ship: 'bg-success',
   shipped: 'bg-muted-foreground',
   cancelled: 'bg-destructive',
+  on_hold_customer: 'bg-amber-500',
+  on_hold_internal: 'bg-amber-600',
+  on_hold_materials: 'bg-amber-700',
 };
 
 const Orders = () => {
@@ -70,6 +73,9 @@ const Orders = () => {
   };
 
   const formatStatus = (status: string) => {
+    if (status === 'on_hold_customer') return 'On Hold (Customer Hold)';
+    if (status === 'on_hold_internal') return 'On Hold (Internal Hold)';
+    if (status === 'on_hold_materials') return 'On Hold (Materials Hold)';
     return status.split('_').map(word => 
       word.charAt(0).toUpperCase() + word.slice(1)
     ).join(' ');
