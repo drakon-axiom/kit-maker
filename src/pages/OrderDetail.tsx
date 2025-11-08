@@ -26,6 +26,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 interface OrderDetail {
   id: string;
@@ -86,6 +93,7 @@ const OrderDetail = () => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleteMode, setDeleteMode] = useState<'soft' | 'hard'>('soft');
   const [deleting, setDeleting] = useState(false);
+  const [updatingStatus, setUpdatingStatus] = useState(false);
 
   useEffect(() => {
     if (id) {
@@ -209,6 +217,45 @@ const OrderDetail = () => {
     setDeleteDialogOpen(true);
   };
 
+  const handleStatusChange = async (newStatus: string) => {
+    if (!order || newStatus === order.status) return;
+    
+    setUpdatingStatus(true);
+    try {
+      const { error: updateError } = await supabase
+        .from('sales_orders')
+        .update({ status: newStatus as any })
+        .eq('id', id);
+
+      if (updateError) throw updateError;
+
+      // Log the status change
+      await supabase.from('audit_log').insert({
+        entity: 'sales_order',
+        entity_id: id,
+        action: 'status_changed',
+        actor_id: (await supabase.auth.getUser()).data.user?.id,
+        before: { status: order.status },
+        after: { status: newStatus },
+      });
+
+      toast({
+        title: 'Status Updated',
+        description: `Order status changed to ${formatStatus(newStatus)}`,
+      });
+
+      fetchOrder();
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } finally {
+      setUpdatingStatus(false);
+    }
+  };
+
   const totalBottles = order?.sales_order_lines.reduce((sum, line) => sum + line.bottle_qty, 0) || 0;
 
   if (loading) {
@@ -251,26 +298,59 @@ const OrderDetail = () => {
             </Button>
           )}
           {userRole === 'admin' && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="icon">
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => openDeleteDialog('soft')}>
-                  <span className="text-warning">Cancel Order</span>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => openDeleteDialog('hard')}>
-                  <span className="text-destructive">Delete Permanently</span>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <>
+              <Select 
+                value={order.status} 
+                onValueChange={handleStatusChange}
+                disabled={updatingStatus}
+              >
+                <SelectTrigger className="w-[200px]">
+                  <SelectValue>
+                    <Badge className={statusColors[order.status] || 'bg-muted'}>
+                      {formatStatus(order.status)}
+                    </Badge>
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="draft">Draft</SelectItem>
+                  <SelectItem value="quoted">Quoted</SelectItem>
+                  <SelectItem value="deposit_due">Deposit Due</SelectItem>
+                  <SelectItem value="in_queue">In Queue</SelectItem>
+                  <SelectItem value="in_production">In Production</SelectItem>
+                  <SelectItem value="packed">Packed</SelectItem>
+                  <SelectItem value="invoiced">Invoiced</SelectItem>
+                  <SelectItem value="payment_due">Payment Due</SelectItem>
+                  <SelectItem value="ready_to_ship">Ready to Ship</SelectItem>
+                  <SelectItem value="shipped">Shipped</SelectItem>
+                  <SelectItem value="on_hold_customer">On Hold (Customer Hold)</SelectItem>
+                  <SelectItem value="on_hold_internal">On Hold (Internal Hold)</SelectItem>
+                  <SelectItem value="on_hold_materials">On Hold (Materials Hold)</SelectItem>
+                  <SelectItem value="cancelled">Cancelled</SelectItem>
+                </SelectContent>
+              </Select>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="icon">
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => openDeleteDialog('soft')}>
+                    <span className="text-warning">Cancel Order</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => openDeleteDialog('hard')}>
+                    <span className="text-destructive">Delete Permanently</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </>
           )}
-          <Badge className={statusColors[order.status] || 'bg-muted'}>
-            {formatStatus(order.status)}
-          </Badge>
+          {userRole !== 'admin' && (
+            <Badge className={statusColors[order.status] || 'bg-muted'}>
+              {formatStatus(order.status)}
+            </Badge>
+          )}
         </div>
       </div>
 
