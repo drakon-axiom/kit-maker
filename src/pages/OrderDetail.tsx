@@ -7,8 +7,11 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { ArrowLeft, Loader2, DollarSign, Package, Pencil, Trash2 } from 'lucide-react';
+import { ArrowLeft, Loader2, DollarSign, Package, Pencil, Trash2, Plus, Factory } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -66,6 +69,17 @@ interface OrderDetail {
   }>;
 }
 
+interface Batch {
+  id: string;
+  uid: string;
+  human_uid: string;
+  status: string;
+  qty_bottle_planned: number;
+  qty_bottle_good: number;
+  qty_bottle_scrap: number;
+  created_at: string;
+}
+
 const statusColors: Record<string, string> = {
   draft: 'bg-muted',
   quoted: 'bg-blue-500',
@@ -96,10 +110,15 @@ const OrderDetail = () => {
   const [deleteMode, setDeleteMode] = useState<'soft' | 'hard'>('soft');
   const [deleting, setDeleting] = useState(false);
   const [updatingStatus, setUpdatingStatus] = useState(false);
+  const [batches, setBatches] = useState<Batch[]>([]);
+  const [createBatchDialogOpen, setCreateBatchDialogOpen] = useState(false);
+  const [batchQuantity, setBatchQuantity] = useState('');
+  const [creatingBatch, setCreatingBatch] = useState(false);
 
   useEffect(() => {
     if (id) {
       fetchOrder();
+      fetchBatches();
     }
   }, [id]);
 
@@ -128,6 +147,21 @@ const OrderDetail = () => {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchBatches = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('production_batches')
+        .select('*')
+        .eq('so_id', id)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setBatches(data || []);
+    } catch (error: any) {
+      console.error('Error fetching batches:', error);
     }
   };
 
@@ -258,7 +292,116 @@ const OrderDetail = () => {
     }
   };
 
+  const generateBatchUid = async () => {
+    const today = new Date();
+    const dateStr = today.toISOString().split('T')[0].replace(/-/g, '');
+    
+    // Get count of batches created today
+    const { data, error } = await supabase
+      .from('production_batches')
+      .select('uid')
+      .like('uid', `BAT-${dateStr}%`)
+      .order('uid', { ascending: false })
+      .limit(1);
+
+    if (error) throw error;
+
+    let sequence = 1;
+    if (data && data.length > 0) {
+      const lastUid = data[0].uid;
+      const lastSeq = parseInt(lastUid.split('-').pop() || '0');
+      sequence = lastSeq + 1;
+    }
+
+    const uid = `BAT-${dateStr}-${sequence.toString().padStart(2, '0')}`;
+    const humanUid = `BAT-${today.getFullYear()}${(today.getMonth() + 1).toString().padStart(2, '0')}${today.getDate().toString().padStart(2, '0')}-${sequence.toString().padStart(2, '0')}`;
+    
+    return { uid, humanUid };
+  };
+
+  const createBatch = async () => {
+    if (!order || !batchQuantity) return;
+
+    const qty = parseInt(batchQuantity);
+    if (isNaN(qty) || qty <= 0) {
+      toast({
+        title: 'Invalid Quantity',
+        description: 'Please enter a valid quantity',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setCreatingBatch(true);
+    try {
+      // Generate BAT number
+      const { uid, humanUid } = await generateBatchUid();
+
+      // Create batch
+      const { data: batchData, error: batchError } = await supabase
+        .from('production_batches')
+        .insert({
+          so_id: order.id,
+          uid,
+          human_uid: humanUid,
+          status: 'queued',
+          qty_bottle_planned: qty,
+          qty_bottle_good: 0,
+          qty_bottle_scrap: 0,
+          priority_index: 0,
+        })
+        .select()
+        .single();
+
+      if (batchError) throw batchError;
+
+      // Create workflow steps
+      const workflowSteps = [
+        { step: 'produce' as const, batch_id: batchData.id, status: 'pending' as const },
+        { step: 'bottle_cap' as const, batch_id: batchData.id, status: 'pending' as const },
+        { step: 'label' as const, batch_id: batchData.id, status: 'pending' as const },
+        { step: 'pack' as const, batch_id: batchData.id, status: 'pending' as const },
+      ];
+
+      const { error: stepsError } = await supabase
+        .from('workflow_steps')
+        .insert(workflowSteps);
+
+      if (stepsError) throw stepsError;
+
+      // Log batch creation
+      await supabase.from('audit_log').insert({
+        entity: 'production_batch',
+        entity_id: batchData.id,
+        action: 'created',
+        actor_id: (await supabase.auth.getUser()).data.user?.id,
+        after: { uid: humanUid, qty: qty },
+      });
+
+      toast({
+        title: 'Batch Created',
+        description: `Batch ${humanUid} created successfully`,
+      });
+
+      // Refresh batches and close dialog
+      fetchBatches();
+      setCreateBatchDialogOpen(false);
+      setBatchQuantity('');
+    } catch (error: any) {
+      console.error('Error creating batch:', error);
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } finally {
+      setCreatingBatch(false);
+    }
+  };
+
   const totalBottles = order?.sales_order_lines.reduce((sum, line) => sum + line.bottle_qty, 0) || 0;
+  const totalBatchedBottles = batches.reduce((sum, batch) => sum + batch.qty_bottle_planned, 0);
+  const remainingBottles = totalBottles - totalBatchedBottles;
 
   if (loading) {
     return (
@@ -466,6 +609,71 @@ const OrderDetail = () => {
         </CardContent>
       </Card>
 
+      {/* Production Batches */}
+      {(order.status === 'in_queue' || order.status === 'in_production' || order.status === 'in_labeling' || order.status === 'in_packing' || batches.length > 0) && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle>Production Batches</CardTitle>
+                <CardDescription>
+                  {batches.length} batch(es) • {totalBatchedBottles} / {totalBottles} bottles batched
+                </CardDescription>
+              </div>
+              {userRole === 'admin' && remainingBottles > 0 && (
+                <Button onClick={() => {
+                  setBatchQuantity(remainingBottles.toString());
+                  setCreateBatchDialogOpen(true);
+                }}>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Create Batch
+                </Button>
+              )}
+            </div>
+          </CardHeader>
+          <CardContent>
+            {batches.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <Factory className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                <p>No production batches yet</p>
+                <p className="text-sm mt-1">Create batches to start production</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {batches.map((batch) => (
+                  <div
+                    key={batch.id}
+                    className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
+                  >
+                    <div>
+                      <div className="font-mono font-medium">{batch.human_uid}</div>
+                      <div className="text-sm text-muted-foreground mt-1">
+                        Created {new Date(batch.created_at).toLocaleDateString()}
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <Badge className={statusColors[batch.status] || 'bg-muted'}>
+                        {formatStatus(batch.status)}
+                      </Badge>
+                      <div className="text-sm text-muted-foreground mt-1">
+                        {batch.qty_bottle_good} / {batch.qty_bottle_planned} bottles
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            {remainingBottles > 0 && (
+              <div className="mt-4 p-3 bg-muted rounded-lg">
+                <p className="text-sm">
+                  <span className="font-medium">{remainingBottles} bottles</span> remaining to be batched
+                </p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
       {userRole === 'admin' && order.status === 'draft' && (
         <Card className="border-primary">
           <CardHeader>
@@ -517,6 +725,60 @@ const OrderDetail = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={createBatchDialogOpen} onOpenChange={setCreateBatchDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Create Production Batch</DialogTitle>
+            <DialogDescription>
+              Create a new production batch for order {order?.human_uid}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="batch-qty">Bottle Quantity</Label>
+              <Input
+                id="batch-qty"
+                type="number"
+                min="1"
+                max={remainingBottles}
+                value={batchQuantity}
+                onChange={(e) => setBatchQuantity(e.target.value)}
+                placeholder="Enter quantity"
+              />
+              <p className="text-xs text-muted-foreground">
+                {remainingBottles} bottles remaining to be batched
+              </p>
+            </div>
+            <div className="p-3 bg-muted rounded-lg space-y-1">
+              <p className="text-sm font-medium">Batch will include:</p>
+              <ul className="text-sm text-muted-foreground space-y-1">
+                <li>• Auto-generated BAT number</li>
+                <li>• 4 workflow steps (produce, bottle/cap, label, pack)</li>
+                <li>• Added to production queue</li>
+              </ul>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCreateBatchDialogOpen(false)} disabled={creatingBatch}>
+              Cancel
+            </Button>
+            <Button onClick={createBatch} disabled={creatingBatch}>
+              {creatingBatch ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Creating...
+                </>
+              ) : (
+                <>
+                  <Factory className="mr-2 h-4 w-4" />
+                  Create Batch
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
