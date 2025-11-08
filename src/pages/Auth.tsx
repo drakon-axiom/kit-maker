@@ -9,7 +9,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Factory, Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff } from 'lucide-react';
+import axiomLogo from '@/assets/axiom-logo.png';
 
 const Auth = () => {
   const [email, setEmail] = useState('');
@@ -106,9 +107,7 @@ const Auth = () => {
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1 text-center">
           <div className="flex justify-center mb-4">
-            <div className="p-3 bg-primary rounded-lg">
-              <Factory className="h-8 w-8 text-primary-foreground" />
-            </div>
+            <img src={axiomLogo} alt="Axiom Collective LLC" className="h-12" />
           </div>
           <CardTitle className="text-2xl font-bold">Production Manager</CardTitle>
           <CardDescription>

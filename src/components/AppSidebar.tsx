@@ -1,6 +1,7 @@
 import { useAuth } from '@/contexts/AuthContext';
 import { NavLink } from '@/components/NavLink';
 import { useLocation } from 'react-router-dom';
+import axiomLogo from '@/assets/axiom-logo.png';
 import {
   Factory,
   PackageSearch,
@@ -20,6 +21,7 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarHeader,
   useSidebar,
 } from '@/components/ui/sidebar';
 
@@ -47,6 +49,15 @@ export function AppSidebar() {
 
   return (
     <Sidebar className={collapsed ? 'w-14' : 'w-60'} collapsible="icon">
+      <SidebarHeader className="border-b p-4">
+        <div className="flex items-center justify-center">
+          {collapsed ? (
+            <div className="w-6 h-6 bg-primary rounded" />
+          ) : (
+            <img src={axiomLogo} alt="Axiom Collective" className="h-8" />
+          )}
+        </div>
+      </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupLabel>Main</SidebarGroupLabel>
