@@ -374,25 +374,63 @@ const SKUs = () => {
     setImporting(true);
 
     try {
-      const insertData = validRows.map(row => ({
-        code: row.code.trim(),
-        description: row.description.trim(),
-        price_per_kit: parseFloat(row.price_per_kit),
-        price_per_piece: parseFloat(row.price_per_piece),
-        label_required: ['true', 'yes', '1'].includes(row.label_required.toLowerCase()),
-        active: ['true', 'yes', '1'].includes(row.active.toLowerCase()) || row.active === '',
-        use_tier_pricing: false,
-      }));
-
-      const { error } = await supabase
+      // Fetch all existing SKU codes
+      const { data: existingSKUs, error: fetchError } = await supabase
         .from('skus')
-        .insert(insertData);
+        .select('id, code');
 
-      if (error) throw error;
+      if (fetchError) throw fetchError;
+
+      const existingCodesMap = new Map(
+        existingSKUs?.map(sku => [sku.code.toLowerCase(), sku.id]) || []
+      );
+
+      const toInsert: any[] = [];
+      const toUpdate: any[] = [];
+
+      validRows.forEach(row => {
+        const skuData = {
+          code: row.code.trim(),
+          description: row.description.trim(),
+          price_per_kit: parseFloat(row.price_per_kit),
+          price_per_piece: parseFloat(row.price_per_piece),
+          label_required: ['true', 'yes', '1'].includes(row.label_required.toLowerCase()),
+          active: ['true', 'yes', '1'].includes(row.active.toLowerCase()) || row.active === '',
+          use_tier_pricing: false,
+        };
+
+        const existingId = existingCodesMap.get(row.code.trim().toLowerCase());
+        
+        if (existingId) {
+          toUpdate.push({ id: existingId, ...skuData });
+        } else {
+          toInsert.push(skuData);
+        }
+      });
+
+      // Perform inserts for new SKUs
+      if (toInsert.length > 0) {
+        const { error: insertError } = await supabase
+          .from('skus')
+          .insert(toInsert);
+
+        if (insertError) throw insertError;
+      }
+
+      // Perform updates for existing SKUs
+      for (const sku of toUpdate) {
+        const { id, ...updateData } = sku;
+        const { error: updateError } = await supabase
+          .from('skus')
+          .update(updateData)
+          .eq('id', id);
+
+        if (updateError) throw updateError;
+      }
 
       toast({
         title: 'Success',
-        description: `Imported ${validRows.length} SKU(s) successfully`,
+        description: `Created ${toInsert.length} new SKU(s), updated ${toUpdate.length} existing SKU(s)`,
       });
 
       setImportOpen(false);
