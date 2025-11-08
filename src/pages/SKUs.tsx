@@ -45,6 +45,8 @@ interface ImportRow {
   label_required: string;
   active: string;
   errors?: string[];
+  action?: 'create' | 'update';
+  existingId?: string;
 }
 
 const SKUs = () => {
@@ -309,19 +311,54 @@ const SKUs = () => {
     };
   };
 
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const checkExistingSKUs = async (rows: ImportRow[]) => {
+    try {
+      const { data: existingSKUs, error } = await supabase
+        .from('skus')
+        .select('id, code');
+
+      if (error) throw error;
+
+      const existingCodesMap = new Map(
+        existingSKUs?.map(sku => [sku.code.toLowerCase(), sku.id]) || []
+      );
+
+      return rows.map(row => {
+        const existingId = existingCodesMap.get(row.code.trim().toLowerCase());
+        return {
+          ...row,
+          action: existingId ? 'update' as const : 'create' as const,
+          existingId,
+        };
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Error checking existing SKUs',
+        description: error.message,
+        variant: 'destructive',
+      });
+      return rows;
+    }
+  };
+
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
     const fileExtension = file.name.split('.').pop()?.toLowerCase();
 
+    const processData = async (data: any[]) => {
+      const validatedData = data.map((row, index) => validateImportRow(row, index));
+      const dataWithActions = await checkExistingSKUs(validatedData);
+      setImportData(dataWithActions);
+    };
+
     if (fileExtension === 'csv') {
       Papa.parse(file, {
         header: true,
         skipEmptyLines: true,
-        complete: (results) => {
-          const validatedData = results.data.map((row, index) => validateImportRow(row, index));
-          setImportData(validatedData);
+        complete: async (results) => {
+          await processData(results.data);
         },
         error: (error) => {
           toast({
@@ -333,14 +370,13 @@ const SKUs = () => {
       });
     } else if (['xlsx', 'xls'].includes(fileExtension || '')) {
       const reader = new FileReader();
-      reader.onload = (e) => {
+      reader.onload = async (e) => {
         try {
           const data = new Uint8Array(e.target?.result as ArrayBuffer);
           const workbook = XLSX.read(data, { type: 'array' });
           const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
           const jsonData = XLSX.utils.sheet_to_json(firstSheet);
-          const validatedData = jsonData.map((row, index) => validateImportRow(row, index));
-          setImportData(validatedData);
+          await processData(jsonData);
         } catch (error: any) {
           toast({
             title: 'Error parsing Excel file',
@@ -374,17 +410,6 @@ const SKUs = () => {
     setImporting(true);
 
     try {
-      // Fetch all existing SKU codes
-      const { data: existingSKUs, error: fetchError } = await supabase
-        .from('skus')
-        .select('id, code');
-
-      if (fetchError) throw fetchError;
-
-      const existingCodesMap = new Map(
-        existingSKUs?.map(sku => [sku.code.toLowerCase(), sku.id]) || []
-      );
-
       const toInsert: any[] = [];
       const toUpdate: any[] = [];
 
@@ -399,10 +424,8 @@ const SKUs = () => {
           use_tier_pricing: false,
         };
 
-        const existingId = existingCodesMap.get(row.code.trim().toLowerCase());
-        
-        if (existingId) {
-          toUpdate.push({ id: existingId, ...skuData });
+        if (row.action === 'update' && row.existingId) {
+          toUpdate.push({ id: row.existingId, ...skuData });
         } else {
           toInsert.push(skuData);
         }
@@ -919,8 +942,13 @@ const SKUs = () => {
             {importData.length > 0 && (
               <>
                 <div className="flex items-center justify-between">
-                  <div className="text-sm text-muted-foreground">
-                    {importData.filter(r => !r.errors).length} valid rows, {importData.filter(r => r.errors).length} with errors
+                  <div className="text-sm space-y-1">
+                    <div className="font-medium">Import Preview:</div>
+                    <div className="text-muted-foreground">
+                      {importData.filter(r => !r.errors && r.action === 'create').length} will be created • {' '}
+                      {importData.filter(r => !r.errors && r.action === 'update').length} will be updated • {' '}
+                      {importData.filter(r => r.errors).length} with errors
+                    </div>
                   </div>
                 </div>
 
@@ -929,6 +957,7 @@ const SKUs = () => {
                     <TableHeader>
                       <TableRow>
                         <TableHead>Status</TableHead>
+                        <TableHead>Action</TableHead>
                         <TableHead>Code</TableHead>
                         <TableHead>Description</TableHead>
                         <TableHead>Kit Price</TableHead>
@@ -945,6 +974,13 @@ const SKUs = () => {
                               <Badge variant="destructive">Error</Badge>
                             ) : (
                               <Badge className="bg-success">Valid</Badge>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {!row.errors && (
+                              <Badge variant={row.action === 'create' ? 'default' : 'secondary'}>
+                                {row.action === 'create' ? 'Create' : 'Update'}
+                              </Badge>
                             )}
                           </TableCell>
                           <TableCell className="font-mono">{row.code}</TableCell>
