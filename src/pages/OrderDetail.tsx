@@ -7,11 +7,16 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { ArrowLeft, Loader2, DollarSign, Package, Pencil, Trash2, Plus, Factory } from 'lucide-react';
+import { ArrowLeft, Loader2, DollarSign, Package, Pencil, Trash2, Plus, Factory, Printer, Calendar as CalendarIcon, Split } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { useRef } from 'react';
+import { useReactToPrint } from 'react-to-print';
+import BatchLabel from '@/components/BatchLabel';
+import BatchScheduler from '@/components/BatchScheduler';
+import BatchSplitMerge from '@/components/BatchSplitMerge';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -114,6 +119,15 @@ const OrderDetail = () => {
   const [createBatchDialogOpen, setCreateBatchDialogOpen] = useState(false);
   const [batchQuantity, setBatchQuantity] = useState('');
   const [creatingBatch, setCreatingBatch] = useState(false);
+  const [schedulerOpen, setSchedulerOpen] = useState(false);
+  const [selectedBatch, setSelectedBatch] = useState<Batch | null>(null);
+  const [splitMergeOpen, setSplitMergeOpen] = useState(false);
+  const [plannedStart, setPlannedStart] = useState('');
+  const labelRef = useRef<HTMLDivElement>(null);
+  
+  const handlePrint = useReactToPrint({
+    contentRef: labelRef,
+  });
 
   useEffect(() => {
     if (id) {
@@ -337,6 +351,9 @@ const OrderDetail = () => {
       // Generate BAT number
       const { uid, humanUid } = await generateBatchUid();
 
+      // Parse planned start date
+      const plannedStartDate = plannedStart ? new Date(plannedStart).toISOString() : null;
+
       // Create batch
       const { data: batchData, error: batchError } = await supabase
         .from('production_batches')
@@ -349,6 +366,7 @@ const OrderDetail = () => {
           qty_bottle_good: 0,
           qty_bottle_scrap: 0,
           priority_index: 0,
+          planned_start: plannedStartDate,
         })
         .select()
         .single();
@@ -375,7 +393,7 @@ const OrderDetail = () => {
         entity_id: batchData.id,
         action: 'created',
         actor_id: (await supabase.auth.getUser()).data.user?.id,
-        after: { uid: humanUid, qty: qty },
+        after: { uid: humanUid, qty: qty, planned_start: plannedStartDate },
       });
 
       toast({
@@ -387,6 +405,7 @@ const OrderDetail = () => {
       fetchBatches();
       setCreateBatchDialogOpen(false);
       setBatchQuantity('');
+      setPlannedStart('');
     } catch (error: any) {
       console.error('Error creating batch:', error);
       toast({
@@ -396,6 +415,138 @@ const OrderDetail = () => {
       });
     } finally {
       setCreatingBatch(false);
+    }
+  };
+
+  const handleScheduleBatch = async (date: Date) => {
+    if (!selectedBatch) return;
+
+    try {
+      const { error } = await supabase
+        .from('production_batches')
+        .update({ planned_start: date.toISOString() })
+        .eq('id', selectedBatch.id);
+
+      if (error) throw error;
+
+      toast({
+        title: 'Batch Scheduled',
+        description: `Batch ${selectedBatch.human_uid} scheduled for ${date.toLocaleDateString()}`,
+      });
+
+      fetchBatches();
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleSplitBatch = async (quantities: number[]) => {
+    if (!selectedBatch || !order) return;
+
+    try {
+      // Delete old batch workflow steps
+      await supabase
+        .from('workflow_steps')
+        .delete()
+        .eq('batch_id', selectedBatch.id);
+
+      // Delete old batch
+      await supabase
+        .from('production_batches')
+        .delete()
+        .eq('id', selectedBatch.id);
+
+      // Create new batches
+      for (let i = 0; i < quantities.length; i++) {
+        const { uid, humanUid } = await generateBatchUid();
+        
+        const { data: newBatch, error: batchError } = await supabase
+          .from('production_batches')
+          .insert({
+            so_id: order.id,
+            uid,
+            human_uid: humanUid,
+            status: 'queued',
+            qty_bottle_planned: quantities[i],
+            qty_bottle_good: 0,
+            qty_bottle_scrap: 0,
+            priority_index: 0,
+          })
+          .select()
+          .single();
+
+        if (batchError) throw batchError;
+
+        // Create workflow steps for new batch
+        const workflowSteps = [
+          { step: 'produce' as const, batch_id: newBatch.id, status: 'pending' as const },
+          { step: 'bottle_cap' as const, batch_id: newBatch.id, status: 'pending' as const },
+          { step: 'label' as const, batch_id: newBatch.id, status: 'pending' as const },
+          { step: 'pack' as const, batch_id: newBatch.id, status: 'pending' as const },
+        ];
+
+        await supabase.from('workflow_steps').insert(workflowSteps);
+      }
+
+      toast({
+        title: 'Batch Split',
+        description: `Split into ${quantities.length} batches`,
+      });
+
+      fetchBatches();
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleMergeBatches = async (batchIds: string[]) => {
+    if (!selectedBatch) return;
+
+    try {
+      // Calculate total quantity
+      const batchesToMerge = batches.filter(b => batchIds.includes(b.id));
+      const totalQty = batchesToMerge.reduce((sum, b) => sum + b.qty_bottle_planned, 0);
+
+      // Update main batch quantity
+      await supabase
+        .from('production_batches')
+        .update({ qty_bottle_planned: selectedBatch.qty_bottle_planned + totalQty })
+        .eq('id', selectedBatch.id);
+
+      // Delete workflow steps for merged batches
+      for (const batchId of batchIds) {
+        await supabase
+          .from('workflow_steps')
+          .delete()
+          .eq('batch_id', batchId);
+      }
+
+      // Delete merged batches
+      await supabase
+        .from('production_batches')
+        .delete()
+        .in('id', batchIds);
+
+      toast({
+        title: 'Batches Merged',
+        description: `Merged ${batchIds.length} batch(es) into ${selectedBatch.human_uid}`,
+      });
+
+      fetchBatches();
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
     }
   };
 
@@ -645,19 +796,54 @@ const OrderDetail = () => {
                     key={batch.id}
                     className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
                   >
-                    <div>
+                    <div className="flex-1">
                       <div className="font-mono font-medium">{batch.human_uid}</div>
                       <div className="text-sm text-muted-foreground mt-1">
                         Created {new Date(batch.created_at).toLocaleDateString()}
                       </div>
                     </div>
-                    <div className="text-right">
-                      <Badge className={statusColors[batch.status] || 'bg-muted'}>
-                        {formatStatus(batch.status)}
-                      </Badge>
-                      <div className="text-sm text-muted-foreground mt-1">
-                        {batch.qty_bottle_good} / {batch.qty_bottle_planned} bottles
+                    <div className="flex items-center gap-3">
+                      <div className="text-right">
+                        <Badge className={statusColors[batch.status] || 'bg-muted'}>
+                          {formatStatus(batch.status)}
+                        </Badge>
+                        <div className="text-sm text-muted-foreground mt-1">
+                          {batch.qty_bottle_good} / {batch.qty_bottle_planned} bottles
+                        </div>
                       </div>
+                      {userRole === 'admin' && (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="outline" size="sm">
+                              Actions
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => {
+                              setSelectedBatch(batch);
+                              handlePrint();
+                            }}>
+                              <Printer className="mr-2 h-4 w-4" />
+                              Print Label
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => {
+                              setSelectedBatch(batch);
+                              setSchedulerOpen(true);
+                            }}>
+                              <CalendarIcon className="mr-2 h-4 w-4" />
+                              Schedule
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem onClick={() => {
+                              setSelectedBatch(batch);
+                              setSplitMergeOpen(true);
+                            }}>
+                              <Split className="mr-2 h-4 w-4" />
+                              Split/Merge
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -750,6 +936,16 @@ const OrderDetail = () => {
                 {remainingBottles} bottles remaining to be batched
               </p>
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="planned-start">Planned Start Date (Optional)</Label>
+              <Input
+                id="planned-start"
+                type="date"
+                value={plannedStart}
+                onChange={(e) => setPlannedStart(e.target.value)}
+                min={new Date().toISOString().split('T')[0]}
+              />
+            </div>
             <div className="p-3 bg-muted rounded-lg space-y-1">
               <p className="text-sm font-medium">Batch will include:</p>
               <ul className="text-sm text-muted-foreground space-y-1">
@@ -779,6 +975,44 @@ const OrderDetail = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Hidden label for printing */}
+      <div className="hidden">
+        {selectedBatch && order && (
+          <BatchLabel
+            ref={labelRef}
+            batchUid={selectedBatch.uid}
+            humanUid={selectedBatch.human_uid}
+            orderUid={order.human_uid}
+            customerName={order.customer.name}
+            quantity={selectedBatch.qty_bottle_planned}
+            createdDate={selectedBatch.created_at}
+          />
+        )}
+      </div>
+
+      {/* Batch Scheduler */}
+      {selectedBatch && (
+        <BatchScheduler
+          open={schedulerOpen}
+          onOpenChange={setSchedulerOpen}
+          onSchedule={handleScheduleBatch}
+          currentDate={null}
+          batchUid={selectedBatch.human_uid}
+        />
+      )}
+
+      {/* Batch Split/Merge */}
+      {selectedBatch && (
+        <BatchSplitMerge
+          open={splitMergeOpen}
+          onOpenChange={setSplitMergeOpen}
+          currentBatch={selectedBatch}
+          availableBatches={batches.filter(b => b.id !== selectedBatch.id && b.status === 'queued')}
+          onSplit={handleSplitBatch}
+          onMerge={handleMergeBatches}
+        />
+      )}
     </div>
   );
 };
