@@ -7,7 +7,8 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Plus, Pencil, Loader2, Trash2, ChevronDown, ChevronRight } from 'lucide-react';
+import { Plus, Pencil, Loader2, Trash2, ChevronDown, ChevronRight, Check } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
@@ -36,8 +37,16 @@ interface SKU {
 const SKUs = () => {
   const [skus, setSKUs] = useState<SKU[]>([]);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingSKU, setEditingSKU] = useState<SKU | null>(null);
+  const [selectedSKUs, setSelectedSKUs] = useState<Set<string>>(new Set());
+  const [bulkEditOpen, setBulkEditOpen] = useState(false);
+  const [bulkFormData, setBulkFormData] = useState({
+    active: true,
+    label_required: false,
+    price_per_piece: '',
+  });
   const [formData, setFormData] = useState({
     code: '',
     description: '',
@@ -90,6 +99,7 @@ const SKUs = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setSaving(true);
 
     try {
       const payload = {
@@ -160,6 +170,83 @@ const SKUs = () => {
         description: error.message,
         variant: 'destructive',
       });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleBulkUpdate = async () => {
+    if (selectedSKUs.size === 0) {
+      toast({
+        title: 'No SKUs selected',
+        description: 'Please select at least one SKU to update',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setSaving(true);
+
+    try {
+      const updates: any = {
+        active: bulkFormData.active,
+        label_required: bulkFormData.label_required,
+      };
+
+      if (bulkFormData.price_per_piece) {
+        updates.price_per_piece = parseFloat(bulkFormData.price_per_piece);
+      }
+
+      const updatePromises = Array.from(selectedSKUs).map(skuId =>
+        supabase.from('skus').update(updates).eq('id', skuId)
+      );
+
+      const results = await Promise.all(updatePromises);
+      const errors = results.filter(r => r.error);
+
+      if (errors.length > 0) {
+        throw new Error(`Failed to update ${errors.length} SKU(s)`);
+      }
+
+      toast({
+        title: 'Success',
+        description: `Updated ${selectedSKUs.size} SKU(s) successfully`,
+      });
+
+      setBulkEditOpen(false);
+      setSelectedSKUs(new Set());
+      setBulkFormData({
+        active: true,
+        label_required: false,
+        price_per_piece: '',
+      });
+      fetchSKUs();
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const toggleSelectSKU = (skuId: string) => {
+    const newSelected = new Set(selectedSKUs);
+    if (newSelected.has(skuId)) {
+      newSelected.delete(skuId);
+    } else {
+      newSelected.add(skuId);
+    }
+    setSelectedSKUs(newSelected);
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedSKUs.size === skus.length) {
+      setSelectedSKUs(new Set());
+    } else {
+      setSelectedSKUs(new Set(skus.map(s => s.id)));
     }
   };
 
@@ -254,16 +341,23 @@ const SKUs = () => {
           <h1 className="text-3xl font-bold tracking-tight">Products (SKUs)</h1>
           <p className="text-muted-foreground mt-1">Manage your product catalog</p>
         </div>
-        <Dialog open={dialogOpen} onOpenChange={(open) => {
-          setDialogOpen(open);
-          if (!open) resetForm();
-        }}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="mr-2 h-4 w-4" />
-              Add SKU
+        <div className="flex gap-2">
+          {selectedSKUs.size > 0 && (
+            <Button variant="outline" onClick={() => setBulkEditOpen(true)}>
+              <Check className="mr-2 h-4 w-4" />
+              Edit {selectedSKUs.size} Selected
             </Button>
-          </DialogTrigger>
+          )}
+          <Dialog open={dialogOpen} onOpenChange={(open) => {
+            setDialogOpen(open);
+            if (!open) resetForm();
+          }}>
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="mr-2 h-4 w-4" />
+                Add SKU
+              </Button>
+            </DialogTrigger>
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>{editingSKU ? 'Edit SKU' : 'Add New SKU'}</DialogTitle>
@@ -414,16 +508,24 @@ const SKUs = () => {
                 <Label htmlFor="label_required">Label Required</Label>
               </div>
               <div className="flex gap-2 justify-end">
-                <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
+                <Button type="button" variant="outline" onClick={() => setDialogOpen(false)} disabled={saving}>
                   Cancel
                 </Button>
-                <Button type="submit">
-                  {editingSKU ? 'Update' : 'Create'}
+                <Button type="submit" disabled={saving}>
+                  {saving ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    editingSKU ? 'Update' : 'Create'
+                  )}
                 </Button>
               </div>
             </form>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       <Card>
@@ -446,6 +548,12 @@ const SKUs = () => {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-10">
+                    <Checkbox
+                      checked={selectedSKUs.size === skus.length}
+                      onCheckedChange={toggleSelectAll}
+                    />
+                  </TableHead>
                   <TableHead className="w-10"></TableHead>
                   <TableHead>Code</TableHead>
                   <TableHead>Description</TableHead>
@@ -459,6 +567,12 @@ const SKUs = () => {
                 {skus.map((sku) => (
                   <>
                     <TableRow key={sku.id} className="cursor-pointer" onClick={() => toggleRow(sku.id)}>
+                      <TableCell onClick={(e) => e.stopPropagation()}>
+                        <Checkbox
+                          checked={selectedSKUs.has(sku.id)}
+                          onCheckedChange={() => toggleSelectSKU(sku.id)}
+                        />
+                      </TableCell>
                       <TableCell>
                         <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
                           {expandedRows.has(sku.id) ? (
@@ -497,7 +611,7 @@ const SKUs = () => {
                     </TableRow>
                     {expandedRows.has(sku.id) && (
                       <TableRow>
-                        <TableCell colSpan={7} className="bg-muted/50">
+                        <TableCell colSpan={8} className="bg-muted/50">
                           <div className="py-2 px-4">
                             {sku.use_tier_pricing ? (
                               <>
@@ -536,6 +650,65 @@ const SKUs = () => {
           )}
         </CardContent>
       </Card>
+
+      {/* Bulk Edit Dialog */}
+      <Dialog open={bulkEditOpen} onOpenChange={setBulkEditOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Bulk Edit SKUs</DialogTitle>
+            <DialogDescription>
+              Update {selectedSKUs.size} selected SKU(s) at once
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="bulk_active">Active Status</Label>
+              <Switch
+                id="bulk_active"
+                checked={bulkFormData.active}
+                onCheckedChange={(checked) => setBulkFormData({ ...bulkFormData, active: checked })}
+              />
+            </div>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="bulk_label">Label Required</Label>
+              <Switch
+                id="bulk_label"
+                checked={bulkFormData.label_required}
+                onCheckedChange={(checked) => setBulkFormData({ ...bulkFormData, label_required: checked })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="bulk_price">Price per Piece ($)</Label>
+              <Input
+                id="bulk_price"
+                type="number"
+                step="0.01"
+                placeholder="Leave empty to keep existing prices"
+                value={bulkFormData.price_per_piece}
+                onChange={(e) => setBulkFormData({ ...bulkFormData, price_per_piece: e.target.value })}
+              />
+              <p className="text-xs text-muted-foreground">
+                Leave empty to keep existing prices unchanged
+              </p>
+            </div>
+            <div className="flex gap-2 justify-end">
+              <Button variant="outline" onClick={() => setBulkEditOpen(false)} disabled={saving}>
+                Cancel
+              </Button>
+              <Button onClick={handleBulkUpdate} disabled={saving}>
+                {saving ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Updating...
+                  </>
+                ) : (
+                  'Update All'
+                )}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
