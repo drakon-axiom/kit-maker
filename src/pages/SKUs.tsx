@@ -81,6 +81,7 @@ const SKUs = () => {
     active: true,
     label_required: false,
     price_per_piece: '',
+    sizes: [] as number[],
   });
   const [importOpen, setImportOpen] = useState(false);
   const [importData, setImportData] = useState<ImportRow[]>([]);
@@ -269,6 +270,24 @@ const SKUs = () => {
         throw new Error(`Failed to update ${errors.length} SKU(s)`);
       }
 
+      // Handle size variants if specified
+      if (bulkFormData.sizes.length > 0) {
+        const sizePromises = Array.from(selectedSKUs).flatMap(async (skuId) => {
+          // Delete existing sizes
+          await supabase.from('sku_sizes').delete().eq('sku_id', skuId);
+          
+          // Insert new sizes
+          const sizeInserts = bulkFormData.sizes.map(size => ({
+            sku_id: skuId,
+            size_ml: size,
+          }));
+          
+          return supabase.from('sku_sizes').insert(sizeInserts);
+        });
+        
+        await Promise.all(sizePromises);
+      }
+
       toast({
         title: 'Success',
         description: `Updated ${selectedSKUs.size} SKU(s) successfully`,
@@ -280,6 +299,7 @@ const SKUs = () => {
         active: true,
         label_required: false,
         price_per_piece: '',
+        sizes: [],
       });
       fetchSKUs();
     } catch (error: any) {
@@ -1377,6 +1397,30 @@ const SKUs = () => {
               />
               <p className="text-xs text-muted-foreground">
                 Leave empty to keep existing prices unchanged
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Label>Size Variants (ml)</Label>
+              <div className="flex flex-wrap gap-2">
+                {[3, 5, 10, 20, 30, 50, 100].map((size) => (
+                  <Button
+                    key={size}
+                    type="button"
+                    variant={bulkFormData.sizes.includes(size) ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => {
+                      const newSizes = bulkFormData.sizes.includes(size)
+                        ? bulkFormData.sizes.filter(s => s !== size)
+                        : [...bulkFormData.sizes, size].sort((a, b) => a - b);
+                      setBulkFormData({ ...bulkFormData, sizes: newSizes });
+                    }}
+                  >
+                    {size}ml
+                  </Button>
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Leave empty to keep existing size variants unchanged
               </p>
             </div>
             <div className="flex gap-2 justify-end">
