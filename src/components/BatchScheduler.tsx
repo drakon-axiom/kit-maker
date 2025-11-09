@@ -66,6 +66,7 @@ const BatchScheduler = ({ open, onOpenChange, onSchedule, currentDate, batchUid 
                   onSelect={setDate}
                   initialFocus
                   disabled={(date) => date < new Date()}
+                  className={cn("p-3 pointer-events-auto")}
                 />
               </PopoverContent>
             </Popover>
