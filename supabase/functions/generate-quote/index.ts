@@ -31,22 +31,28 @@ serve(async (req) => {
       .select(`
         *,
         customers (
-          customer_name,
-          customer_email,
-          customer_phone,
-          customer_address
+          name,
+          email,
+          phone,
+          address
         ),
         sales_order_lines (
           id,
-          sku_code,
-          quantity,
-          unit_price
+          qty_entered,
+          bottle_qty,
+          unit_price,
+          line_subtotal,
+          sku:skus (
+            code,
+            description
+          )
         )
       `)
       .eq("id", orderId)
       .single();
 
     if (orderError || !order) {
+      console.error("Order fetch error:", orderError);
       throw new Error("Order not found");
     }
 
@@ -90,7 +96,7 @@ serve(async (req) => {
     // Quote Information
     page.drawText("Quote Information", { x: 50, y: yPosition, size: 14, font: fontBold });
     yPosition -= 20;
-    page.drawText(`Quote #: ${order.so_number}`, { x: 50, y: yPosition, size: 10, font: font });
+    page.drawText(`Quote #: ${order.human_uid}`, { x: 50, y: yPosition, size: 10, font: font });
     yPosition -= 15;
     page.drawText(`Date: ${new Date(order.created_at).toLocaleDateString()}`, { x: 50, y: yPosition, size: 10, font: font });
     yPosition -= 30;
@@ -98,12 +104,12 @@ serve(async (req) => {
     // Customer Information
     page.drawText("Customer Information", { x: 50, y: yPosition, size: 14, font: fontBold });
     yPosition -= 20;
-    page.drawText(`Name: ${order.customers?.customer_name || "N/A"}`, { x: 50, y: yPosition, size: 10, font: font });
+    page.drawText(`Name: ${order.customers?.name || "N/A"}`, { x: 50, y: yPosition, size: 10, font: font });
     yPosition -= 15;
-    page.drawText(`Email: ${order.customers?.customer_email || "N/A"}`, { x: 50, y: yPosition, size: 10, font: font });
-    if (order.customers?.customer_phone) {
+    page.drawText(`Email: ${order.customers?.email || "N/A"}`, { x: 50, y: yPosition, size: 10, font: font });
+    if (order.customers?.phone) {
       yPosition -= 15;
-      page.drawText(`Phone: ${order.customers.customer_phone}`, { x: 50, y: yPosition, size: 10, font: font });
+      page.drawText(`Phone: ${order.customers.phone}`, { x: 50, y: yPosition, size: 10, font: font });
     }
     yPosition -= 30;
     
@@ -128,11 +134,11 @@ serve(async (req) => {
     // Table rows
     let subtotal = 0;
     for (const line of order.sales_order_lines) {
-      const lineTotal = line.quantity * line.unit_price;
+      const lineTotal = line.line_subtotal;
       subtotal += lineTotal;
       
-      page.drawText(line.sku_code, { x: 60, y: yPosition, size: 9, font: font });
-      page.drawText(line.quantity.toString(), { x: 250, y: yPosition, size: 9, font: font });
+      page.drawText(line.sku?.code || "N/A", { x: 60, y: yPosition, size: 9, font: font });
+      page.drawText(`${line.qty_entered} (${line.bottle_qty} bottles)`, { x: 250, y: yPosition, size: 9, font: font });
       page.drawText(`$${line.unit_price.toFixed(2)}`, { x: 350, y: yPosition, size: 9, font: font });
       page.drawText(`$${lineTotal.toFixed(2)}`, { x: 480, y: yPosition, size: 9, font: font });
       yPosition -= 20;
@@ -221,13 +227,13 @@ serve(async (req) => {
       },
     });
 
-    const customerEmail = order.customers?.customer_email || "";
-    const customerName = order.customers?.customer_name || "Customer";
+    const customerEmail = order.customers?.email || "";
+    const customerName = order.customers?.name || "Customer";
 
     await client.send({
       from: `Nexus Aminos <${smtpUser}>`,
       to: customerEmail,
-      subject: `Quote ${order.so_number} from Nexus Aminos`,
+      subject: `Quote ${order.human_uid} from Nexus Aminos`,
       html: `
         <!doctype html>
         <html>
@@ -249,7 +255,7 @@ serve(async (req) => {
             <div class="content">
               <h2>Hello ${customerName},</h2>
               <p>Thank you for your interest in Nexus Aminos. Please find your quote attached to this email.</p>
-              <p><strong>Quote Number:</strong> ${order.so_number}</p>
+              <p><strong>Quote Number:</strong> ${order.human_uid}</p>
               <p>This quote is valid for 30 days. If you have any questions or would like to proceed with this order, please reply to this email or contact us.</p>
               ${order.deposit_required ? '<p><strong>Note:</strong> A 50% deposit is required before production begins.</p>' : ''}
               <p>We look forward to working with you!</p>
@@ -263,7 +269,7 @@ serve(async (req) => {
       `,
       attachments: [
         {
-          filename: `Quote_${order.so_number}.pdf`,
+          filename: `Quote_${order.human_uid}.pdf`,
           content: pdfBase64,
           encoding: "base64",
           contentType: "application/pdf",
