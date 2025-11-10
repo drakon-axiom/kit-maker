@@ -38,6 +38,7 @@ interface SalesOrder {
   customer: {
     name: string;
   };
+  shipments: Array<{ id: string }>;
 }
 
 const Shipments = () => {
@@ -127,9 +128,10 @@ const Shipments = () => {
         .select(`
           id,
           human_uid,
-          customer:customers(name)
+          customer:customers(name),
+          shipments:shipments(id)
         `)
-        .in('status', ['packed', 'in_packing', 'in_labeling'])
+        .in('status', ['packed', 'in_packing', 'in_labeling', 'shipped'])
         .order('human_uid', { ascending: false });
 
       if (error) throw error;
@@ -355,6 +357,11 @@ const Shipments = () => {
                       {orders.map((order) => (
                         <SelectItem key={order.id} value={order.id}>
                           {order.human_uid} - {order.customer.name}
+                          {order.shipments.length > 0 && (
+                            <span className="ml-2 text-xs text-muted-foreground">
+                              ({order.shipments.length} shipment{order.shipments.length !== 1 ? 's' : ''})
+                            </span>
+                          )}
                         </SelectItem>
                       ))}
                     </SelectContent>
