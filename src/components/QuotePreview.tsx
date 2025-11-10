@@ -1,6 +1,8 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 interface QuotePreviewProps {
   open: boolean;
@@ -35,6 +37,35 @@ const QuotePreview = ({ open, onOpenChange, order, onSend, sending }: QuotePrevi
   const depositAmount = order.deposit_amount || 0;
   const depositPercentage = order.subtotal > 0 ? Math.round((depositAmount / order.subtotal) * 100) : 0;
 
+  const [settings, setSettings] = useState<Record<string, string>>({
+    company_name: "Nexus Aminos",
+    company_email: "info@nexusaminos.com",
+    quote_header_bg_color: "#c2e4fb",
+    quote_header_text_color: "#000000",
+    quote_footer_text: "We look forward to working with you!"
+  });
+
+  useEffect(() => {
+    const fetchSettings = async () => {
+      const { data } = await supabase
+        .from("settings")
+        .select("key, value")
+        .in("key", ["company_name", "company_email", "quote_header_bg_color", "quote_header_text_color", "quote_footer_text"]);
+      
+      if (data) {
+        const settingsMap: Record<string, string> = {};
+        data.forEach((s) => {
+          settingsMap[s.key] = s.value;
+        });
+        setSettings(prev => ({ ...prev, ...settingsMap }));
+      }
+    };
+
+    if (open) {
+      fetchSettings();
+    }
+  }, [open]);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
@@ -56,12 +87,12 @@ const QuotePreview = ({ open, onOpenChange, order, onSend, sending }: QuotePrevi
           }}>
             {/* Header */}
             <div style={{ 
-              background: "#c2e4fb", 
+              background: settings.quote_header_bg_color, 
               padding: "30px", 
               textAlign: "center" 
             }}>
-              <h1 style={{ color: "#000", margin: 0, fontSize: "24px", fontWeight: "bold" }}>
-                NEXUS AMINOS
+              <h1 style={{ color: settings.quote_header_text_color, margin: 0, fontSize: "24px", fontWeight: "bold" }}>
+                {settings.company_name.toUpperCase()}
               </h1>
             </div>
 
@@ -76,7 +107,7 @@ const QuotePreview = ({ open, onOpenChange, order, onSend, sending }: QuotePrevi
               </h2>
               
               <p style={{ marginBottom: "16px", lineHeight: "1.6" }}>
-                Thank you for your interest in Nexus Aminos. Please find your quote attached to this email.
+                Thank you for your interest in {settings.company_name}. Please find your quote details below.
               </p>
               
               <div style={{ 
@@ -177,27 +208,27 @@ const QuotePreview = ({ open, onOpenChange, order, onSend, sending }: QuotePrevi
               )}
               
               <p style={{ lineHeight: "1.6" }}>
-                We look forward to working with you!
+                {settings.quote_footer_text}
               </p>
             </div>
 
             {/* Footer */}
             <div style={{ 
-              background: "#c2e4fb", 
+              background: settings.quote_header_bg_color, 
               padding: "20px", 
               textAlign: "center",
               marginTop: "40px" 
             }}>
               <p style={{ margin: "8px 0", fontWeight: "500" }}>
-                Nexus Aminos<br />
-                info@nexusaminos.com
+                {settings.company_name}<br />
+                {settings.company_email}
               </p>
               <p style={{ 
                 fontSize: "12px", 
                 color: "#666", 
                 margin: "8px 0" 
               }}>
-                © {new Date().getFullYear()} Nexus Aminos. All rights reserved.
+                © {new Date().getFullYear()} {settings.company_name}. All rights reserved.
               </p>
             </div>
           </div>
