@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Plus, Pencil, Loader2, Trash2, Upload, AlertCircle } from 'lucide-react';
+import { Plus, Pencil, Loader2, Trash2, Upload, AlertCircle, Search } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -44,6 +44,7 @@ const Customers = () => {
   const [importData, setImportData] = useState<ImportRow[]>([]);
   const [importing, setImporting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [searchQuery, setSearchQuery] = useState('');
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -372,6 +373,17 @@ const Customers = () => {
     window.URL.revokeObjectURL(url);
   };
 
+  const filteredCustomers = customers.filter(customer => {
+    if (!searchQuery) return true;
+    const query = searchQuery.toLowerCase();
+    return (
+      customer.name.toLowerCase().includes(query) ||
+      customer.email?.toLowerCase().includes(query) ||
+      customer.phone?.toLowerCase().includes(query) ||
+      customer.default_terms?.toLowerCase().includes(query)
+    );
+  });
+
   return (
     <div className="p-6 space-y-6">
       <div className="flex justify-between items-center">
@@ -460,10 +472,23 @@ const Customers = () => {
 
       <Card>
         <CardHeader>
-          <CardTitle>All Customers</CardTitle>
-          <CardDescription>
-            {customers.length} customer{customers.length !== 1 ? 's' : ''} in total
-          </CardDescription>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>All Customers</CardTitle>
+              <CardDescription>
+                {filteredCustomers.length} of {customers.length} customer{customers.length !== 1 ? 's' : ''}
+              </CardDescription>
+            </div>
+            <div className="relative w-72">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search by name, email, phone..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
           {loading ? (
@@ -473,6 +498,10 @@ const Customers = () => {
           ) : customers.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
               No customers yet. Click "Add Customer" to get started.
+            </div>
+          ) : filteredCustomers.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              No customers match your search "{searchQuery}"
             </div>
           ) : (
             <Table>
@@ -486,7 +515,7 @@ const Customers = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {customers.map((customer) => (
+                {filteredCustomers.map((customer) => (
                   <TableRow key={customer.id}>
                     <TableCell className="font-medium">{customer.name}</TableCell>
                     <TableCell>{customer.email || '-'}</TableCell>
