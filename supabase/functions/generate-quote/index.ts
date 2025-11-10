@@ -30,11 +30,10 @@ serve(async (req) => {
       .from("sales_orders")
       .select(`
         *,
-        customers (
+        customer:customers (
           name,
           email,
-          phone,
-          address
+          phone
         ),
         sales_order_lines (
           id,
@@ -104,12 +103,12 @@ serve(async (req) => {
     // Customer Information
     page.drawText("Customer Information", { x: 50, y: yPosition, size: 14, font: fontBold });
     yPosition -= 20;
-    page.drawText(`Name: ${order.customers?.name || "N/A"}`, { x: 50, y: yPosition, size: 10, font: font });
+    page.drawText(`Name: ${order.customer?.name || "N/A"}`, { x: 50, y: yPosition, size: 10, font: font });
     yPosition -= 15;
-    page.drawText(`Email: ${order.customers?.email || "N/A"}`, { x: 50, y: yPosition, size: 10, font: font });
-    if (order.customers?.phone) {
+    page.drawText(`Email: ${order.customer?.email || "N/A"}`, { x: 50, y: yPosition, size: 10, font: font });
+    if (order.customer?.phone) {
       yPosition -= 15;
-      page.drawText(`Phone: ${order.customers.phone}`, { x: 50, y: yPosition, size: 10, font: font });
+      page.drawText(`Phone: ${order.customer.phone}`, { x: 50, y: yPosition, size: 10, font: font });
     }
     yPosition -= 30;
     
@@ -227,8 +226,8 @@ serve(async (req) => {
       },
     });
 
-    const customerEmail = order.customers?.email || "";
-    const customerName = order.customers?.name || "Customer";
+    const customerEmail = order.customer?.email || "";
+    const customerName = order.customer?.name || "Customer";
 
     await client.send({
       from: `Nexus Aminos <${smtpUser}>`,
