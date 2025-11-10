@@ -124,6 +124,9 @@ const OrderDetail = () => {
   const [quotePreviewOpen, setQuotePreviewOpen] = useState(false);
   const [batchPlannerOpen, setBatchPlannerOpen] = useState(false);
   const [batchAllocations, setBatchAllocations] = useState<Record<string, number>>({});
+  const [deleteBatchDialogOpen, setDeleteBatchDialogOpen] = useState(false);
+  const [batchToDelete, setBatchToDelete] = useState<Batch | null>(null);
+  const [deletingBatch, setDeletingBatch] = useState(false);
   const labelRef = useRef<HTMLDivElement>(null);
   
   const handlePrint = useReactToPrint({
@@ -331,6 +334,64 @@ const OrderDetail = () => {
       });
     } finally {
       setUpdatingStatus(false);
+    }
+  };
+
+  const handleDeleteBatch = async () => {
+    if (!batchToDelete) return;
+    
+    setDeletingBatch(true);
+    try {
+      // Delete workflow steps
+      const { error: stepsError } = await supabase
+        .from('workflow_steps')
+        .delete()
+        .eq('batch_id', batchToDelete.id);
+
+      if (stepsError) throw stepsError;
+
+      // Delete batch items
+      const { error: itemsError } = await supabase
+        .from('production_batch_items')
+        .delete()
+        .eq('batch_id', batchToDelete.id);
+
+      if (itemsError) throw itemsError;
+
+      // Delete batch
+      const { error: batchError } = await supabase
+        .from('production_batches')
+        .delete()
+        .eq('id', batchToDelete.id);
+
+      if (batchError) throw batchError;
+
+      // Log deletion
+      await supabase.from('audit_log').insert({
+        entity: 'production_batch',
+        entity_id: batchToDelete.id,
+        action: 'deleted',
+        actor_id: (await supabase.auth.getUser()).data.user?.id,
+        before: { uid: batchToDelete.human_uid, qty: batchToDelete.qty_bottle_planned },
+      });
+
+      toast({
+        title: 'Batch Deleted',
+        description: `Batch ${batchToDelete.human_uid} has been deleted`,
+      });
+
+      await fetchBatches();
+      await fetchBatchAllocations();
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } finally {
+      setDeletingBatch(false);
+      setDeleteBatchDialogOpen(false);
+      setBatchToDelete(null);
     }
   };
 
@@ -885,6 +946,17 @@ const OrderDetail = () => {
                               <Split className="mr-2 h-4 w-4" />
                               Split/Merge
                             </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem 
+                              onClick={() => {
+                                setBatchToDelete(batch);
+                                setDeleteBatchDialogOpen(true);
+                              }}
+                              className="text-destructive focus:text-destructive"
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              Delete Batch
+                            </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
                       )}
@@ -963,6 +1035,29 @@ const OrderDetail = () => {
               className={deleteMode === 'hard' ? 'bg-destructive hover:bg-destructive/90' : ''}
             >
               {deleting ? 'Processing...' : deleteMode === 'soft' ? 'Cancel Order' : 'Delete Permanently'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Batch Confirmation */}
+      <AlertDialog open={deleteBatchDialogOpen} onOpenChange={setDeleteBatchDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Batch?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete batch <span className="font-mono font-semibold">{batchToDelete?.human_uid}</span> and all associated workflow steps. 
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deletingBatch}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteBatch}
+              disabled={deletingBatch}
+              className="bg-destructive hover:bg-destructive/90"
+            >
+              {deletingBatch ? 'Deleting...' : 'Delete Batch'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
