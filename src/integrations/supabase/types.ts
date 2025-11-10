@@ -601,6 +601,7 @@ export type Database = {
       skus: {
         Row: {
           active: boolean
+          batch_prefix: string | null
           code: string
           created_at: string
           description: string
@@ -613,6 +614,7 @@ export type Database = {
         }
         Insert: {
           active?: boolean
+          batch_prefix?: string | null
           code: string
           created_at?: string
           description: string
@@ -625,6 +627,7 @@ export type Database = {
         }
         Update: {
           active?: boolean
+          batch_prefix?: string | null
           code?: string
           created_at?: string
           description?: string
@@ -707,6 +710,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      generate_batch_number: { Args: { sku_code: string }; Returns: string }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

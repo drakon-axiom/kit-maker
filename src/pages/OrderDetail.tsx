@@ -334,48 +334,28 @@ const OrderDetail = () => {
     }
   };
 
-  const generateBatchUid = async () => {
-    const today = new Date();
-    const dateStr = today.toISOString().split('T')[0].replace(/-/g, '');
-    
-    // Get count of batches created today
-    const { data, error } = await supabase
-      .from('production_batches')
-      .select('uid')
-      .like('uid', `BAT-${dateStr}%`)
-      .order('uid', { ascending: false })
-      .limit(1);
-
-    if (error) throw error;
-
-    let sequence = 1;
-    if (data && data.length > 0) {
-      const lastUid = data[0].uid;
-      const lastSeq = parseInt(lastUid.split('-').pop() || '0');
-      sequence = lastSeq + 1;
-    }
-
-    const uid = `BAT-${dateStr}-${sequence.toString().padStart(2, '0')}`;
-    const humanUid = `BAT-${today.getFullYear()}${(today.getMonth() + 1).toString().padStart(2, '0')}${today.getDate().toString().padStart(2, '0')}-${sequence.toString().padStart(2, '0')}`;
-    
-    return { uid, humanUid };
-  };
-
   const createBatchesFromPlans = async (plans: Array<{ lineId: string; quantity: number }>) => {
     if (!order) return;
 
     try {
       for (const plan of plans) {
-        // Generate BAT number
-        const { uid, humanUid } = await generateBatchUid();
+        // Get the SKU code for this line
+        const orderLine = order.sales_order_lines.find(l => l.id === plan.lineId);
+        if (!orderLine) throw new Error('Order line not found');
+
+        // Generate batch number based on SKU code (e.g., GTB-2511-001)
+        const { data: batchNumber, error: batchNumError } = await supabase
+          .rpc('generate_batch_number', { sku_code: orderLine.sku.code });
+
+        if (batchNumError) throw batchNumError;
 
         // Create batch
         const { data: batchData, error: batchError } = await supabase
           .from('production_batches')
           .insert({
             so_id: order.id,
-            uid,
-            human_uid: humanUid,
+            uid: batchNumber,
+            human_uid: batchNumber,
             status: 'queued',
             qty_bottle_planned: plan.quantity,
             qty_bottle_good: 0,
@@ -418,7 +398,7 @@ const OrderDetail = () => {
           entity_id: batchData.id,
           action: 'created',
           actor_id: (await supabase.auth.getUser()).data.user?.id,
-          after: { uid: humanUid, qty: plan.quantity, line_id: plan.lineId },
+          after: { uid: batchNumber, qty: plan.quantity, line_id: plan.lineId },
         });
       }
 
@@ -471,9 +451,32 @@ const OrderDetail = () => {
     if (!selectedBatch || !order) return;
 
     try {
+      // Get batch items to preserve SKU information
+      const { data: batchItems, error: itemsError } = await supabase
+        .from('production_batch_items')
+        .select(`
+          *,
+          sales_order_lines!inner(
+            sku:skus(code)
+          )
+        `)
+        .eq('batch_id', selectedBatch.id);
+
+      if (itemsError) throw itemsError;
+      
+      // Get the SKU code from the batch item
+      const skuCode = (batchItems?.[0] as any)?.sales_order_lines?.sku?.code;
+      if (!skuCode) throw new Error('Could not determine SKU for batch');
+
       // Delete old batch workflow steps
       await supabase
         .from('workflow_steps')
+        .delete()
+        .eq('batch_id', selectedBatch.id);
+
+      // Delete old batch items
+      await supabase
+        .from('production_batch_items')
         .delete()
         .eq('batch_id', selectedBatch.id);
 
@@ -483,16 +486,20 @@ const OrderDetail = () => {
         .delete()
         .eq('id', selectedBatch.id);
 
-      // Create new batches
+      // Create new batches with proper batch numbers
       for (let i = 0; i < quantities.length; i++) {
-        const { uid, humanUid } = await generateBatchUid();
+        // Generate batch number based on SKU
+        const { data: batchNumber, error: batchNumError } = await supabase
+          .rpc('generate_batch_number', { sku_code: skuCode });
+
+        if (batchNumError) throw batchNumError;
         
         const { data: newBatch, error: batchError } = await supabase
           .from('production_batches')
           .insert({
             so_id: order.id,
-            uid,
-            human_uid: humanUid,
+            uid: batchNumber,
+            human_uid: batchNumber,
             status: 'queued',
             qty_bottle_planned: quantities[i],
             qty_bottle_good: 0,
@@ -503,6 +510,19 @@ const OrderDetail = () => {
           .single();
 
         if (batchError) throw batchError;
+
+        // Recreate batch items for new batch
+        if (batchItems && batchItems.length > 0) {
+          const { error: newItemError } = await supabase
+            .from('production_batch_items')
+            .insert({
+              batch_id: newBatch.id,
+              so_line_id: batchItems[0].so_line_id,
+              bottle_qty_allocated: quantities[i],
+            });
+
+          if (newItemError) throw newItemError;
+        }
 
         // Create workflow steps for new batch
         const workflowSteps = [
@@ -521,6 +541,7 @@ const OrderDetail = () => {
       });
 
       fetchBatches();
+      fetchBatchAllocations();
     } catch (error: any) {
       toast({
         title: 'Error',

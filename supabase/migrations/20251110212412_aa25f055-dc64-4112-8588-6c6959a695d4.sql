@@ -1,0 +1,26 @@
+-- Populate batch prefixes for existing SKUs based on product codes from the JSON data
+UPDATE public.skus SET batch_prefix = 'B12' WHERE code = 'B12-PM';
+UPDATE public.skus SET batch_prefix = 'BAC' WHERE code IN ('BACWTR', 'BACWTR-10', 'BACWTR-20');
+UPDATE public.skus SET batch_prefix = 'BCA' WHERE code = 'BCAA';
+UPDATE public.skus SET batch_prefix = 'BCE' WHERE code = 'BCOMPLEX';
+UPDATE public.skus SET batch_prefix = 'HSN' WHERE code = 'BEAUTY';
+UPDATE public.skus SET batch_prefix = 'FIT' WHERE code = 'FITSHOT';
+UPDATE public.skus SET batch_prefix = 'GLU' WHERE code = 'GLUCO';
+UPDATE public.skus SET batch_prefix = 'GTB' WHERE code = 'GTB';
+UPDATE public.skus SET batch_prefix = 'GTM' WHERE code = 'GTB-SUP';
+UPDATE public.skus SET batch_prefix = 'IMZ' WHERE code = 'IMMUNE';
+UPDATE public.skus SET batch_prefix = 'L60' WHERE code = 'LCARN';
+UPDATE public.skus SET batch_prefix = 'LFP' WHERE code = 'LEANPRO';
+UPDATE public.skus SET batch_prefix = 'LPP' WHERE code = 'LEANPRO-P';
+UPDATE public.skus SET batch_prefix = 'LCH' WHERE code = 'LIPOC';
+UPDATE public.skus SET batch_prefix = 'LCP' WHERE code = 'LIPOC-P';
+UPDATE public.skus SET batch_prefix = 'LIP' WHERE code = 'LIPOLEAN';
+UPDATE public.skus SET batch_prefix = 'LPR' WHERE code = 'LIPOLEAN-P';
+UPDATE public.skus SET batch_prefix = 'MGM' WHERE code = 'MEGAMUS';
+UPDATE public.skus SET batch_prefix = 'MTB' WHERE code = 'METHBLUE';
+UPDATE public.skus SET batch_prefix = 'MCP' WHERE code = 'MIC-P';
+UPDATE public.skus SET batch_prefix = 'M12' WHERE code = 'MICB12';
+UPDATE public.skus SET batch_prefix = 'SLM' WHERE code = 'SLIMFUEL';
+UPDATE public.skus SET batch_prefix = 'SBM' WHERE code = 'SUPERB12';
+UPDATE public.skus SET batch_prefix = 'VTC' WHERE code = 'VITC';
+UPDATE public.skus SET batch_prefix = 'ZSM' WHERE code = 'ZINC';
