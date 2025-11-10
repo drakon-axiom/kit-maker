@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Loader2, Package, Plus, Pencil, Trash2, Search, ExternalLink } from 'lucide-react';
+import { Loader2, Package, Plus, Pencil, Trash2, Search, ExternalLink, RefreshCw } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -20,6 +20,9 @@ interface Shipment {
   tracking_no: string;
   shipped_at: string | null;
   notes: string | null;
+  tracking_status: string | null;
+  tracking_location: string | null;
+  last_tracking_update: string | null;
   sales_order: {
     id: string;
     human_uid: string;
@@ -46,6 +49,7 @@ const Shipments = () => {
   const [editingShipment, setEditingShipment] = useState<Shipment | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [shipmentToDelete, setShipmentToDelete] = useState<Shipment | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const { toast } = useToast();
 
   const [formData, setFormData] = useState({
@@ -220,6 +224,31 @@ const Shipments = () => {
     }
   };
 
+  const handleRefreshTracking = async () => {
+    setIsRefreshing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('update-tracking');
+
+      if (error) throw error;
+
+      toast({
+        title: 'Success',
+        description: `Updated tracking for ${data.updated} shipment(s)`,
+      });
+
+      // Refresh the shipments list
+      fetchShipments();
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
   const getTrackingUrl = (carrier: string | null, trackingNo: string) => {
     if (!carrier) return null;
     const lowerCarrier = carrier.toLowerCase();
@@ -243,16 +272,25 @@ const Shipments = () => {
           <h1 className="text-3xl font-bold tracking-tight">Shipments</h1>
           <p className="text-muted-foreground mt-1">Track all shipped orders</p>
         </div>
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogTrigger asChild>
-            <Button onClick={() => handleOpenDialog()}>
-              <Plus className="h-4 w-4 mr-2" />
-              Create Shipment
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>{editingShipment ? 'Edit Shipment' : 'Create Shipment'}</DialogTitle>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={handleRefreshTracking}
+            disabled={isRefreshing}
+          >
+            <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+            Refresh Tracking
+          </Button>
+          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            <DialogTrigger asChild>
+              <Button onClick={() => handleOpenDialog()}>
+                <Plus className="h-4 w-4 mr-2" />
+                Create Shipment
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>{editingShipment ? 'Edit Shipment' : 'Create Shipment'}</DialogTitle>
               <DialogDescription>
                 {editingShipment ? 'Update shipment details' : 'Create a new shipment for an order'}
               </DialogDescription>
@@ -329,6 +367,7 @@ const Shipments = () => {
             </form>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       <Card>
@@ -375,6 +414,8 @@ const Shipments = () => {
                   <TableHead>Tracking Number</TableHead>
                   <TableHead>Shipped Date</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead>Location</TableHead>
+                  <TableHead>Last Update</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -407,7 +448,19 @@ const Shipments = () => {
                           : 'Pending'}
                       </TableCell>
                       <TableCell>
-                        <Badge className="bg-success">Shipped</Badge>
+                        {shipment.tracking_status ? (
+                          <Badge variant="outline">{shipment.tracking_status}</Badge>
+                        ) : (
+                          <Badge className="bg-success">Shipped</Badge>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {shipment.tracking_location || '-'}
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {shipment.last_tracking_update
+                          ? new Date(shipment.last_tracking_update).toLocaleDateString()
+                          : '-'}
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
