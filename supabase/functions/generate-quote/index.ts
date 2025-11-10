@@ -51,6 +51,7 @@ function generateQuoteHtml(params: QuoteEmailParams): string {
       .replace(/\{\{customer_email\}\}/g, custEmail || '')
       .replace(/\{\{line_items\}\}/g, lineItemsHtml)
       .replace(/\{\{subtotal\}\}/g, `$${subtotal.toFixed(2)}`)
+      .replace(/\{\{logo_url\}\}/g, logoUrl)
       .replace(/\{\{deposit_info\}\}/g, depositRequired && depositAmount > 0 
         ? `<tr><td colspan="3" style="padding: 8px; text-align: right;">Deposit Required (${depositPercentage}%):</td><td style="padding: 8px; text-align: right;">$${depositAmount.toFixed(2)}</td></tr>`
         : '');
@@ -87,11 +88,18 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Fetch quote template settings
+    // Fetch quote template from email_templates table
+    const { data: templateData } = await supabase
+      .from("email_templates")
+      .select("custom_html")
+      .eq("template_type", "quote")
+      .single();
+
+    // Fetch settings for company info
     const { data: templateSettings } = await supabase
       .from("settings")
       .select("key, value")
-      .in("key", ["company_name", "company_email", "quote_header_bg_color", "quote_header_text_color", "quote_footer_text", "company_logo_url", "quote_custom_html"]);
+      .in("key", ["company_name", "company_email", "quote_header_bg_color", "quote_header_text_color", "quote_footer_text", "company_logo_url"]);
     
     const settings: Record<string, string> = {};
     templateSettings?.forEach((s) => {
@@ -104,7 +112,7 @@ serve(async (req) => {
     const headerTextColor = settings.quote_header_text_color || "#000000";
     const footerText = settings.quote_footer_text || "We look forward to working with you!";
     const logoUrl = settings.company_logo_url || "";
-    const customHtml = settings.quote_custom_html || "";
+    const customHtml = templateData?.custom_html || "";
 
     // Handle test mode
     if (testMode && testEmail) {

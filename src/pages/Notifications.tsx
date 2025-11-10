@@ -165,6 +165,7 @@ const Notifications = () => {
       '{{subtotal}}': '$500.00',
       '{{total}}': '$500.00',
       '{{deposit_info}}': 'Deposit: $250.00 due by ' + new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toLocaleDateString(),
+      '{{logo_url}}': 'https://example.com/logo.png',
     };
 
     Object.entries(sampleData).forEach(([key, value]) => {
