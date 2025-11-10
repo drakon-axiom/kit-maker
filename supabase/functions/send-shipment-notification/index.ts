@@ -63,9 +63,11 @@ serve(async (req) => {
 
     // Get SMTP configuration
     const smtpHost = Deno.env.get("SMTP_HOST");
-    const smtpPort = parseInt(Deno.env.get("SMTP_PORT") || "587");
+    const envPort = parseInt(Deno.env.get("SMTP_PORT") || "0");
     const smtpUser = Deno.env.get("SMTP_USER");
     const smtpPassword = Deno.env.get("SMTP_PASSWORD");
+    const effectivePort = smtpHost?.includes("protonmail") ? 465 : (envPort || 465);
+    const useTls = effectivePort === 465;
 
     if (!smtpHost || !smtpUser || !smtpPassword) {
       throw new Error("SMTP configuration missing");
@@ -120,8 +122,8 @@ serve(async (req) => {
       const client = new SMTPClient({
         connection: {
           hostname: smtpHost,
-          port: smtpPort,
-          tls: true,
+          port: effectivePort,
+          tls: useTls,
           auth: {
             username: smtpUser,
             password: smtpPassword,
