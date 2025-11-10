@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Loader2, Package, Plus, Pencil, Trash2, Search, ExternalLink, RefreshCw } from 'lucide-react';
+import { Loader2, Package, Plus, Pencil, Trash2, Search, ExternalLink, RefreshCw, Clock } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -51,6 +51,7 @@ const Shipments = () => {
   const [shipmentToDelete, setShipmentToDelete] = useState<Shipment | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [refreshingIds, setRefreshingIds] = useState<Record<string, boolean>>({});
+  const [nextUpdateTime, setNextUpdateTime] = useState<string>('');
   const { toast } = useToast();
 
   const [formData, setFormData] = useState({
@@ -64,6 +65,32 @@ const Shipments = () => {
   useEffect(() => {
     fetchShipments();
     fetchOrders();
+    
+    // Calculate next update time
+    const updateNextUpdateTime = () => {
+      const now = new Date();
+      const hours = now.getUTCHours();
+      const nextRun = new Date(now);
+      
+      // Cron runs at 00:00 and 12:00 UTC
+      if (hours < 12) {
+        nextRun.setUTCHours(12, 0, 0, 0);
+      } else {
+        nextRun.setUTCDate(nextRun.getUTCDate() + 1);
+        nextRun.setUTCHours(0, 0, 0, 0);
+      }
+      
+      const diff = nextRun.getTime() - now.getTime();
+      const hoursLeft = Math.floor(diff / (1000 * 60 * 60));
+      const minutesLeft = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      
+      setNextUpdateTime(`${hoursLeft}h ${minutesLeft}m`);
+    };
+    
+    updateNextUpdateTime();
+    const interval = setInterval(updateNextUpdateTime, 60000); // Update every minute
+    
+    return () => clearInterval(interval);
   }, []);
 
   const fetchShipments = async () => {
@@ -290,6 +317,10 @@ const Shipments = () => {
           <p className="text-muted-foreground mt-1">Track all shipped orders</p>
         </div>
         <div className="flex gap-2">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground mr-4">
+            <Clock className="h-4 w-4" />
+            <span>Next auto-update: {nextUpdateTime}</span>
+          </div>
           <Button
             variant="outline"
             onClick={handleRefreshTracking}
