@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Loader2, Package, Plus, Pencil, Trash2, Search, ExternalLink, RefreshCw, Clock } from 'lucide-react';
+import { Loader2, Package, Plus, Pencil, Trash2, Search, ExternalLink, RefreshCw, Clock, Filter } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -55,6 +55,7 @@ const Shipments = () => {
   const [refreshingIds, setRefreshingIds] = useState<Record<string, boolean>>({});
   const [nextUpdateTime, setNextUpdateTime] = useState<string>('');
   const [expandedOrders, setExpandedOrders] = useState<Record<string, boolean>>({});
+  const [deliveryFilter, setDeliveryFilter] = useState<'all' | 'delivered' | 'partial' | 'in-transit'>('all');
   const { toast } = useToast();
 
   const [formData, setFormData] = useState({
@@ -167,7 +168,22 @@ const Shipments = () => {
     return acc;
   }, {} as Record<string, { order: Shipment['sales_order'], shipments: Shipment[] }>);
 
-  const ordersWithShipments = Object.values(groupedShipments);
+  // Apply delivery status filter
+  const ordersWithShipments = Object.values(groupedShipments).filter(({ shipments: orderShipments }) => {
+    const deliveredCount = orderShipments.filter(s => 
+      s.tracking_status?.toLowerCase().includes('delivered')
+    ).length;
+    const totalCount = orderShipments.length;
+
+    if (deliveryFilter === 'delivered') {
+      return deliveredCount === totalCount;
+    } else if (deliveryFilter === 'partial') {
+      return deliveredCount > 0 && deliveredCount < totalCount;
+    } else if (deliveryFilter === 'in-transit') {
+      return deliveredCount === 0;
+    }
+    return true; // 'all'
+  });
 
   const handleOpenDialog = (shipment?: Shipment) => {
     if (shipment) {
@@ -444,21 +460,56 @@ const Shipments = () => {
 
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle>All Shipments</CardTitle>
-              <CardDescription>
-                {filteredShipments.length} shipment{filteredShipments.length !== 1 ? 's' : ''} across {ordersWithShipments.length} order{ordersWithShipments.length !== 1 ? 's' : ''}
-              </CardDescription>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle>All Shipments</CardTitle>
+                <CardDescription>
+                  {filteredShipments.length} shipment{filteredShipments.length !== 1 ? 's' : ''} across {ordersWithShipments.length} order{ordersWithShipments.length !== 1 ? 's' : ''}
+                </CardDescription>
+              </div>
+              <div className="relative w-80">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search by order, customer, carrier, tracking..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
             </div>
-            <div className="relative w-80">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search by order, customer, carrier, tracking..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10"
-              />
+            <div className="flex items-center gap-2">
+              <Filter className="h-4 w-4 text-muted-foreground" />
+              <div className="flex gap-2">
+                <Button
+                  variant={deliveryFilter === 'all' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setDeliveryFilter('all')}
+                >
+                  All
+                </Button>
+                <Button
+                  variant={deliveryFilter === 'delivered' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setDeliveryFilter('delivered')}
+                >
+                  Fully Delivered
+                </Button>
+                <Button
+                  variant={deliveryFilter === 'partial' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setDeliveryFilter('partial')}
+                >
+                  Partially Delivered
+                </Button>
+                <Button
+                  variant={deliveryFilter === 'in-transit' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setDeliveryFilter('in-transit')}
+                >
+                  In Transit
+                </Button>
+              </div>
             </div>
           </div>
         </CardHeader>
@@ -558,7 +609,17 @@ const Shipments = () => {
                             </div>
                             {!allDelivered && totalCount > 1 && (
                               <div className="space-y-1">
-                                <Progress value={deliveryProgress} className="h-1.5" />
+                                <Progress 
+                                  value={deliveryProgress} 
+                                  className="h-1.5"
+                                  indicatorClassName={
+                                    deliveryProgress > 75 
+                                      ? "bg-green-500" 
+                                      : deliveryProgress >= 50 
+                                      ? "bg-yellow-500" 
+                                      : "bg-orange-500"
+                                  }
+                                />
                                 <p className="text-xs text-muted-foreground">
                                   {deliveredCount} / {totalCount} packages delivered
                                 </p>
