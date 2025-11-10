@@ -87,7 +87,234 @@ const getEmailContent = (
       preheader = `Update on your order ${orderNumber}.`;
   }
 
-  const body = `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8" /><title>${subject}</title><meta name="viewport" content="width=device-width, initial-scale=1.0" /><style type="text/css">@media only screen and (max-width: 600px) { .container { width: 100% !important; } .content { padding: 15px !important; } }</style></head><body style="font-family: Arial, sans-serif; margin: 0; padding: 0; background-color: #f4f4f4; color: #222222;"><div style="display: none; font-size: 1px; color: #ffffff; line-height: 1px; max-height: 0px; max-width: 0px; opacity: 0; overflow: hidden;">${preheader}</div><table border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 600px; margin: 0 auto; background-color: #ffffff;"><tr><td align="center" style="background: linear-gradient(135deg, #1974bb 0%, #1560a0 100%); padding: 30px 20px;"><img src="https://cdn.shopify.com/s/files/1/0622/2220/5001/files/Nexus_Aminos_Logo.png" alt="Nexus Aminos" style="max-width: 200px; height: auto;" /></td></tr><tr><td align="center" valign="top" style="padding: 30px 20px;"><table border="0" cellpadding="0" cellspacing="0" width="100%" class="container"><tr><td align="left" style="padding: 0;"><h2 style="color: #333333; margin: 0 0 16px 0; font-size: 24px;">${greeting}</h2><p style="font-size: 16px; color: #555555; line-height: 1.5; margin: 0 0 20px 0;">${mainMessage}</p></td></tr><tr><td align="left" style="background-color: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0;"><p style="margin: 8px 0; font-size: 14px;"><strong>Order Number:</strong> ${orderNumber}</p><p style="margin: 8px 0; font-size: 14px;"><strong>Status:</strong> ${statusDisplay}</p>${orderDetails.etaDate ? `<p style="margin: 8px 0; font-size: 14px;"><strong>Estimated Delivery:</strong> ${new Date(orderDetails.etaDate).toLocaleDateString()}</p>` : ''}${orderDetails.promisedDate ? `<p style="margin: 8px 0; font-size: 14px;"><strong>Promised Date:</strong> ${new Date(orderDetails.promisedDate).toLocaleDateString()}</p>` : ''}</td></tr><tr><td align="left" style="padding: 0;"><p style="color: #555555; font-size: 16px; line-height: 1.5; margin: 0 0 20px 0;">${additionalInfo}</p><p style="font-size: 16px; color: #555555; margin: 0 0 30px 0;">Thank you for your business!</p></td></tr></table></td></tr><tr><td align="center" style="background-color: #2d3748; padding: 20px; color: #ffffff;"><p style="color: #cbd5e0; font-size: 12px; margin: 0 0 8px 0;">This is an automated notification from Nexus Aminos.</p><p style="color: #718096; font-size: 11px; margin: 0;">© ${new Date().getFullYear()} Nexus Aminos. All rights reserved.</p></td></tr></table></body></html>`;
+  const body = `<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<title>${subject}</title>
+<link href="https://fonts.googleapis.com/css?family=Open+Sans:300,400,600,700" rel="stylesheet">
+<style type="text/css">
+body { margin: 0px !important; padding: 0px !important; display: block !important; min-width: 100% !important; width: 100% !important; -webkit-text-size-adjust: none; }
+table { border-spacing: 0; mso-table-lspace: 0pt; mso-table-rspace: 0pt; }
+table td { border-collapse: collapse; }
+td img { -ms-interpolation-mode: bicubic; display: block; width: auto; max-width: auto; height: auto; margin: auto; border: 0px!important; }
+td p { margin: 0; padding: 0; font-family: 'Open Sans', Arial, Helvetica, sans-serif; font-size: 13px; color: #797979; line-height: 20px; }
+td a { text-decoration: none; font-size: inherit; }
+strong { font-weight: bold !important; }
+@media screen and (max-width: 640px) {
+  td.img-responsive img { width: 100% !important; max-width: 100%!important; height: auto!important; margin: auto; }
+  table.row { width: 100%!important; max-width: 100%!important; }
+  td.container-padding { width: 100%!important; padding-left: 15px!important; padding-right: 15px!important; }
+}
+</style>
+</head>
+<body>
+<span style="display:none; max-height:0px; overflow:hidden; visibility:hidden; mso-hide:all;">${preheader}</span>
+<table style="width: 100%; max-width: 100%;" width="100%" cellspacing="0" cellpadding="0" border="0" align="center">
+  <tr>
+    <td bgcolor="#F5F5F8" align="center">
+      <table class="row" style="width: 600px; max-width: 600px; border-radius: 10px;" width="600" cellspacing="0" cellpadding="0" border="0" align="center">
+        <tr>
+          <td bgcolor="#c2e4fb" align="center" style="border-radius: 10px 10px 0 0;">
+            <table class="row" style="width: 540px; max-width: 540px;" width="540" cellspacing="0" cellpadding="0" border="0" align="center">
+              <tr>
+                <td class="container-padding" align="center">
+                  <table width="540" border="0" cellpadding="0" cellspacing="0" align="center" class="row" style="width: 540px; max-width: 540px;">
+                    <tr>
+                      <td align="center">
+                        <table border="0" width="100%" cellpadding="0" cellspacing="0" align="center">
+                          <tr><td height="10">&nbsp;</td></tr>
+                          <tr>
+                            <td>
+                              <table border="0" width="100%" cellpadding="0" cellspacing="0" align="center">
+                                <tr>
+                                  <td width="160" align="left">
+                                    <img align="left" width="160" style="display: block; width: 100%; max-width: 160px;" src="https://cdn.shopify.com/s/files/1/0622/2220/5001/files/Nexus_Aminos_Logo.png" alt="Nexus Aminos">
+                                  </td>
+                                  <td>&nbsp;</td>
+                                  <td align="right" style="font-family: 'Open Sans', Arial, Helvetica, sans-serif; font-size: 13px; color: #000000;">
+                                    Order ${orderNumber}
+                                  </td>
+                                </tr>
+                              </table>
+                            </td>
+                          </tr>
+                          <tr><td height="10">&nbsp;</td></tr>
+                        </table>
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>
+
+<table style="width:100%;max-width:100%;" width="100%" cellspacing="0" cellpadding="0" border="0" align="center">
+  <tr>
+    <td bgcolor="#F5F5F8" align="center">
+      <table class="row" style="width:600px;max-width:600px;" width="600" cellspacing="0" cellpadding="0" border="0" align="center">
+        <tr>
+          <td bgcolor="#FFFFFF" align="center">
+            <table class="row" style="width:540px;max-width:540px;" width="540" cellspacing="0" cellpadding="0" border="0" align="center">
+              <tr>
+                <td class="container-padding" align="center">
+                  <table width="540" border="0" cellpadding="0" cellspacing="0" align="center" class="row">
+                    <tr>
+                      <td align="center">
+                        <table border="0" width="100%" cellpadding="0" cellspacing="0" align="center">
+                          <tr><td height="30">&nbsp;</td></tr>
+                          <tr>
+                            <td align="center" style="font-family:'Open Sans', Arial, Helvetica, sans-serif;font-size: 20px;color: #282828;">
+                              <strong>${greeting}</strong>
+                            </td>
+                          </tr>
+                          <tr><td height="20">&nbsp;</td></tr>
+                          <tr>
+                            <td align="center" style="font-family:'Open Sans', Arial, Helvetica, sans-serif;font-size: 15px;color: #797979; line-height: 24px;">
+                              ${mainMessage}
+                            </td>
+                          </tr>
+                          <tr><td height="25">&nbsp;</td></tr>
+                          <tr>
+                            <td align="center" style="background-color: #F1F8E7; padding: 20px; border-radius: 8px;">
+                              <table border="0" width="100%" cellpadding="0" cellspacing="0">
+                                <tr>
+                                  <td style="font-family:'Open Sans', Arial, Helvetica, sans-serif;font-size: 14px;color: #282828;">
+                                    <strong>Order Number:</strong> ${orderNumber}
+                                  </td>
+                                </tr>
+                                <tr><td height="10">&nbsp;</td></tr>
+                                <tr>
+                                  <td style="font-family:'Open Sans', Arial, Helvetica, sans-serif;font-size: 14px;color: #282828;">
+                                    <strong>Status:</strong> ${statusDisplay}
+                                  </td>
+                                </tr>
+                                ${orderDetails.etaDate ? `<tr><td height="10">&nbsp;</td></tr><tr><td style="font-family:'Open Sans', Arial, Helvetica, sans-serif;font-size: 14px;color: #282828;"><strong>Estimated Delivery:</strong> ${new Date(orderDetails.etaDate).toLocaleDateString()}</td></tr>` : ''}
+                                ${orderDetails.promisedDate ? `<tr><td height="10">&nbsp;</td></tr><tr><td style="font-family:'Open Sans', Arial, Helvetica, sans-serif;font-size: 14px;color: #282828;"><strong>Promised Date:</strong> ${new Date(orderDetails.promisedDate).toLocaleDateString()}</td></tr>` : ''}
+                              </table>
+                            </td>
+                          </tr>
+                          <tr><td height="25">&nbsp;</td></tr>
+                          <tr>
+                            <td align="center" style="font-family:'Open Sans', Arial, Helvetica, sans-serif;font-size: 15px;color: #797979; line-height: 24px;">
+                              ${additionalInfo}
+                            </td>
+                          </tr>
+                          <tr><td height="30">&nbsp;</td></tr>
+                        </table>
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>
+
+<table style="width:100%;max-width:100%;" width="100%" cellspacing="0" cellpadding="0" border="0" align="center">
+  <tr>
+    <td bgcolor="#F5F5F8" align="center">
+      <table bgcolor="#FFFFFF" class="row" style="width:600px;max-width:600px;" width="600" cellspacing="0" cellpadding="0" border="0" align="center">
+        <tr>
+          <td bgcolor="#c2e4fb" align="center" style="border-radius: 0 0 10px 10px;">
+            <table class="row" style="width:540px;max-width:540px;" width="540" cellspacing="0" cellpadding="0" border="0" align="center">
+              <tr>
+                <td class="container-padding" align="center">
+                  <table width="540" border="0" cellpadding="0" cellspacing="0" align="center" class="row">
+                    <tr>
+                      <td align="center">
+                        <table border="0" width="100%" cellpadding="0" cellspacing="0" align="center">
+                          <tr><td height="20">&nbsp;</td></tr>
+                          <tr>
+                            <td width="200" align="center">
+                              <img align="center" width="160" style="display: block; width: 100%; max-width: 160px;" src="https://cdn.shopify.com/s/files/1/0622/2220/5001/files/Nexus_Aminos_Logo.png" alt="Nexus Aminos">
+                            </td>
+                          </tr>
+                          <tr><td height="10">&nbsp;</td></tr>
+                          <tr>
+                            <td>
+                              <table cellspacing="0" cellpadding="0" border="0" align="center">
+                                <tr>
+                                  <td width="25">
+                                    <a href="https://www.facebook.com/nexusaminos/" target="_blank">
+                                      <img width="25" style="display:block;width:100%;max-width:25px;" src="https://cdn.shopify.com/s/files/1/0622/2220/5001/files/facebook-icon.png" alt="Facebook">
+                                    </a>
+                                  </td>
+                                  <td width="15">&nbsp;</td>
+                                  <td width="25">
+                                    <a href="https://www.instagram.com/nexus.aminos/" target="_blank">
+                                      <img width="25" style="display:block;width:100%;max-width:25px;" src="https://cdn.shopify.com/s/files/1/0622/2220/5001/files/instagram-icon.png" alt="Instagram">
+                                    </a>
+                                  </td>
+                                  <td width="15">&nbsp;</td>
+                                  <td width="25">
+                                    <a href="https://www.tiktok.com/@nexusaminos/" target="_blank">
+                                      <img width="25" style="display:block;width:100%;max-width:25px;" src="https://cdn.shopify.com/s/files/1/0622/2220/5001/files/tiktok-icon.png" alt="TikTok">
+                                    </a>
+                                  </td>
+                                </tr>
+                              </table>
+                            </td>
+                          </tr>
+                          <tr><td height="20">&nbsp;</td></tr>
+                          <tr>
+                            <td align="center" style="font-family:'Open Sans', Arial, Helvetica, sans-serif;font-size: 12px;color: #000000;line-height: 18px;">
+                              Please <b>do NOT reply</b> to this email. This is an automated email sent from an unmonitored email address. If you have any questions, feel free to contact us at <a href="mailto:support@nexusaminos.com" style="color: #000000;">support@nexusaminos.com</a>
+                            </td>
+                          </tr>
+                          <tr><td height="20">&nbsp;</td></tr>
+                          <tr>
+                            <td align="center" style="font-family:'Open Sans', Arial, Helvetica, sans-serif;font-size: 12px;color: #000000;">
+                              © ${new Date().getFullYear()} Nexus Aminos, All rights reserved.
+                            </td>
+                          </tr>
+                          <tr><td height="10">&nbsp;</td></tr>
+                          <tr>
+                            <td align="center">
+                              <table cellspacing="0" cellpadding="0" border="0">
+                                <tr>
+                                  <td align="center" style="font-family:'Open Sans', Arial, Helvetica, sans-serif;font-size: 12px;color: #000000;text-decoration: underline">
+                                    <a href="https://nexusaminos.com/policies/terms-of-service" target="_blank" style="color: #000000;">Terms of Service</a>
+                                  </td>
+                                  <td width="20" align="center" style="font-family:'Open Sans', Arial, Helvetica, sans-serif;font-size: 13px;color: #000000;">|</td>
+                                  <td align="center" style="font-family:'Open Sans', Arial, Helvetica, sans-serif;font-size: 12px;color: #000000;text-decoration: underline">
+                                    <a href="https://nexusaminos.com/policies/privacy-policy" target="_blank" style="color: #000000;">Privacy Policy</a>
+                                  </td>
+                                  <td width="20" align="center" style="font-family:'Open Sans', Arial, Helvetica, sans-serif;font-size: 13px;color: #000000;">|</td>
+                                  <td align="center" style="font-family:'Open Sans', Arial, Helvetica, sans-serif;font-size: 12px;color: #000000;text-decoration: underline">
+                                    <a href="https://nexusaminos.com/policies/refund-policy" target="_blank" style="color: #000000;">Refund Policy</a>
+                                  </td>
+                                </tr>
+                              </table>
+                            </td>
+                          </tr>
+                          <tr><td height="30">&nbsp;</td></tr>
+                        </table>
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>
+</body>
+</html>`;
 
   return { subject, body };
 };
