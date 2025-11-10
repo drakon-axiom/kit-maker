@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Loader2, Package, Plus, Pencil, Trash2, Search, ExternalLink, RefreshCw, Clock, Filter, TrendingUp, Calendar } from 'lucide-react';
+import { Loader2, Package, Plus, Pencil, Trash2, Search, ExternalLink, RefreshCw, Clock, Filter, TrendingUp, Calendar, Download } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -14,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Progress } from '@/components/ui/progress';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import Papa from 'papaparse';
 
 interface Shipment {
   id: string;
@@ -346,6 +347,46 @@ const Shipments = () => {
     return null;
   };
 
+  const handleExportToCSV = () => {
+    // Flatten the grouped shipments for CSV export
+    const exportData = ordersWithShipments.flatMap(({ order, shipments: orderShipments }) => 
+      orderShipments.map(shipment => ({
+        'Order ID': order.human_uid,
+        'Customer': order.customer.name,
+        'Carrier': shipment.carrier || '',
+        'Tracking Number': shipment.tracking_no,
+        'Tracking URL': getTrackingUrl(shipment.carrier, shipment.tracking_no) || '',
+        'Shipped Date': shipment.shipped_at ? new Date(shipment.shipped_at).toLocaleDateString() : '',
+        'Estimated Delivery': shipment.estimated_delivery ? new Date(shipment.estimated_delivery).toLocaleDateString() : '',
+        'Tracking Status': shipment.tracking_status || 'Shipped',
+        'Current Location': shipment.tracking_location || '',
+        'Last Update': shipment.last_tracking_update ? new Date(shipment.last_tracking_update).toLocaleDateString() : '',
+        'Notes': shipment.notes || '',
+      }))
+    );
+
+    const csv = Papa.unparse(exportData);
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    
+    const filterLabel = deliveryFilter === 'all' ? 'all' : 
+                       deliveryFilter === 'delivered' ? 'fully-delivered' :
+                       deliveryFilter === 'partial' ? 'partially-delivered' : 'in-transit';
+    
+    link.setAttribute('href', url);
+    link.setAttribute('download', `shipments-${filterLabel}-${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    toast({
+      title: 'Export Successful',
+      description: `Exported ${exportData.length} shipment(s) to CSV`,
+    });
+  };
+
   // Calculate statistics
   const fullyDeliveredCount = Object.values(groupedShipments).filter(({ shipments: orderShipments }) => {
     const deliveredCount = orderShipments.filter(s => s.tracking_status?.toLowerCase().includes('delivered')).length;
@@ -556,14 +597,24 @@ const Shipments = () => {
                   {filteredShipments.length} shipment{filteredShipments.length !== 1 ? 's' : ''} across {ordersWithShipments.length} order{ordersWithShipments.length !== 1 ? 's' : ''}
                 </CardDescription>
               </div>
-              <div className="relative w-80">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search by order, customer, carrier, tracking..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10"
-                />
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  onClick={handleExportToCSV}
+                  disabled={ordersWithShipments.length === 0}
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  Export CSV
+                </Button>
+                <div className="relative w-80">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search by order, customer, carrier, tracking..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
               </div>
             </div>
             <div className="flex items-center gap-2">
