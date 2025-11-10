@@ -116,29 +116,33 @@ serve(async (req) => {
     // Send email using SMTP
     console.log(`Sending email to ${recipientEmail}`);
     
-    const client = new SMTPClient({
-      connection: {
-        hostname: smtpHost,
-        port: smtpPort,
-        tls: true,
-        auth: {
-          username: smtpUser,
-          password: smtpPassword,
+    try {
+      const client = new SMTPClient({
+        connection: {
+          hostname: smtpHost,
+          port: smtpPort,
+          tls: true,
+          auth: {
+            username: smtpUser,
+            password: smtpPassword,
+          },
         },
-      },
-    });
+      });
 
-    await client.send({
-      from: smtpUser,
-      to: recipientEmail,
-      subject: subject,
-      content: body,
-      html: body,
-    });
+      await client.send({
+        from: smtpUser,
+        to: recipientEmail,
+        subject: subject,
+        content: "Shipment Update",
+        html: body,
+      });
 
-    await client.close();
-
-    console.log(`Email sent successfully to ${recipientEmail}`);
+      await client.close();
+      console.log(`Email sent successfully to ${recipientEmail}`);
+    } catch (smtpError: any) {
+      console.error("SMTP Error details:", smtpError);
+      throw new Error(`Failed to send email: ${smtpError.message}`);
+    }
 
     return new Response(
       JSON.stringify({ success: true, message: "Email sent successfully" }),
