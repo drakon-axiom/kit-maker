@@ -20,16 +20,18 @@ interface LayoutProps {
 const Layout = ({ children }: LayoutProps) => {
   const { user, userRole, signOut } = useAuth();
 
-  // Load sidebar state from localStorage
-  const [defaultOpen, setDefaultOpen] = React.useState(() => {
+  // Load sidebar state from localStorage safely
+  const defaultOpen = React.useMemo(() => {
+    if (typeof window === 'undefined') return true;
     const saved = localStorage.getItem('sidebar-state');
     return saved ? saved !== 'collapsed' : true;
-  });
+  }, []);
 
   return (
     <SidebarProvider
       defaultOpen={defaultOpen}
       onOpenChange={(open) => {
+        console.log('Sidebar open:', open);
         localStorage.setItem('sidebar-state', open ? 'expanded' : 'collapsed');
       }}
     >
