@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
@@ -7,9 +7,12 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Plus, Pencil, Loader2, Trash2 } from 'lucide-react';
+import { Plus, Pencil, Loader2, Trash2, Upload, AlertCircle } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Textarea } from '@/components/ui/textarea';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import Papa from 'papaparse';
+import * as XLSX from 'xlsx';
 
 interface Customer {
   id: string;
@@ -20,6 +23,16 @@ interface Customer {
   created_at: string;
 }
 
+interface ImportRow {
+  name: string;
+  email: string;
+  phone: string;
+  default_terms: string;
+  errors?: string[];
+  action?: 'create' | 'update';
+  existingId?: string;
+}
+
 const Customers = () => {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
@@ -27,6 +40,10 @@ const Customers = () => {
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [customerToDelete, setCustomerToDelete] = useState<Customer | null>(null);
+  const [importOpen, setImportOpen] = useState(false);
+  const [importData, setImportData] = useState<ImportRow[]>([]);
+  const [importing, setImporting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -147,6 +164,214 @@ const Customers = () => {
     }
   };
 
+  const validateImportRow = (row: any): ImportRow => {
+    const errors: string[] = [];
+    
+    if (!row.name || row.name.trim() === '') {
+      errors.push('Name is required');
+    }
+    
+    if (row.email && row.email.trim() !== '') {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(row.email)) {
+        errors.push('Invalid email format');
+      }
+    }
+    
+    return {
+      name: row.name || '',
+      email: row.email || '',
+      phone: row.phone || '',
+      default_terms: row.default_terms || '',
+      errors: errors.length > 0 ? errors : undefined,
+    };
+  };
+
+  const checkExistingCustomers = async (rows: ImportRow[]) => {
+    try {
+      const { data: existingCustomers, error } = await supabase
+        .from('customers')
+        .select('id, name, email');
+
+      if (error) throw error;
+
+      const existingMap = new Map(
+        existingCustomers?.map(c => [c.email?.toLowerCase() || c.name.toLowerCase(), c.id]) || []
+      );
+
+      return rows.map(row => {
+        const key = row.email.trim().toLowerCase() || row.name.trim().toLowerCase();
+        const existingId = existingMap.get(key);
+        return {
+          ...row,
+          action: existingId ? 'update' as const : 'create' as const,
+          existingId,
+        };
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Error checking existing customers',
+        description: error.message,
+        variant: 'destructive',
+      });
+      return rows;
+    }
+  };
+
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const fileExtension = file.name.split('.').pop()?.toLowerCase();
+
+    const processData = async (data: any[]) => {
+      const validatedData = data.map(row => validateImportRow(row));
+      const dataWithActions = await checkExistingCustomers(validatedData);
+      setImportData(dataWithActions);
+      setImportOpen(true);
+    };
+
+    if (fileExtension === 'csv') {
+      Papa.parse(file, {
+        header: true,
+        skipEmptyLines: true,
+        complete: (results) => {
+          processData(results.data);
+        },
+        error: (error) => {
+          toast({
+            title: 'Error parsing CSV',
+            description: error.message,
+            variant: 'destructive',
+          });
+        },
+      });
+    } else if (['xlsx', 'xls'].includes(fileExtension || '')) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const data = new Uint8Array(e.target?.result as ArrayBuffer);
+          const workbook = XLSX.read(data, { type: 'array' });
+          const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+          const jsonData = XLSX.utils.sheet_to_json(firstSheet);
+          processData(jsonData);
+        } catch (error: any) {
+          toast({
+            title: 'Error parsing Excel file',
+            description: error.message,
+            variant: 'destructive',
+          });
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    } else {
+      toast({
+        title: 'Unsupported file format',
+        description: 'Please upload a CSV or Excel file',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleImport = async () => {
+    const validRows = importData.filter(row => !row.errors);
+    
+    if (validRows.length === 0) {
+      toast({
+        title: 'No valid rows',
+        description: 'Please fix all errors before importing',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setImporting(true);
+
+    try {
+      const toInsert: any[] = [];
+      const toUpdate: any[] = [];
+
+      validRows.forEach(row => {
+        const customerData = {
+          name: row.name.trim(),
+          email: row.email.trim() || null,
+          phone: row.phone.trim() || null,
+          default_terms: row.default_terms.trim() || null,
+        };
+
+        if (row.action === 'update' && row.existingId) {
+          toUpdate.push({ id: row.existingId, ...customerData });
+        } else {
+          toInsert.push(customerData);
+        }
+      });
+
+      if (toInsert.length > 0) {
+        const { error: insertError } = await supabase
+          .from('customers')
+          .insert(toInsert);
+
+        if (insertError) throw insertError;
+      }
+
+      for (const customer of toUpdate) {
+        const { id, ...updateData } = customer;
+        const { error: updateError } = await supabase
+          .from('customers')
+          .update(updateData)
+          .eq('id', id);
+
+        if (updateError) throw updateError;
+      }
+
+      toast({
+        title: 'Success',
+        description: `Created ${toInsert.length} new customer(s), updated ${toUpdate.length} existing customer(s)`,
+      });
+
+      setImportOpen(false);
+      setImportData([]);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+      fetchCustomers();
+    } catch (error: any) {
+      toast({
+        title: 'Error importing customers',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const downloadTemplate = () => {
+    const template = [
+      {
+        name: 'Example Customer 1',
+        email: 'customer1@example.com',
+        phone: '555-0001',
+        default_terms: 'Net 30',
+      },
+      {
+        name: 'Example Customer 2',
+        email: 'customer2@example.com',
+        phone: '555-0002',
+        default_terms: '50% deposit required, Net 15',
+      }
+    ];
+
+    const csv = Papa.unparse(template);
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'customer_import_template.csv';
+    a.click();
+    window.URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="p-6 space-y-6">
       <div className="flex justify-between items-center">
@@ -154,16 +379,28 @@ const Customers = () => {
           <h1 className="text-3xl font-bold tracking-tight">Customers</h1>
           <p className="text-muted-foreground mt-1">Manage your customer database</p>
         </div>
-        <Dialog open={dialogOpen} onOpenChange={(open) => {
-          setDialogOpen(open);
-          if (!open) resetForm();
-        }}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="mr-2 h-4 w-4" />
-              Add Customer
-            </Button>
-          </DialogTrigger>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => fileInputRef.current?.click()}>
+            <Upload className="mr-2 h-4 w-4" />
+            Import CSV
+          </Button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".csv,.xlsx,.xls"
+            onChange={handleFileUpload}
+            className="hidden"
+          />
+          <Dialog open={dialogOpen} onOpenChange={(open) => {
+            setDialogOpen(open);
+            if (!open) resetForm();
+          }}>
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="mr-2 h-4 w-4" />
+                Add Customer
+              </Button>
+            </DialogTrigger>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>{editingCustomer ? 'Edit Customer' : 'Add New Customer'}</DialogTitle>
@@ -218,6 +455,7 @@ const Customers = () => {
             </form>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       <Card>
@@ -299,6 +537,93 @@ const Customers = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={importOpen} onOpenChange={setImportOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Import Customers from CSV</DialogTitle>
+            <DialogDescription>
+              Review the data before importing. Existing customers (matched by email or name) will be updated.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="flex justify-between items-center">
+              <div className="text-sm text-muted-foreground">
+                {importData.length} row(s) found • {importData.filter(r => !r.errors).length} valid • {importData.filter(r => r.errors).length} with errors
+              </div>
+              <Button variant="outline" size="sm" onClick={downloadTemplate}>
+                Download Template
+              </Button>
+            </div>
+            {importData.some(row => row.errors) && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>Validation Errors</AlertTitle>
+                <AlertDescription>
+                  Some rows have errors and will be skipped during import. Please fix them in your file and re-upload.
+                </AlertDescription>
+              </Alert>
+            )}
+            <div className="border rounded-lg overflow-hidden">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Action</TableHead>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Email</TableHead>
+                    <TableHead>Phone</TableHead>
+                    <TableHead>Default Terms</TableHead>
+                    <TableHead>Status</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {importData.map((row, idx) => (
+                    <TableRow key={idx} className={row.errors ? 'bg-destructive/10' : ''}>
+                      <TableCell>
+                        {row.action === 'create' ? (
+                          <span className="text-xs bg-success/20 text-success-foreground px-2 py-1 rounded">CREATE</span>
+                        ) : (
+                          <span className="text-xs bg-warning/20 text-warning-foreground px-2 py-1 rounded">UPDATE</span>
+                        )}
+                      </TableCell>
+                      <TableCell>{row.name}</TableCell>
+                      <TableCell>{row.email || '-'}</TableCell>
+                      <TableCell>{row.phone || '-'}</TableCell>
+                      <TableCell className="max-w-xs truncate">{row.default_terms || '-'}</TableCell>
+                      <TableCell>
+                        {row.errors ? (
+                          <div className="text-xs text-destructive">
+                            {row.errors.map((err, i) => (
+                              <div key={i}>• {err}</div>
+                            ))}
+                          </div>
+                        ) : (
+                          <span className="text-xs text-success">Valid</span>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+            <div className="flex gap-2 justify-end">
+              <Button variant="outline" onClick={() => setImportOpen(false)} disabled={importing}>
+                Cancel
+              </Button>
+              <Button onClick={handleImport} disabled={importing || importData.filter(r => !r.errors).length === 0}>
+                {importing ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Importing...
+                  </>
+                ) : (
+                  `Import ${importData.filter(r => !r.errors).length} Customer(s)`
+                )}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
