@@ -79,40 +79,10 @@ serve(async (req) => {
 
     if (status === "Delivered" || status === "delivered") {
       subject = `Your Order ${order.human_uid} Has Been Delivered!`;
-      body = `
-        <html>
-          <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-            <h2 style="color: #333;">Great news, ${customer.name}!</h2>
-            <p style="font-size: 16px; color: #555;">Your order <strong>${order.human_uid}</strong> has been delivered.</p>
-            <div style="background-color: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0;">
-              <p style="margin: 8px 0;"><strong>Tracking Number:</strong> ${shipment.tracking_no}</p>
-              ${shipment.carrier ? `<p style="margin: 8px 0;"><strong>Carrier:</strong> ${shipment.carrier}</p>` : ""}
-              ${shipment.tracking_location ? `<p style="margin: 8px 0;"><strong>Location:</strong> ${shipment.tracking_location}</p>` : ""}
-            </div>
-            <p style="font-size: 16px; color: #555;">Thank you for your business!</p>
-            <p style="color: #999; font-size: 12px; margin-top: 30px;">This is an automated notification from Nexus Aminos.</p>
-          </body>
-        </html>
-      `;
+      body = `<!doctype html><html><head><meta charset="utf-8"><title>${subject}</title></head><body style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;background:#ffffff;color:#222;"><h2 style="color:#333;margin-bottom:16px;">Great news, ${customer.name}!</h2><p style="font-size:16px;color:#555;line-height:1.5;">Your order <strong>${order.human_uid}</strong> has been delivered.</p><div style="background-color:#f5f5f5;padding:20px;border-radius:8px;margin:20px 0;"><p style="margin:8px 0;"><strong>Tracking Number:</strong> ${shipment.tracking_no}</p>${shipment.carrier ? `<p style="margin:8px 0;"><strong>Carrier:</strong> ${shipment.carrier}</p>` : ""}${shipment.tracking_location ? `<p style="margin:8px 0;"><strong>Location:</strong> ${shipment.tracking_location}</p>` : ""}</div><p style="font-size:16px;color:#555;margin-top:20px;">Thank you for your business!</p><p style="color:#999;font-size:12px;margin-top:30px;">This is an automated notification from Nexus Aminos.</p></body></html>`;
     } else {
       subject = `Shipment Update for Order ${order.human_uid}`;
-      body = `
-        <html>
-          <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-            <h2 style="color: #333;">Hello ${customer.name},</h2>
-            <p style="font-size: 16px; color: #555;">Your order <strong>${order.human_uid}</strong> has a status update.</p>
-            <div style="background-color: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0;">
-              <p style="margin: 8px 0;"><strong>Status:</strong> ${status}</p>
-              <p style="margin: 8px 0;"><strong>Tracking Number:</strong> ${shipment.tracking_no}</p>
-              ${shipment.carrier ? `<p style="margin: 8px 0;"><strong>Carrier:</strong> ${shipment.carrier}</p>` : ""}
-              ${shipment.tracking_location ? `<p style="margin: 8px 0;"><strong>Current Location:</strong> ${shipment.tracking_location}</p>` : ""}
-              ${shipment.estimated_delivery ? `<p style="margin: 8px 0;"><strong>Estimated Delivery:</strong> ${new Date(shipment.estimated_delivery).toLocaleDateString()}</p>` : ""}
-            </div>
-            <p style="font-size: 16px; color: #555;">We'll keep you updated on your shipment's progress.</p>
-            <p style="color: #999; font-size: 12px; margin-top: 30px;">This is an automated notification from Nexus Aminos.</p>
-          </body>
-        </html>
-      `;
+      body = `<!doctype html><html><head><meta charset="utf-8"><title>${subject}</title></head><body style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;background:#ffffff;color:#222;"><h2 style="color:#333;margin-bottom:16px;">Hello ${customer.name},</h2><p style="font-size:16px;color:#555;line-height:1.5;">Your order <strong>${order.human_uid}</strong> has a status update.</p><div style="background-color:#f5f5f5;padding:20px;border-radius:8px;margin:20px 0;"><p style="margin:8px 0;"><strong>Status:</strong> ${status}</p><p style="margin:8px 0;"><strong>Tracking Number:</strong> ${shipment.tracking_no}</p>${shipment.carrier ? `<p style="margin:8px 0;"><strong>Carrier:</strong> ${shipment.carrier}</p>` : ""}${shipment.tracking_location ? `<p style="margin:8px 0;"><strong>Current Location:</strong> ${shipment.tracking_location}</p>` : ""}${shipment.estimated_delivery ? `<p style="margin:8px 0;"><strong>Estimated Delivery:</strong> ${new Date(shipment.estimated_delivery).toLocaleDateString()}</p>` : ""}</div><p style="font-size:16px;color:#555;margin-top:20px;">We'll keep you updated on your shipment's progress.</p><p style="color:#999;font-size:12px;margin-top:30px;">This is an automated notification from Nexus Aminos.</p></body></html>`;
     }
 
     // Send email using SMTP

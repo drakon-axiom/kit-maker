@@ -85,26 +85,7 @@ const getEmailContent = (
       additionalInfo = `<p style="color: #555;">We'll keep you updated on your order's progress.</p>`;
   }
 
-  const body = `
-    <html>
-      <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-        <h2 style="color: #333;">${greeting}</h2>
-        <p style="font-size: 16px; color: #555;">${mainMessage}</p>
-        
-        <div style="background-color: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0;">
-          <p style="margin: 8px 0;"><strong>Order Number:</strong> ${orderNumber}</p>
-          <p style="margin: 8px 0;"><strong>Status:</strong> ${statusDisplay}</p>
-          ${orderDetails.etaDate ? `<p style="margin: 8px 0;"><strong>Estimated Delivery:</strong> ${new Date(orderDetails.etaDate).toLocaleDateString()}</p>` : ''}
-          ${orderDetails.promisedDate ? `<p style="margin: 8px 0;"><strong>Promised Date:</strong> ${new Date(orderDetails.promisedDate).toLocaleDateString()}</p>` : ''}
-        </div>
-        
-        ${additionalInfo}
-        
-        <p style="font-size: 16px; color: #555;">Thank you for your business!</p>
-        <p style="color: #999; font-size: 12px; margin-top: 30px;">This is an automated notification from Nexus Aminos.</p>
-      </body>
-    </html>
-  `;
+  const body = `<!doctype html><html><head><meta charset="utf-8"><title>${subject}</title></head><body style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;background:#ffffff;color:#222;"><h2 style="color:#333;margin-bottom:16px;">${greeting}</h2><p style="font-size:16px;color:#555;line-height:1.5;">${mainMessage}</p><div style="background-color:#f5f5f5;padding:20px;border-radius:8px;margin:20px 0;"><p style="margin:8px 0;"><strong>Order Number:</strong> ${orderNumber}</p><p style="margin:8px 0;"><strong>Status:</strong> ${statusDisplay}</p>${orderDetails.etaDate ? `<p style="margin:8px 0;"><strong>Estimated Delivery:</strong> ${new Date(orderDetails.etaDate).toLocaleDateString()}</p>` : ''}${orderDetails.promisedDate ? `<p style="margin:8px 0;"><strong>Promised Date:</strong> ${new Date(orderDetails.promisedDate).toLocaleDateString()}</p>` : ''}</div>${additionalInfo}<p style="font-size:16px;color:#555;margin-top:20px;">Thank you for your business!</p><p style="color:#999;font-size:12px;margin-top:30px;">This is an automated notification from Nexus Aminos.</p></body></html>`;
 
   return { subject, body };
 };
