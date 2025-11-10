@@ -70,22 +70,7 @@ serve(async (req) => {
     // Generate line items HTML
     let lineItemsHtml = '';
     for (const line of order.sales_order_lines) {
-      lineItemsHtml += `
-        <tr style="border-bottom: 1px solid #eee;">
-          <td style="padding: 8px;">
-            ${line.sku?.code || "N/A"}
-          </td>
-          <td style="padding: 8px;">
-            ${line.qty_entered} (${line.bottle_qty} bottles)
-          </td>
-          <td style="padding: 8px; text-align: right;">
-            $${line.unit_price.toFixed(2)}
-          </td>
-          <td style="padding: 8px; text-align: right;">
-            $${line.line_subtotal.toFixed(2)}
-          </td>
-        </tr>
-      `;
+      lineItemsHtml += `<tr style="border-bottom: 1px solid #eee;"><td style="padding: 8px;">${line.sku?.code || "N/A"}</td><td style="padding: 8px;">${line.qty_entered} (${line.bottle_qty} bottles)</td><td style="padding: 8px; text-align: right;">$${line.unit_price.toFixed(2)}</td><td style="padding: 8px; text-align: right;">$${line.line_subtotal.toFixed(2)}</td></tr>`;
     }
 
     const client = new SMTPClient({
