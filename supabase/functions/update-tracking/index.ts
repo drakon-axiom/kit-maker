@@ -57,7 +57,7 @@ async function getUPSAccessToken(clientId: string, clientSecret: string): Promis
 }
 
 async function getUPSTracking(trackingNumber: string, accessToken: string): Promise<UPSTrackingResponse> {
-  // Generate a unique transaction ID
+  // Generate a unique transaction ID for UPS API
   const transId = crypto.randomUUID();
   
   const response = await fetch(
