@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { ArrowLeft, Loader2, DollarSign, Package, Pencil, Trash2, Plus, Factory, Printer, Calendar as CalendarIcon, Split } from 'lucide-react';
+import { ArrowLeft, Loader2, DollarSign, Package, Pencil, Trash2, Plus, Factory, Printer, Calendar as CalendarIcon, Split, Eye } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -17,6 +17,7 @@ import { useReactToPrint } from 'react-to-print';
 import BatchLabel from '@/components/BatchLabel';
 import BatchScheduler from '@/components/BatchScheduler';
 import BatchSplitMerge from '@/components/BatchSplitMerge';
+import QuotePreview from '@/components/QuotePreview';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -123,6 +124,7 @@ const OrderDetail = () => {
   const [selectedBatch, setSelectedBatch] = useState<Batch | null>(null);
   const [splitMergeOpen, setSplitMergeOpen] = useState(false);
   const [plannedStart, setPlannedStart] = useState('');
+  const [quotePreviewOpen, setQuotePreviewOpen] = useState(false);
   const labelRef = useRef<HTMLDivElement>(null);
   
   const handlePrint = useReactToPrint({
@@ -870,35 +872,11 @@ const OrderDetail = () => {
             <Button 
               className="w-full" 
               variant="outline"
-              onClick={async () => {
-                try {
-                  setUpdatingStatus(true);
-                  const { error } = await supabase.functions.invoke('generate-quote', {
-                    body: { orderId: id }
-                  });
-                  
-                  if (error) throw error;
-                  
-                  toast({
-                    title: "Quote Generated",
-                    description: "Quote has been generated and sent via email",
-                  });
-                  fetchOrder();
-                } catch (error: any) {
-                  console.error("Error generating quote:", error);
-                  toast({
-                    title: "Error",
-                    description: "Failed to generate quote: " + error.message,
-                    variant: "destructive",
-                  });
-                } finally {
-                  setUpdatingStatus(false);
-                }
-              }}
-              disabled={updatingStatus || !order}
+              onClick={() => setQuotePreviewOpen(true)}
+              disabled={!order}
             >
-              <DollarSign className="mr-2 h-4 w-4" />
-              Generate Quote
+              <Eye className="mr-2 h-4 w-4" />
+              Preview & Send Quote
             </Button>
             <Button className="w-full" variant="outline">
               <Package className="mr-2 h-4 w-4" />
@@ -1040,6 +1018,42 @@ const OrderDetail = () => {
           availableBatches={batches.filter(b => b.id !== selectedBatch.id && b.status === 'queued')}
           onSplit={handleSplitBatch}
           onMerge={handleMergeBatches}
+        />
+      )}
+
+      {/* Quote Preview Dialog */}
+      {order && (
+        <QuotePreview
+          open={quotePreviewOpen}
+          onOpenChange={setQuotePreviewOpen}
+          order={order}
+          sending={updatingStatus}
+          onSend={async () => {
+            try {
+              setUpdatingStatus(true);
+              const { error } = await supabase.functions.invoke('generate-quote', {
+                body: { orderId: id }
+              });
+              
+              if (error) throw error;
+              
+              toast({
+                title: "Quote Sent",
+                description: "Quote has been generated and sent via email",
+              });
+              setQuotePreviewOpen(false);
+              fetchOrder();
+            } catch (error: any) {
+              console.error("Error generating quote:", error);
+              toast({
+                title: "Error",
+                description: "Failed to generate quote: " + error.message,
+                variant: "destructive",
+              });
+            } finally {
+              setUpdatingStatus(false);
+            }
+          }}
         />
       )}
     </div>
