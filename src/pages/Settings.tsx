@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, Save } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface Setting {
   key: string;
@@ -21,6 +22,7 @@ const Settings = () => {
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [sendingTest, setSendingTest] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -141,6 +143,26 @@ const Settings = () => {
     } finally {
       setSendingTest(false);
     }
+  };
+
+  const handleInsertVariable = (variable: string) => {
+    if (!textareaRef.current) return;
+
+    const textarea = textareaRef.current;
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const text = settings.quote_custom_html || '';
+    const before = text.substring(0, start);
+    const after = text.substring(end);
+    const newText = before + variable + after;
+
+    setSettings({ ...settings, quote_custom_html: newText });
+
+    // Set cursor position after the inserted variable
+    setTimeout(() => {
+      textarea.focus();
+      textarea.setSelectionRange(start + variable.length, start + variable.length);
+    }, 0);
   };
 
   return (
@@ -394,12 +416,30 @@ const Settings = () => {
               <div className="space-y-4">
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-2">
-                    <Label htmlFor="quote_custom_html">HTML Template</Label>
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="quote_custom_html">HTML Template</Label>
+                      <Select onValueChange={handleInsertVariable}>
+                        <SelectTrigger className="w-[200px] h-8">
+                          <SelectValue placeholder="Insert variable" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-background">
+                          <SelectItem value="{{company_name}}">Company Name</SelectItem>
+                          <SelectItem value="{{customer_name}}">Customer Name</SelectItem>
+                          <SelectItem value="{{quote_number}}">Quote Number</SelectItem>
+                          <SelectItem value="{{date}}">Date</SelectItem>
+                          <SelectItem value="{{customer_email}}">Customer Email</SelectItem>
+                          <SelectItem value="{{line_items}}">Line Items</SelectItem>
+                          <SelectItem value="{{subtotal}}">Subtotal</SelectItem>
+                          <SelectItem value="{{deposit_info}}">Deposit Info</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
                     <Textarea
+                      ref={textareaRef}
                       id="quote_custom_html"
                       value={settings.quote_custom_html || ''}
                       onChange={(e) => setSettings({ ...settings, quote_custom_html: e.target.value })}
-                      placeholder="Leave empty to use default template. Available variables: {{company_name}}, {{customer_name}}, {{quote_number}}, {{date}}, {{customer_email}}, {{line_items}}, {{subtotal}}, {{deposit_info}}"
+                      placeholder="Leave empty to use default template. Click 'Insert variable' above to add template variables."
                       className="font-mono text-sm min-h-[400px]"
                     />
                   </div>
