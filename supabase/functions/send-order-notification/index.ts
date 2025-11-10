@@ -223,7 +223,6 @@ serve(async (req) => {
         from: `Nexus Aminos <${smtpUser}>`,
         to: recipientEmail,
         subject: subject,
-        content: cleanedText,
         html: body,
       });
 
