@@ -50,7 +50,7 @@ export function AppSidebar() {
   ];
 
   return (
-    <Sidebar collapsible="icon" className="transition-[left,right,width] duration-300 ease-in-out">
+    <Sidebar collapsible="offcanvas" className="transition-[left,right,width] duration-300 ease-in-out">
       <SidebarHeader className="border-b p-4">
         <div className="flex items-center justify-center">
           {collapsed ? (
