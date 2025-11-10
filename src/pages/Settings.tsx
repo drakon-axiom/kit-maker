@@ -128,6 +128,35 @@ const Settings = () => {
         <div className="grid gap-6 md:grid-cols-2">
           <Card>
             <CardHeader>
+              <CardTitle>Company Name</CardTitle>
+              <CardDescription>Your company name shown in emails and documents</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="company_name">Company Name</Label>
+                  <Input
+                    id="company_name"
+                    type="text"
+                    value={settings.company_name || ''}
+                    onChange={(e) => setSettings({ ...settings, company_name: e.target.value })}
+                    placeholder="Enter your company name"
+                  />
+                </div>
+                <Button 
+                  onClick={() => handleSave('company_name', settings.company_name)}
+                  disabled={saving}
+                  size="sm"
+                >
+                  <Save className="mr-2 h-4 w-4" />
+                  Save
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
               <CardTitle>Kit Size</CardTitle>
               <CardDescription>Default number of bottles per kit</CardDescription>
             </CardHeader>

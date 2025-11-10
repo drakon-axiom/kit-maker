@@ -26,13 +26,30 @@ const Notifications = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [sendingTest, setSendingTest] = useState(false);
+  const [companyName, setCompanyName] = useState('Your Company');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { toast } = useToast();
   const { user } = useAuth();
 
   useEffect(() => {
     fetchTemplates();
+    fetchCompanyName();
   }, []);
+
+  const fetchCompanyName = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('settings')
+        .select('value')
+        .eq('key', 'company_name')
+        .single();
+
+      if (error) throw error;
+      if (data?.value) setCompanyName(data.value);
+    } catch (error: any) {
+      console.error('Error fetching company name:', error);
+    }
+  };
 
   const fetchTemplates = async () => {
     try {
@@ -148,7 +165,7 @@ const Notifications = () => {
     
     // Replace variables with sample data
     const sampleData: { [key: string]: string } = {
-      '{{company_name}}': 'Axiom Manufacturing',
+      '{{company_name}}': companyName,
       '{{customer_name}}': 'John Doe',
       '{{quote_number}}': 'Q-2024-001',
       '{{order_number}}': 'O-2024-001',
