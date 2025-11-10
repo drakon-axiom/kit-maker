@@ -45,6 +45,7 @@ const QuotePreview = ({ open, onOpenChange, order, onSend, sending }: QuotePrevi
     quote_footer_text: "We look forward to working with you!",
     company_logo_url: "",
   });
+  const [customHtml, setCustomHtml] = useState<string>("");
 
   useEffect(() => {
     const fetchSettings = async () => {
@@ -62,10 +63,58 @@ const QuotePreview = ({ open, onOpenChange, order, onSend, sending }: QuotePrevi
       }
     };
 
+    const fetchTemplate = async () => {
+      const { data } = await supabase
+        .from("email_templates")
+        .select("custom_html")
+        .eq("template_type", "quote")
+        .single();
+      
+      if (data?.custom_html) {
+        setCustomHtml(data.custom_html);
+      }
+    };
+
     if (open) {
       fetchSettings();
+      fetchTemplate();
     }
   }, [open]);
+
+  const generatePreviewHtml = () => {
+    const depositAmount = order.deposit_amount || 0;
+    const depositPercentage = order.subtotal > 0 ? Math.round((depositAmount / order.subtotal) * 100) : 0;
+    
+    // Generate line items HTML
+    let lineItemsHtml = '';
+    order.sales_order_lines.forEach((line) => {
+      lineItemsHtml += `<tr style="border-bottom: 1px solid #eee;"><td style="padding: 8px;">${line.sku?.code || "N/A"}</td><td style="padding: 8px;">${line.qty_entered} (${line.bottle_qty} bottles)</td><td style="padding: 8px; text-align: right;">$${line.unit_price.toFixed(2)}</td><td style="padding: 8px; text-align: right;">$${line.line_subtotal.toFixed(2)}</td></tr>`;
+    });
+
+    if (customHtml) {
+      // Use custom template with variable replacement
+      return customHtml
+        .replace(/\{\{company_name\}\}/g, settings.company_name)
+        .replace(/\{\{company_email\}\}/g, settings.company_email)
+        .replace(/\{\{customer_name\}\}/g, order.customer?.name || "Customer")
+        .replace(/\{\{quote_number\}\}/g, order.human_uid)
+        .replace(/\{\{date\}\}/g, new Date(order.created_at).toLocaleDateString())
+        .replace(/\{\{customer_email\}\}/g, order.customer?.email || '')
+        .replace(/\{\{line_items\}\}/g, lineItemsHtml)
+        .replace(/\{\{subtotal\}\}/g, `$${order.subtotal.toFixed(2)}`)
+        .replace(/\{\{logo_url\}\}/g, settings.company_logo_url)
+        .replace(/\{\{deposit_info\}\}/g, order.deposit_required && depositAmount > 0 
+          ? `<tr><td colspan="3" style="padding: 8px; text-align: right;">Deposit Required (${depositPercentage}%):</td><td style="padding: 8px; text-align: right;">$${depositAmount.toFixed(2)}</td></tr>`
+          : '');
+    }
+
+    // Default template
+    const headerContent = settings.company_logo_url 
+      ? `<img src="${settings.company_logo_url}" alt="${settings.company_name}" style="max-height: 80px; max-width: 300px;" />`
+      : `<h1 style="color: ${settings.quote_header_text_color}; margin: 0; font-size: 24px; font-weight: bold;">${settings.company_name.toUpperCase()}</h1>`;
+
+    return `<!doctype html><html><head><meta charset="utf-8"></head><body style="font-family: 'Open Sans', Arial, sans-serif; background: #ffffff; color: #222; margin: 0; padding: 0;"><div style="background: ${settings.quote_header_bg_color}; padding: 30px; text-align: center;">${headerContent}</div><div style="max-width: 600px; margin: 0 auto; padding: 30px 20px;"><h2 style="font-size: 20px; margin-bottom: 16px;">Hello ${order.customer?.name || "Customer"},</h2><p style="margin-bottom: 16px; line-height: 1.6;">Thank you for your interest in ${settings.company_name}. Please find your quote details below.</p><div style="background: #f5f5f5; padding: 16px; border-radius: 8px; margin-bottom: 16px;"><p style="margin: 8px 0;"><strong>Quote Number:</strong> ${order.human_uid}</p><p style="margin: 8px 0;"><strong>Date:</strong> ${new Date(order.created_at).toLocaleDateString()}</p><p style="margin: 8px 0;"><strong>Customer:</strong> ${order.customer?.name}</p>${order.customer?.email ? `<p style="margin: 8px 0;"><strong>Email:</strong> ${order.customer.email}</p>` : ''}</div><div style="margin-bottom: 24px;"><h3 style="font-size: 16px; font-weight: 600; margin-bottom: 12px;">Line Items</h3><table style="width: 100%; border-collapse: collapse; font-size: 14px;"><thead><tr style="background: #f0f0f0; border-bottom: 2px solid #ddd;"><th style="padding: 8px; text-align: left;">SKU</th><th style="padding: 8px; text-align: left;">Quantity</th><th style="padding: 8px; text-align: right;">Unit Price</th><th style="padding: 8px; text-align: right;">Total</th></tr></thead><tbody>${lineItemsHtml}</tbody><tfoot><tr style="border-top: 2px solid #ddd; font-weight: 600;"><td colspan="3" style="padding: 8px; text-align: right;">Subtotal:</td><td style="padding: 8px; text-align: right;">$${order.subtotal.toFixed(2)}</td></tr>${order.deposit_required && depositAmount > 0 ? `<tr><td colspan="3" style="padding: 8px; text-align: right;">Deposit Required (${depositPercentage}%):</td><td style="padding: 8px; text-align: right;">$${depositAmount.toFixed(2)}</td></tr>` : ''}</tfoot></table></div><p style="margin-bottom: 16px; line-height: 1.6;">This quote is valid for 30 days. If you have any questions or would like to proceed with this order, please reply to this email or contact us.</p>${order.deposit_required && depositAmount > 0 ? `<div style="background: #fff3cd; border: 1px solid #ffc107; padding: 12px; border-radius: 4px; margin-bottom: 16px;"><strong>Note:</strong> A ${depositPercentage}% deposit ($${depositAmount.toFixed(2)}) is required before production begins.</div>` : ''}<p style="line-height: 1.6;">${settings.quote_footer_text}</p></div><div style="background: ${settings.quote_header_bg_color}; padding: 20px; text-align: center; margin-top: 40px;"><p style="margin: 8px 0; font-weight: 500;">${settings.company_name}<br>${settings.company_email}</p><p style="font-size: 12px; color: #666; margin: 8px 0;">© ${new Date().getFullYear()} ${settings.company_name}. All rights reserved.</p></div></body></html>`;
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -79,168 +128,7 @@ const QuotePreview = ({ open, onOpenChange, order, onSend, sending }: QuotePrevi
 
         <div className="border rounded-lg overflow-hidden">
           {/* Email Preview */}
-          <div style={{ 
-            fontFamily: "'Open Sans', Arial, sans-serif", 
-            background: "#ffffff", 
-            color: "#222",
-            margin: 0,
-            padding: 0
-          }}>
-            {/* Header */}
-            <div style={{ 
-              background: settings.quote_header_bg_color, 
-              padding: "30px", 
-              textAlign: "center" 
-            }}>
-              {settings.company_logo_url ? (
-                <img 
-                  src={settings.company_logo_url} 
-                  alt={settings.company_name}
-                  style={{ maxHeight: "80px", maxWidth: "300px" }}
-                />
-              ) : (
-                <h1 style={{ color: settings.quote_header_text_color, margin: 0, fontSize: "24px", fontWeight: "bold" }}>
-                  {settings.company_name.toUpperCase()}
-                </h1>
-              )}
-            </div>
-
-            {/* Content */}
-            <div style={{ 
-              maxWidth: "600px", 
-              margin: "0 auto", 
-              padding: "30px 20px" 
-            }}>
-              <h2 style={{ fontSize: "20px", marginBottom: "16px" }}>
-                Hello {order.customer?.name || "Customer"},
-              </h2>
-              
-              <p style={{ marginBottom: "16px", lineHeight: "1.6" }}>
-                Thank you for your interest in {settings.company_name}. Please find your quote details below.
-              </p>
-              
-              <div style={{ 
-                background: "#f5f5f5", 
-                padding: "16px", 
-                borderRadius: "8px",
-                marginBottom: "16px" 
-              }}>
-                <p style={{ margin: "8px 0" }}>
-                  <strong>Quote Number:</strong> {order.human_uid}
-                </p>
-                <p style={{ margin: "8px 0" }}>
-                  <strong>Date:</strong> {new Date(order.created_at).toLocaleDateString()}
-                </p>
-                <p style={{ margin: "8px 0" }}>
-                  <strong>Customer:</strong> {order.customer?.name}
-                </p>
-                {order.customer?.email && (
-                  <p style={{ margin: "8px 0" }}>
-                    <strong>Email:</strong> {order.customer.email}
-                  </p>
-                )}
-              </div>
-
-              {/* Line Items Table */}
-              <div style={{ marginBottom: "24px" }}>
-                <h3 style={{ fontSize: "16px", fontWeight: "600", marginBottom: "12px" }}>
-                  Line Items
-                </h3>
-                <table style={{ 
-                  width: "100%", 
-                  borderCollapse: "collapse",
-                  fontSize: "14px" 
-                }}>
-                  <thead>
-                    <tr style={{ background: "#f0f0f0", borderBottom: "2px solid #ddd" }}>
-                      <th style={{ padding: "8px", textAlign: "left" }}>SKU</th>
-                      <th style={{ padding: "8px", textAlign: "left" }}>Quantity</th>
-                      <th style={{ padding: "8px", textAlign: "right" }}>Unit Price</th>
-                      <th style={{ padding: "8px", textAlign: "right" }}>Total</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {order.sales_order_lines.map((line, index) => (
-                      <tr key={index} style={{ borderBottom: "1px solid #eee" }}>
-                        <td style={{ padding: "8px" }}>
-                          {line.sku?.code || "N/A"}
-                        </td>
-                        <td style={{ padding: "8px" }}>
-                          {line.qty_entered} ({line.bottle_qty} bottles)
-                        </td>
-                        <td style={{ padding: "8px", textAlign: "right" }}>
-                          ${line.unit_price.toFixed(2)}
-                        </td>
-                        <td style={{ padding: "8px", textAlign: "right" }}>
-                          ${line.line_subtotal.toFixed(2)}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                  <tfoot>
-                    <tr style={{ borderTop: "2px solid #ddd", fontWeight: "600" }}>
-                      <td colSpan={3} style={{ padding: "8px", textAlign: "right" }}>
-                        Subtotal:
-                      </td>
-                      <td style={{ padding: "8px", textAlign: "right" }}>
-                        ${order.subtotal.toFixed(2)}
-                      </td>
-                    </tr>
-                    {order.deposit_required && depositAmount > 0 && (
-                      <tr>
-                        <td colSpan={3} style={{ padding: "8px", textAlign: "right" }}>
-                          Deposit Required ({depositPercentage}%):
-                        </td>
-                        <td style={{ padding: "8px", textAlign: "right" }}>
-                          ${depositAmount.toFixed(2)}
-                        </td>
-                      </tr>
-                    )}
-                  </tfoot>
-                </table>
-              </div>
-
-              <p style={{ marginBottom: "16px", lineHeight: "1.6" }}>
-                This quote is valid for 30 days. If you have any questions or would like to proceed with this order, please reply to this email or contact us.
-              </p>
-              
-              {order.deposit_required && depositAmount > 0 && (
-                <div style={{ 
-                  background: "#fff3cd", 
-                  border: "1px solid #ffc107",
-                  padding: "12px", 
-                  borderRadius: "4px",
-                  marginBottom: "16px" 
-                }}>
-                  <strong>Note:</strong> A {depositPercentage}% deposit (${depositAmount.toFixed(2)}) is required before production begins.
-                </div>
-              )}
-              
-              <p style={{ lineHeight: "1.6" }}>
-                {settings.quote_footer_text}
-              </p>
-            </div>
-
-            {/* Footer */}
-            <div style={{ 
-              background: settings.quote_header_bg_color, 
-              padding: "20px", 
-              textAlign: "center",
-              marginTop: "40px" 
-            }}>
-              <p style={{ margin: "8px 0", fontWeight: "500" }}>
-                {settings.company_name}<br />
-                {settings.company_email}
-              </p>
-              <p style={{ 
-                fontSize: "12px", 
-                color: "#666", 
-                margin: "8px 0" 
-              }}>
-                © {new Date().getFullYear()} {settings.company_name}. All rights reserved.
-              </p>
-            </div>
-          </div>
+          <div dangerouslySetInnerHTML={{ __html: generatePreviewHtml() }} />
         </div>
 
         <DialogFooter className="gap-2">
