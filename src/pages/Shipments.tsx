@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Loader2, Package, Plus, Pencil, Trash2, Search, ExternalLink, RefreshCw, Clock, Filter } from 'lucide-react';
+import { Loader2, Package, Plus, Pencil, Trash2, Search, ExternalLink, RefreshCw, Clock, Filter, TrendingUp, Calendar } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -13,6 +13,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Progress } from '@/components/ui/progress';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 
 interface Shipment {
   id: string;
@@ -24,6 +25,7 @@ interface Shipment {
   tracking_status: string | null;
   tracking_location: string | null;
   last_tracking_update: string | null;
+  estimated_delivery: string | null;
   sales_order: {
     id: string;
     human_uid: string;
@@ -344,6 +346,28 @@ const Shipments = () => {
     return null;
   };
 
+  // Calculate statistics
+  const fullyDeliveredCount = Object.values(groupedShipments).filter(({ shipments: orderShipments }) => {
+    const deliveredCount = orderShipments.filter(s => s.tracking_status?.toLowerCase().includes('delivered')).length;
+    return deliveredCount === orderShipments.length;
+  }).length;
+
+  const partiallyDeliveredCount = Object.values(groupedShipments).filter(({ shipments: orderShipments }) => {
+    const deliveredCount = orderShipments.filter(s => s.tracking_status?.toLowerCase().includes('delivered')).length;
+    return deliveredCount > 0 && deliveredCount < orderShipments.length;
+  }).length;
+
+  const inTransitCount = Object.values(groupedShipments).filter(({ shipments: orderShipments }) => {
+    const deliveredCount = orderShipments.filter(s => s.tracking_status?.toLowerCase().includes('delivered')).length;
+    return deliveredCount === 0;
+  }).length;
+
+  const statsData = [
+    { name: 'Fully Delivered', value: fullyDeliveredCount, color: 'hsl(var(--success))' },
+    { name: 'Partially Delivered', value: partiallyDeliveredCount, color: 'hsl(var(--warning))' },
+    { name: 'In Transit', value: inTransitCount, color: 'hsl(var(--primary))' },
+  ];
+
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
@@ -456,6 +480,70 @@ const Shipments = () => {
           </DialogContent>
         </Dialog>
         </div>
+      </div>
+
+      {/* Statistics Dashboard */}
+      <div className="grid gap-4 md:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <TrendingUp className="h-5 w-5" />
+              Delivery Statistics
+            </CardTitle>
+            <CardDescription>Overview of order delivery status</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-3 gap-4 mb-6">
+              <div className="text-center">
+                <div className="text-3xl font-bold text-success">{fullyDeliveredCount}</div>
+                <p className="text-xs text-muted-foreground mt-1">Fully Delivered</p>
+              </div>
+              <div className="text-center">
+                <div className="text-3xl font-bold text-warning">{partiallyDeliveredCount}</div>
+                <p className="text-xs text-muted-foreground mt-1">Partially Delivered</p>
+              </div>
+              <div className="text-center">
+                <div className="text-3xl font-bold text-primary">{inTransitCount}</div>
+                <p className="text-xs text-muted-foreground mt-1">In Transit</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Delivery Status Distribution</CardTitle>
+            <CardDescription>Visual breakdown of order statuses</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={200}>
+              <BarChart data={statsData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                <XAxis 
+                  dataKey="name" 
+                  stroke="hsl(var(--muted-foreground))"
+                  fontSize={12}
+                />
+                <YAxis 
+                  stroke="hsl(var(--muted-foreground))"
+                  fontSize={12}
+                />
+                <Tooltip 
+                  contentStyle={{
+                    backgroundColor: 'hsl(var(--popover))',
+                    border: '1px solid hsl(var(--border))',
+                    borderRadius: '6px',
+                  }}
+                />
+                <Bar dataKey="value" radius={[8, 8, 0, 0]}>
+                  {statsData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
       </div>
 
       <Card>
@@ -670,9 +758,19 @@ const Shipments = () => {
                               )}
                             </TableCell>
                             <TableCell className="text-sm">
-                              {shipment.shipped_at
-                                ? new Date(shipment.shipped_at).toLocaleDateString()
-                                : 'Pending'}
+                              <div className="space-y-1">
+                                <div>
+                                  {shipment.shipped_at
+                                    ? new Date(shipment.shipped_at).toLocaleDateString()
+                                    : 'Pending'}
+                                </div>
+                                {shipment.estimated_delivery && !shipment.tracking_status?.toLowerCase().includes('delivered') && (
+                                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                                    <Calendar className="h-3 w-3" />
+                                    <span>Est: {new Date(shipment.estimated_delivery).toLocaleDateString()}</span>
+                                  </div>
+                                )}
+                              </div>
                             </TableCell>
                             <TableCell>
                               {shipment.tracking_status ? (
