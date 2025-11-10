@@ -1,1 +1,7 @@
 project_id = "dfaafbwhdnoaknuxonig"
+
+[functions.update-tracking]
+verify_jwt = false
+
+[functions.send-shipment-notification]
+verify_jwt = false

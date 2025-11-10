@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Loader2, Package, Plus, Pencil, Trash2, Search, ExternalLink, RefreshCw, Clock, Filter, TrendingUp, Calendar, Download } from 'lucide-react';
+import { Loader2, Package, Plus, Pencil, Trash2, Search, ExternalLink, RefreshCw, Clock, Filter, TrendingUp, Calendar, Download, CheckSquare, Square } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -59,6 +59,11 @@ const Shipments = () => {
   const [nextUpdateTime, setNextUpdateTime] = useState<string>('');
   const [expandedOrders, setExpandedOrders] = useState<Record<string, boolean>>({});
   const [deliveryFilter, setDeliveryFilter] = useState<'all' | 'delivered' | 'partial' | 'in-transit'>('all');
+  const [selectedShipments, setSelectedShipments] = useState<Set<string>>(new Set());
+  const [bulkDialogOpen, setBulkDialogOpen] = useState(false);
+  const [bulkAction, setBulkAction] = useState<'carrier' | 'notes'>('carrier');
+  const [bulkCarrier, setBulkCarrier] = useState('');
+  const [bulkNotes, setBulkNotes] = useState('');
   const { toast } = useToast();
 
   const [formData, setFormData] = useState({
@@ -345,6 +350,88 @@ const Shipments = () => {
       return `https://www.dhl.com/en/express/tracking.html?AWB=${trackingNo}`;
     }
     return null;
+  };
+
+  const toggleShipmentSelection = (shipmentId: string) => {
+    const newSelection = new Set(selectedShipments);
+    if (newSelection.has(shipmentId)) {
+      newSelection.delete(shipmentId);
+    } else {
+      newSelection.add(shipmentId);
+    }
+    setSelectedShipments(newSelection);
+  };
+
+  const toggleAllShipments = () => {
+    if (selectedShipments.size === filteredShipments.length) {
+      setSelectedShipments(new Set());
+    } else {
+      const allIds = filteredShipments.map(s => s.id);
+      setSelectedShipments(new Set(allIds));
+    }
+  };
+
+  const handleBulkUpdate = async () => {
+    if (selectedShipments.size === 0) return;
+
+    try {
+      const updates: any = {};
+      
+      if (bulkAction === 'carrier' && bulkCarrier) {
+        updates.carrier = bulkCarrier;
+      } else if (bulkAction === 'notes' && bulkNotes) {
+        updates.notes = bulkNotes;
+      }
+
+      if (Object.keys(updates).length === 0) {
+        toast({
+          title: 'Error',
+          description: 'Please provide a value to update',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      const { error } = await supabase
+        .from('shipments')
+        .update(updates)
+        .in('id', Array.from(selectedShipments));
+
+      if (error) throw error;
+
+      // Send notification for status changes if carrier was updated
+      if (bulkAction === 'carrier') {
+        for (const shipmentId of Array.from(selectedShipments)) {
+          try {
+            await supabase.functions.invoke('send-shipment-notification', {
+              body: {
+                shipmentId,
+                status: 'In Transit',
+              },
+            });
+          } catch (emailError) {
+            console.error('Error sending notification:', emailError);
+          }
+        }
+      }
+
+      toast({
+        title: 'Success',
+        description: `Updated ${selectedShipments.size} shipment(s)`,
+      });
+
+      setBulkDialogOpen(false);
+      setBulkCarrier('');
+      setBulkNotes('');
+      setSelectedShipments(new Set());
+      fetchShipments();
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+    }
   };
 
   const handleExportToCSV = () => {
@@ -650,6 +737,27 @@ const Shipments = () => {
                 </Button>
               </div>
             </div>
+            {selectedShipments.size > 0 && (
+              <div className="flex items-center gap-2 bg-primary/10 px-4 py-2 rounded-md">
+                <span className="text-sm font-medium">
+                  {selectedShipments.size} shipment{selectedShipments.size !== 1 ? 's' : ''} selected
+                </span>
+                <Button
+                  size="sm"
+                  variant="default"
+                  onClick={() => setBulkDialogOpen(true)}
+                >
+                  Bulk Update
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setSelectedShipments(new Set())}
+                >
+                  Clear Selection
+                </Button>
+              </div>
+            )}
           </div>
         </CardHeader>
         <CardContent>
@@ -670,7 +778,20 @@ const Shipments = () => {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-12"></TableHead>
+                  <TableHead className="w-12">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6"
+                      onClick={toggleAllShipments}
+                    >
+                      {selectedShipments.size === filteredShipments.length && filteredShipments.length > 0 ? (
+                        <CheckSquare className="h-4 w-4" />
+                      ) : (
+                        <Square className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </TableHead>
                   <TableHead>Order</TableHead>
                   <TableHead>Customer</TableHead>
                   <TableHead>Shipments</TableHead>
@@ -787,9 +908,23 @@ const Shipments = () => {
                       
                       {isExpanded && orderShipments.map((shipment) => {
                         const trackingUrl = getTrackingUrl(shipment.carrier, shipment.tracking_no);
+                        const isSelected = selectedShipments.has(shipment.id);
                         return (
                           <TableRow key={`detail-${shipment.id}`} className="bg-muted/30">
-                            <TableCell></TableCell>
+                            <TableCell>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6"
+                                onClick={() => toggleShipmentSelection(shipment.id)}
+                              >
+                                {isSelected ? (
+                                  <CheckSquare className="h-4 w-4 text-primary" />
+                                ) : (
+                                  <Square className="h-4 w-4" />
+                                )}
+                              </Button>
+                            </TableCell>
                             <TableCell className="text-sm text-muted-foreground">
                               {shipment.carrier || '-'}
                             </TableCell>
@@ -891,6 +1026,68 @@ const Shipments = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={bulkDialogOpen} onOpenChange={setBulkDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Bulk Update Shipments</DialogTitle>
+            <DialogDescription>
+              Update {selectedShipments.size} selected shipment{selectedShipments.size !== 1 ? 's' : ''}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Action Type</Label>
+              <Select value={bulkAction} onValueChange={(value: 'carrier' | 'notes') => setBulkAction(value)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="carrier">Update Carrier</SelectItem>
+                  <SelectItem value="notes">Add Notes</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {bulkAction === 'carrier' ? (
+              <div className="space-y-2">
+                <Label htmlFor="bulk-carrier">Carrier</Label>
+                <Select value={bulkCarrier} onValueChange={setBulkCarrier}>
+                  <SelectTrigger id="bulk-carrier">
+                    <SelectValue placeholder="Select carrier" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="UPS">UPS</SelectItem>
+                    <SelectItem value="FedEx">FedEx</SelectItem>
+                    <SelectItem value="USPS">USPS</SelectItem>
+                    <SelectItem value="DHL">DHL</SelectItem>
+                    <SelectItem value="Other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <Label htmlFor="bulk-notes">Notes</Label>
+                <Textarea
+                  id="bulk-notes"
+                  value={bulkNotes}
+                  onChange={(e) => setBulkNotes(e.target.value)}
+                  placeholder="Enter notes to add to selected shipments..."
+                  rows={4}
+                />
+              </div>
+            )}
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="outline" onClick={() => setBulkDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleBulkUpdate}>
+              Update {selectedShipments.size} Shipment{selectedShipments.size !== 1 ? 's' : ''}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
