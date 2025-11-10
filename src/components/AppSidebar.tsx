@@ -11,6 +11,7 @@ import {
   Settings,
   Boxes,
   TruckIcon,
+  Mail,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -44,6 +45,7 @@ export function AppSidebar() {
   const adminItems = [
     { title: 'Customers', url: '/customers', icon: Users },
     { title: 'Products (SKUs)', url: '/skus', icon: Package },
+    { title: 'Notifications', url: '/notifications', icon: Mail },
     { title: 'Settings', url: '/settings', icon: Settings },
   ];
 

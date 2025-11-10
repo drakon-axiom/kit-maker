@@ -77,6 +77,42 @@ export type Database = {
         }
         Relationships: []
       }
+      email_templates: {
+        Row: {
+          available_variables: string[]
+          created_at: string
+          custom_html: string | null
+          description: string | null
+          id: string
+          name: string
+          subject: string
+          template_type: string
+          updated_at: string
+        }
+        Insert: {
+          available_variables?: string[]
+          created_at?: string
+          custom_html?: string | null
+          description?: string | null
+          id?: string
+          name: string
+          subject: string
+          template_type: string
+          updated_at?: string
+        }
+        Update: {
+          available_variables?: string[]
+          created_at?: string
+          custom_html?: string | null
+          description?: string | null
+          id?: string
+          name?: string
+          subject?: string
+          template_type?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       invoice_payments: {
         Row: {
           amount: number

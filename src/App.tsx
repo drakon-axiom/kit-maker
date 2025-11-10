@@ -14,6 +14,7 @@ import OrderDetail from "./pages/OrderDetail";
 import OrderEdit from "./pages/OrderEdit";
 import Queue from "./pages/Queue";
 import Operator from "./pages/Operator";
+import Notifications from "./pages/Notifications";
 import Shipments from "./pages/Shipments";
 import Settings from "./pages/Settings";
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -127,6 +128,16 @@ const App = () => (
                 <ProtectedRoute>
                   <Layout>
                     <Shipments />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/notifications"
+              element={
+                <ProtectedRoute requiredRole="admin">
+                  <Layout>
+                    <Notifications />
                   </Layout>
                 </ProtectedRoute>
               }

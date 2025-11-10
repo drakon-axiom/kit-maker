@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
@@ -7,7 +7,6 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, Save } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface Setting {
   key: string;
@@ -21,8 +20,6 @@ const Settings = () => {
   const [saving, setSaving] = useState(false);
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [uploadingLogo, setUploadingLogo] = useState(false);
-  const [sendingTest, setSendingTest] = useState(false);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -115,55 +112,6 @@ const Settings = () => {
     }
   };
 
-  const handleSendTestEmail = async () => {
-    setSendingTest(true);
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user?.email) throw new Error("No user email found");
-
-      const { error } = await supabase.functions.invoke('generate-quote', {
-        body: { 
-          testEmail: user.email,
-          testMode: true 
-        }
-      });
-
-      if (error) throw error;
-
-      toast({
-        title: "Success",
-        description: `Test quote email sent to ${user.email}`,
-      });
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
-    } finally {
-      setSendingTest(false);
-    }
-  };
-
-  const handleInsertVariable = (variable: string) => {
-    if (!textareaRef.current) return;
-
-    const textarea = textareaRef.current;
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    const text = settings.quote_custom_html || '';
-    const before = text.substring(0, start);
-    const after = text.substring(end);
-    const newText = before + variable + after;
-
-    setSettings({ ...settings, quote_custom_html: newText });
-
-    // Set cursor position after the inserted variable
-    setTimeout(() => {
-      textarea.focus();
-      textarea.setSelectionRange(start + variable.length, start + variable.length);
-    }, 0);
-  };
 
   return (
     <div className="p-6 space-y-6">
@@ -403,104 +351,6 @@ const Settings = () => {
                 <p className="text-sm text-muted-foreground">
                   PNG, JPG, or WEBP (max 2MB). Logo replaces company name in email header.
                 </p>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="md:col-span-2">
-            <CardHeader>
-              <CardTitle>Custom HTML Template</CardTitle>
-              <CardDescription>Full HTML template customization for quote emails</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <Label htmlFor="quote_custom_html">HTML Template</Label>
-                      <Select onValueChange={handleInsertVariable}>
-                        <SelectTrigger className="w-[200px] h-8">
-                          <SelectValue placeholder="Insert variable" />
-                        </SelectTrigger>
-                        <SelectContent className="bg-background">
-                          <SelectItem value="{{company_name}}">Company Name</SelectItem>
-                          <SelectItem value="{{customer_name}}">Customer Name</SelectItem>
-                          <SelectItem value="{{quote_number}}">Quote Number</SelectItem>
-                          <SelectItem value="{{date}}">Date</SelectItem>
-                          <SelectItem value="{{customer_email}}">Customer Email</SelectItem>
-                          <SelectItem value="{{line_items}}">Line Items</SelectItem>
-                          <SelectItem value="{{subtotal}}">Subtotal</SelectItem>
-                          <SelectItem value="{{deposit_info}}">Deposit Info</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <Textarea
-                      ref={textareaRef}
-                      id="quote_custom_html"
-                      value={settings.quote_custom_html || ''}
-                      onChange={(e) => setSettings({ ...settings, quote_custom_html: e.target.value })}
-                      placeholder="Leave empty to use default template. Click 'Insert variable' above to add template variables."
-                      className="font-mono text-sm min-h-[400px]"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Live Preview</Label>
-                    <div className="border rounded-md p-4 min-h-[400px] max-h-[400px] overflow-auto bg-muted/30">
-                      {settings.quote_custom_html ? (
-                        <div 
-                          dangerouslySetInnerHTML={{ 
-                            __html: settings.quote_custom_html
-                              .replace(/\{\{company_name\}\}/g, settings.company_name || 'Nexus Aminos')
-                              .replace(/\{\{customer_name\}\}/g, 'John Doe')
-                              .replace(/\{\{quote_number\}\}/g, 'Q-2024-001')
-                              .replace(/\{\{date\}\}/g, new Date().toLocaleDateString())
-                              .replace(/\{\{customer_email\}\}/g, 'customer@example.com')
-                              .replace(/\{\{line_items\}\}/g, `
-                                <tr style="border-bottom: 1px solid #e5e7eb;">
-                                  <td style="padding: 12px; text-align: left;">Sample Product</td>
-                                  <td style="padding: 12px; text-align: center;">10</td>
-                                  <td style="padding: 12px; text-align: right;">$50.00</td>
-                                  <td style="padding: 12px; text-align: right;">$500.00</td>
-                                </tr>
-                              `)
-                              .replace(/\{\{subtotal\}\}/g, '$500.00')
-                              .replace(/\{\{deposit_info\}\}/g, '<p style="margin: 16px 0; color: #059669; font-weight: 600;">50% deposit required: $250.00</p>')
-                          }}
-                        />
-                      ) : (
-                        <p className="text-sm text-muted-foreground">Enter HTML template to see preview with sample data</p>
-                      )}
-                    </div>
-                  </div>
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  Customize entire HTML email. Variables will be replaced with actual order data.
-                </p>
-                <div className="flex gap-2">
-                  <Button 
-                    onClick={() => handleSave('quote_custom_html', settings.quote_custom_html)}
-                    disabled={saving}
-                    size="sm"
-                  >
-                    <Save className="mr-2 h-4 w-4" />
-                    Save Template
-                  </Button>
-                  <Button 
-                    variant="outline"
-                    onClick={() => setSettings({ ...settings, quote_custom_html: '' })}
-                    size="sm"
-                  >
-                    Reset to Default
-                  </Button>
-                  <Button 
-                    variant="secondary"
-                    onClick={handleSendTestEmail}
-                    disabled={sendingTest}
-                    size="sm"
-                  >
-                    {sendingTest ? "Sending..." : "Send Test Email"}
-                  </Button>
-                </div>
               </div>
             </CardContent>
           </Card>
