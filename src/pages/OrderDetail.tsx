@@ -18,6 +18,7 @@ import BatchLabel from '@/components/BatchLabel';
 import BatchScheduler from '@/components/BatchScheduler';
 import BatchSplitMerge from '@/components/BatchSplitMerge';
 import QuotePreview from '@/components/QuotePreview';
+import BatchPlanner from '@/components/BatchPlanner';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -117,14 +118,12 @@ const OrderDetail = () => {
   const [deleting, setDeleting] = useState(false);
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const [batches, setBatches] = useState<Batch[]>([]);
-  const [createBatchDialogOpen, setCreateBatchDialogOpen] = useState(false);
-  const [batchQuantity, setBatchQuantity] = useState('');
-  const [creatingBatch, setCreatingBatch] = useState(false);
   const [schedulerOpen, setSchedulerOpen] = useState(false);
   const [selectedBatch, setSelectedBatch] = useState<Batch | null>(null);
   const [splitMergeOpen, setSplitMergeOpen] = useState(false);
-  const [plannedStart, setPlannedStart] = useState('');
   const [quotePreviewOpen, setQuotePreviewOpen] = useState(false);
+  const [batchPlannerOpen, setBatchPlannerOpen] = useState(false);
+  const [batchAllocations, setBatchAllocations] = useState<Record<string, number>>({});
   const labelRef = useRef<HTMLDivElement>(null);
   
   const handlePrint = useReactToPrint({
@@ -135,6 +134,7 @@ const OrderDetail = () => {
     if (id) {
       fetchOrder();
       fetchBatches();
+      fetchBatchAllocations();
     }
   }, [id]);
 
@@ -178,6 +178,32 @@ const OrderDetail = () => {
       setBatches(data || []);
     } catch (error: any) {
       console.error('Error fetching batches:', error);
+    }
+  };
+
+  const fetchBatchAllocations = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('production_batch_items')
+        .select(`
+          so_line_id,
+          bottle_qty_allocated,
+          batch:production_batches!inner(so_id)
+        `)
+        .eq('batch.so_id', id);
+
+      if (error) throw error;
+
+      // Sum up allocations per order line
+      const allocations: Record<string, number> = {};
+      data?.forEach((item: any) => {
+        const lineId = item.so_line_id;
+        allocations[lineId] = (allocations[lineId] || 0) + item.bottle_qty_allocated;
+      });
+
+      setBatchAllocations(allocations);
+    } catch (error: any) {
+      console.error('Error fetching batch allocations:', error);
     }
   };
 
@@ -335,88 +361,83 @@ const OrderDetail = () => {
     return { uid, humanUid };
   };
 
-  const createBatch = async () => {
-    if (!order || !batchQuantity) return;
+  const createBatchesFromPlans = async (plans: Array<{ lineId: string; quantity: number }>) => {
+    if (!order) return;
 
-    const qty = parseInt(batchQuantity);
-    if (isNaN(qty) || qty <= 0) {
-      toast({
-        title: 'Invalid Quantity',
-        description: 'Please enter a valid quantity',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    setCreatingBatch(true);
     try {
-      // Generate BAT number
-      const { uid, humanUid } = await generateBatchUid();
+      for (const plan of plans) {
+        // Generate BAT number
+        const { uid, humanUid } = await generateBatchUid();
 
-      // Parse planned start date
-      const plannedStartDate = plannedStart ? new Date(plannedStart).toISOString() : null;
+        // Create batch
+        const { data: batchData, error: batchError } = await supabase
+          .from('production_batches')
+          .insert({
+            so_id: order.id,
+            uid,
+            human_uid: humanUid,
+            status: 'queued',
+            qty_bottle_planned: plan.quantity,
+            qty_bottle_good: 0,
+            qty_bottle_scrap: 0,
+            priority_index: 0,
+          })
+          .select()
+          .single();
 
-      // Create batch
-      const { data: batchData, error: batchError } = await supabase
-        .from('production_batches')
-        .insert({
-          so_id: order.id,
-          uid,
-          human_uid: humanUid,
-          status: 'queued',
-          qty_bottle_planned: qty,
-          qty_bottle_good: 0,
-          qty_bottle_scrap: 0,
-          priority_index: 0,
-          planned_start: plannedStartDate,
-        })
-        .select()
-        .single();
+        if (batchError) throw batchError;
 
-      if (batchError) throw batchError;
+        // Create batch item linking to order line
+        const { error: itemError } = await supabase
+          .from('production_batch_items')
+          .insert({
+            batch_id: batchData.id,
+            so_line_id: plan.lineId,
+            bottle_qty_allocated: plan.quantity,
+          });
 
-      // Create workflow steps
-      const workflowSteps = [
-        { step: 'produce' as const, batch_id: batchData.id, status: 'pending' as const },
-        { step: 'bottle_cap' as const, batch_id: batchData.id, status: 'pending' as const },
-        { step: 'label' as const, batch_id: batchData.id, status: 'pending' as const },
-        { step: 'pack' as const, batch_id: batchData.id, status: 'pending' as const },
-      ];
+        if (itemError) throw itemError;
 
-      const { error: stepsError } = await supabase
-        .from('workflow_steps')
-        .insert(workflowSteps);
+        // Create workflow steps
+        const workflowSteps = [
+          { step: 'produce' as const, batch_id: batchData.id, status: 'pending' as const },
+          { step: 'bottle_cap' as const, batch_id: batchData.id, status: 'pending' as const },
+          { step: 'label' as const, batch_id: batchData.id, status: 'pending' as const },
+          { step: 'pack' as const, batch_id: batchData.id, status: 'pending' as const },
+        ];
 
-      if (stepsError) throw stepsError;
+        const { error: stepsError } = await supabase
+          .from('workflow_steps')
+          .insert(workflowSteps);
 
-      // Log batch creation
-      await supabase.from('audit_log').insert({
-        entity: 'production_batch',
-        entity_id: batchData.id,
-        action: 'created',
-        actor_id: (await supabase.auth.getUser()).data.user?.id,
-        after: { uid: humanUid, qty: qty, planned_start: plannedStartDate },
-      });
+        if (stepsError) throw stepsError;
+
+        // Log batch creation
+        await supabase.from('audit_log').insert({
+          entity: 'production_batch',
+          entity_id: batchData.id,
+          action: 'created',
+          actor_id: (await supabase.auth.getUser()).data.user?.id,
+          after: { uid: humanUid, qty: plan.quantity, line_id: plan.lineId },
+        });
+      }
 
       toast({
-        title: 'Batch Created',
-        description: `Batch ${humanUid} created successfully`,
+        title: 'Batches Created',
+        description: `${plans.length} batch${plans.length !== 1 ? 'es' : ''} created successfully`,
       });
 
-      // Refresh batches and close dialog
+      // Refresh data
       fetchBatches();
-      setCreateBatchDialogOpen(false);
-      setBatchQuantity('');
-      setPlannedStart('');
+      fetchBatchAllocations();
     } catch (error: any) {
-      console.error('Error creating batch:', error);
+      console.error('Error creating batches:', error);
       toast({
         title: 'Error',
         description: error.message,
         variant: 'destructive',
       });
-    } finally {
-      setCreatingBatch(false);
+      throw error;
     }
   };
 
@@ -774,12 +795,9 @@ const OrderDetail = () => {
                 </CardDescription>
               </div>
               {userRole === 'admin' && remainingBottles > 0 && (
-                <Button onClick={() => {
-                  setBatchQuantity(remainingBottles.toString());
-                  setCreateBatchDialogOpen(true);
-                }}>
+                <Button onClick={() => setBatchPlannerOpen(true)}>
                   <Plus className="mr-2 h-4 w-4" />
-                  Create Batch
+                  Plan Batches
                 </Button>
               )}
             </div>
@@ -881,10 +899,7 @@ const OrderDetail = () => {
             <Button 
               className="w-full" 
               variant="outline"
-              onClick={() => {
-                setBatchQuantity(totalBottles.toString());
-                setCreateBatchDialogOpen(true);
-              }}
+              onClick={() => setBatchPlannerOpen(true)}
             >
               <Package className="mr-2 h-4 w-4" />
               Plan Batches
@@ -926,69 +941,16 @@ const OrderDetail = () => {
         </AlertDialogContent>
       </AlertDialog>
 
-      <Dialog open={createBatchDialogOpen} onOpenChange={setCreateBatchDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Create Production Batch</DialogTitle>
-            <DialogDescription>
-              Create a new production batch for order {order?.human_uid}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="batch-qty">Bottle Quantity</Label>
-              <Input
-                id="batch-qty"
-                type="number"
-                min="1"
-                max={remainingBottles}
-                value={batchQuantity}
-                onChange={(e) => setBatchQuantity(e.target.value)}
-                placeholder="Enter quantity"
-              />
-              <p className="text-xs text-muted-foreground">
-                {remainingBottles} bottles remaining to be batched
-              </p>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="planned-start">Planned Start Date (Optional)</Label>
-              <Input
-                id="planned-start"
-                type="date"
-                value={plannedStart}
-                onChange={(e) => setPlannedStart(e.target.value)}
-                min={new Date().toISOString().split('T')[0]}
-              />
-            </div>
-            <div className="p-3 bg-muted rounded-lg space-y-1">
-              <p className="text-sm font-medium">Batch will include:</p>
-              <ul className="text-sm text-muted-foreground space-y-1">
-                <li>• Auto-generated BAT number</li>
-                <li>• 4 workflow steps (produce, bottle/cap, label, pack)</li>
-                <li>• Added to production queue</li>
-              </ul>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setCreateBatchDialogOpen(false)} disabled={creatingBatch}>
-              Cancel
-            </Button>
-            <Button onClick={createBatch} disabled={creatingBatch}>
-              {creatingBatch ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Creating...
-                </>
-              ) : (
-                <>
-                  <Factory className="mr-2 h-4 w-4" />
-                  Create Batch
-                </>
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Batch Planner */}
+      {order && (
+        <BatchPlanner
+          open={batchPlannerOpen}
+          onOpenChange={setBatchPlannerOpen}
+          orderLines={order.sales_order_lines}
+          existingAllocations={batchAllocations}
+          onCreateBatches={createBatchesFromPlans}
+        />
+      )}
 
       {/* Hidden label for printing */}
       <div className="hidden">
