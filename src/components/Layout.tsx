@@ -1,5 +1,5 @@
 import { useAuth } from '@/contexts/AuthContext';
-import { SidebarProvider } from '@/components/ui/sidebar';
+import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { AppSidebar } from '@/components/AppSidebar';
 import { Button } from '@/components/ui/button';
 import { LogOut, User } from 'lucide-react';
@@ -25,7 +25,10 @@ const Layout = ({ children }: LayoutProps) => {
         <AppSidebar />
         <div className="flex-1 flex flex-col">
           <header className="h-14 border-b bg-card flex items-center justify-between px-4">
-            <h1 className="text-lg font-semibold">Production Manager</h1>
+            <div className="flex items-center gap-2">
+              <SidebarTrigger />
+              <h1 className="text-lg font-semibold">Production Manager</h1>
+            </div>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="sm" className="gap-2">
