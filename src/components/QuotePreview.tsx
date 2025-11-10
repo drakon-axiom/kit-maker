@@ -9,6 +9,7 @@ interface QuotePreviewProps {
     human_uid: string;
     created_at: string;
     deposit_required: boolean;
+    deposit_amount?: number;
     subtotal: number;
     customer?: {
       name: string;
@@ -31,7 +32,8 @@ interface QuotePreviewProps {
 }
 
 const QuotePreview = ({ open, onOpenChange, order, onSend, sending }: QuotePreviewProps) => {
-  const depositAmount = order.subtotal * 0.5;
+  const depositAmount = order.deposit_amount || 0;
+  const depositPercentage = order.subtotal > 0 ? Math.round((depositAmount / order.subtotal) * 100) : 0;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -144,10 +146,10 @@ const QuotePreview = ({ open, onOpenChange, order, onSend, sending }: QuotePrevi
                         ${order.subtotal.toFixed(2)}
                       </td>
                     </tr>
-                    {order.deposit_required && (
+                    {order.deposit_required && depositAmount > 0 && (
                       <tr>
                         <td colSpan={3} style={{ padding: "8px", textAlign: "right" }}>
-                          Deposit Required (50%):
+                          Deposit Required ({depositPercentage}%):
                         </td>
                         <td style={{ padding: "8px", textAlign: "right" }}>
                           ${depositAmount.toFixed(2)}
@@ -162,7 +164,7 @@ const QuotePreview = ({ open, onOpenChange, order, onSend, sending }: QuotePrevi
                 This quote is valid for 30 days. If you have any questions or would like to proceed with this order, please reply to this email or contact us.
               </p>
               
-              {order.deposit_required && (
+              {order.deposit_required && depositAmount > 0 && (
                 <div style={{ 
                   background: "#fff3cd", 
                   border: "1px solid #ffc107",
@@ -170,7 +172,7 @@ const QuotePreview = ({ open, onOpenChange, order, onSend, sending }: QuotePrevi
                   borderRadius: "4px",
                   marginBottom: "16px" 
                 }}>
-                  <strong>Note:</strong> A 50% deposit is required before production begins.
+                  <strong>Note:</strong> A {depositPercentage}% deposit (${depositAmount.toFixed(2)}) is required before production begins.
                 </div>
               )}
               
