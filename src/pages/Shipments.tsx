@@ -12,6 +12,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { Progress } from '@/components/ui/progress';
 
 interface Shipment {
   id: string;
@@ -491,7 +492,12 @@ const Shipments = () => {
               <TableBody>
                 {ordersWithShipments.map(({ order, shipments: orderShipments }) => {
                   const isExpanded = expandedOrders[order.id];
-                  const allDelivered = orderShipments.every(s => s.tracking_status?.toLowerCase().includes('delivered'));
+                  const deliveredCount = orderShipments.filter(s => 
+                    s.tracking_status?.toLowerCase().includes('delivered')
+                  ).length;
+                  const totalCount = orderShipments.length;
+                  const allDelivered = deliveredCount === totalCount;
+                  const deliveryProgress = (deliveredCount / totalCount) * 100;
                   const latestUpdate = orderShipments.reduce((latest, s) => {
                     if (!s.last_tracking_update) return latest;
                     if (!latest) return s.last_tracking_update;
@@ -538,11 +544,27 @@ const Shipments = () => {
                           </div>
                         </TableCell>
                         <TableCell onClick={() => setExpandedOrders(prev => ({ ...prev, [order.id]: !prev[order.id] }))}>
-                          {allDelivered ? (
-                            <Badge className="bg-success">All Delivered</Badge>
-                          ) : (
-                            <Badge variant="outline">In Transit ({orderShipments.length})</Badge>
-                          )}
+                          <div className="space-y-2">
+                            <div className="flex items-center gap-2">
+                              {allDelivered ? (
+                                <Badge className="bg-success">All Delivered</Badge>
+                              ) : deliveredCount > 0 ? (
+                                <Badge variant="outline">
+                                  {deliveredCount} of {totalCount} Delivered
+                                </Badge>
+                              ) : (
+                                <Badge variant="outline">In Transit ({totalCount})</Badge>
+                              )}
+                            </div>
+                            {!allDelivered && totalCount > 1 && (
+                              <div className="space-y-1">
+                                <Progress value={deliveryProgress} className="h-1.5" />
+                                <p className="text-xs text-muted-foreground">
+                                  {deliveredCount} / {totalCount} packages delivered
+                                </p>
+                              </div>
+                            )}
+                          </div>
                         </TableCell>
                         <TableCell className="text-sm text-muted-foreground" onClick={() => setExpandedOrders(prev => ({ ...prev, [order.id]: !prev[order.id] }))}>
                           {latestUpdate ? new Date(latestUpdate).toLocaleDateString() : '-'}
