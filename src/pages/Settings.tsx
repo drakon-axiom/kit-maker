@@ -18,6 +18,9 @@ const Settings = () => {
   const [settings, setSettings] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [sendingTest, setSendingTest] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -70,6 +73,73 @@ const Settings = () => {
       });
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleUploadLogo = async () => {
+    if (!logoFile) return;
+
+    setUploadingLogo(true);
+    try {
+      const fileExt = logoFile.name.split('.').pop();
+      const fileName = `logos/company-logo-${Date.now()}.${fileExt}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('company-logos')
+        .upload(fileName, logoFile, { upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('company-logos')
+        .getPublicUrl(fileName);
+
+      await handleSave('company_logo_url', publicUrl);
+      setSettings(prev => ({ ...prev, company_logo_url: publicUrl }));
+      setLogoFile(null);
+
+      toast({
+        title: "Success",
+        description: "Logo uploaded successfully",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setUploadingLogo(false);
+    }
+  };
+
+  const handleSendTestEmail = async () => {
+    setSendingTest(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user?.email) throw new Error("No user email found");
+
+      const { error } = await supabase.functions.invoke('generate-quote', {
+        body: { 
+          testEmail: user.email,
+          testMode: true 
+        }
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: `Test quote email sent to ${user.email}`,
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setSendingTest(false);
     }
   };
 
@@ -264,6 +334,102 @@ const Settings = () => {
                   <Save className="mr-2 h-4 w-4" />
                   Save Quote Template
                 </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="md:col-span-2">
+            <CardHeader>
+              <CardTitle>Company Logo</CardTitle>
+              <CardDescription>Upload a logo for quote email header</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {settings.company_logo_url && (
+                  <div className="flex items-center gap-4">
+                    <img 
+                      src={settings.company_logo_url} 
+                      alt="Company logo" 
+                      className="h-16 object-contain border rounded p-2"
+                    />
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => {
+                        setSettings(prev => ({ ...prev, company_logo_url: '' }));
+                        handleSave('company_logo_url', '');
+                      }}
+                    >
+                      Remove Logo
+                    </Button>
+                  </div>
+                )}
+                <div className="flex gap-2">
+                  <Input
+                    type="file"
+                    accept="image/png,image/jpeg,image/jpg,image/webp"
+                    onChange={(e) => setLogoFile(e.target.files?.[0] || null)}
+                  />
+                  <Button 
+                    onClick={handleUploadLogo} 
+                    disabled={!logoFile || uploadingLogo}
+                    size="sm"
+                  >
+                    {uploadingLogo ? "Uploading..." : "Upload"}
+                  </Button>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  PNG, JPG, or WEBP (max 2MB). Logo replaces company name in email header.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="md:col-span-2">
+            <CardHeader>
+              <CardTitle>Custom HTML Template</CardTitle>
+              <CardDescription>Full HTML template customization for quote emails</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="quote_custom_html">HTML Template</Label>
+                  <Textarea
+                    id="quote_custom_html"
+                    value={settings.quote_custom_html || ''}
+                    onChange={(e) => setSettings({ ...settings, quote_custom_html: e.target.value })}
+                    placeholder="Leave empty to use default template. Available variables: {{company_name}}, {{customer_name}}, {{quote_number}}, {{date}}, {{customer_email}}, {{line_items}}, {{subtotal}}, {{deposit_info}}"
+                    className="font-mono text-sm min-h-[300px]"
+                  />
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Customize entire HTML email. Variables will be replaced with actual order data.
+                </p>
+                <div className="flex gap-2">
+                  <Button 
+                    onClick={() => handleSave('quote_custom_html', settings.quote_custom_html)}
+                    disabled={saving}
+                    size="sm"
+                  >
+                    <Save className="mr-2 h-4 w-4" />
+                    Save Template
+                  </Button>
+                  <Button 
+                    variant="outline"
+                    onClick={() => setSettings({ ...settings, quote_custom_html: '' })}
+                    size="sm"
+                  >
+                    Reset to Default
+                  </Button>
+                  <Button 
+                    variant="secondary"
+                    onClick={handleSendTestEmail}
+                    disabled={sendingTest}
+                    size="sm"
+                  >
+                    {sendingTest ? "Sending..." : "Send Test Email"}
+                  </Button>
+                </div>
               </div>
             </CardContent>
           </Card>

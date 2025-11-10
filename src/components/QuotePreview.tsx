@@ -42,7 +42,8 @@ const QuotePreview = ({ open, onOpenChange, order, onSend, sending }: QuotePrevi
     company_email: "info@nexusaminos.com",
     quote_header_bg_color: "#c2e4fb",
     quote_header_text_color: "#000000",
-    quote_footer_text: "We look forward to working with you!"
+    quote_footer_text: "We look forward to working with you!",
+    company_logo_url: "",
   });
 
   useEffect(() => {
@@ -50,7 +51,7 @@ const QuotePreview = ({ open, onOpenChange, order, onSend, sending }: QuotePrevi
       const { data } = await supabase
         .from("settings")
         .select("key, value")
-        .in("key", ["company_name", "company_email", "quote_header_bg_color", "quote_header_text_color", "quote_footer_text"]);
+        .in("key", ["company_name", "company_email", "quote_header_bg_color", "quote_header_text_color", "quote_footer_text", "company_logo_url"]);
       
       if (data) {
         const settingsMap: Record<string, string> = {};
@@ -91,9 +92,17 @@ const QuotePreview = ({ open, onOpenChange, order, onSend, sending }: QuotePrevi
               padding: "30px", 
               textAlign: "center" 
             }}>
-              <h1 style={{ color: settings.quote_header_text_color, margin: 0, fontSize: "24px", fontWeight: "bold" }}>
-                {settings.company_name.toUpperCase()}
-              </h1>
+              {settings.company_logo_url ? (
+                <img 
+                  src={settings.company_logo_url} 
+                  alt={settings.company_name}
+                  style={{ maxHeight: "80px", maxWidth: "300px" }}
+                />
+              ) : (
+                <h1 style={{ color: settings.quote_header_text_color, margin: 0, fontSize: "24px", fontWeight: "bold" }}>
+                  {settings.company_name.toUpperCase()}
+                </h1>
+              )}
             </div>
 
             {/* Content */}
