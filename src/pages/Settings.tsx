@@ -392,15 +392,46 @@ const Settings = () => {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="quote_custom_html">HTML Template</Label>
-                  <Textarea
-                    id="quote_custom_html"
-                    value={settings.quote_custom_html || ''}
-                    onChange={(e) => setSettings({ ...settings, quote_custom_html: e.target.value })}
-                    placeholder="Leave empty to use default template. Available variables: {{company_name}}, {{customer_name}}, {{quote_number}}, {{date}}, {{customer_email}}, {{line_items}}, {{subtotal}}, {{deposit_info}}"
-                    className="font-mono text-sm min-h-[300px]"
-                  />
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="quote_custom_html">HTML Template</Label>
+                    <Textarea
+                      id="quote_custom_html"
+                      value={settings.quote_custom_html || ''}
+                      onChange={(e) => setSettings({ ...settings, quote_custom_html: e.target.value })}
+                      placeholder="Leave empty to use default template. Available variables: {{company_name}}, {{customer_name}}, {{quote_number}}, {{date}}, {{customer_email}}, {{line_items}}, {{subtotal}}, {{deposit_info}}"
+                      className="font-mono text-sm min-h-[400px]"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Live Preview</Label>
+                    <div className="border rounded-md p-4 min-h-[400px] max-h-[400px] overflow-auto bg-muted/30">
+                      {settings.quote_custom_html ? (
+                        <div 
+                          dangerouslySetInnerHTML={{ 
+                            __html: settings.quote_custom_html
+                              .replace(/\{\{company_name\}\}/g, settings.company_name || 'Nexus Aminos')
+                              .replace(/\{\{customer_name\}\}/g, 'John Doe')
+                              .replace(/\{\{quote_number\}\}/g, 'Q-2024-001')
+                              .replace(/\{\{date\}\}/g, new Date().toLocaleDateString())
+                              .replace(/\{\{customer_email\}\}/g, 'customer@example.com')
+                              .replace(/\{\{line_items\}\}/g, `
+                                <tr style="border-bottom: 1px solid #e5e7eb;">
+                                  <td style="padding: 12px; text-align: left;">Sample Product</td>
+                                  <td style="padding: 12px; text-align: center;">10</td>
+                                  <td style="padding: 12px; text-align: right;">$50.00</td>
+                                  <td style="padding: 12px; text-align: right;">$500.00</td>
+                                </tr>
+                              `)
+                              .replace(/\{\{subtotal\}\}/g, '$500.00')
+                              .replace(/\{\{deposit_info\}\}/g, '<p style="margin: 16px 0; color: #059669; font-weight: 600;">50% deposit required: $250.00</p>')
+                          }}
+                        />
+                      ) : (
+                        <p className="text-sm text-muted-foreground">Enter HTML template to see preview with sample data</p>
+                      )}
+                    </div>
+                  </div>
                 </div>
                 <p className="text-sm text-muted-foreground">
                   Customize entire HTML email. Variables will be replaced with actual order data.
