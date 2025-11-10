@@ -57,6 +57,9 @@ async function getUPSAccessToken(clientId: string, clientSecret: string): Promis
 }
 
 async function getUPSTracking(trackingNumber: string, accessToken: string): Promise<UPSTrackingResponse> {
+  // Generate a unique transaction ID
+  const transId = crypto.randomUUID();
+  
   const response = await fetch(
     `https://onlinetools.ups.com/api/track/v1/details/${trackingNumber}`,
     {
@@ -64,6 +67,8 @@ async function getUPSTracking(trackingNumber: string, accessToken: string): Prom
       headers: {
         'Authorization': `Bearer ${accessToken}`,
         'Content-Type': 'application/json',
+        'transId': transId,
+        'transactionSrc': 'AxiomMFG',
       },
     }
   );
