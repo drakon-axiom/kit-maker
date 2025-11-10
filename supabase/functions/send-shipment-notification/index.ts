@@ -126,6 +126,7 @@ serve(async (req) => {
       .replace(/<[^>]+>/g, '')
       .replace(/\n{3,}/g, '\n\n')
       .trim();
+    const cleanedText = plainText.split('\n').map(l => l.replace(/\s+$/g, '')).join('\n');
     
     try {
       const client = new SMTPClient({
@@ -144,7 +145,7 @@ serve(async (req) => {
         from: `Nexus Aminos <${smtpUser}>`,
         to: recipientEmail,
         subject: subject,
-        content: plainText,
+        content: cleanedText,
         html: body,
       });
 
