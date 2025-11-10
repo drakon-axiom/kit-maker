@@ -440,35 +440,50 @@ export type Database = {
         Row: {
           carrier: string | null
           created_at: string
+          estimated_delivery: string | null
           id: string
           label_url: string | null
+          last_tracking_update: string | null
           notes: string | null
           share_link_token: string
           shipped_at: string | null
           so_id: string
+          tracking_events: Json | null
+          tracking_location: string | null
           tracking_no: string
+          tracking_status: string | null
         }
         Insert: {
           carrier?: string | null
           created_at?: string
+          estimated_delivery?: string | null
           id?: string
           label_url?: string | null
+          last_tracking_update?: string | null
           notes?: string | null
           share_link_token?: string
           shipped_at?: string | null
           so_id: string
+          tracking_events?: Json | null
+          tracking_location?: string | null
           tracking_no: string
+          tracking_status?: string | null
         }
         Update: {
           carrier?: string | null
           created_at?: string
+          estimated_delivery?: string | null
           id?: string
           label_url?: string | null
+          last_tracking_update?: string | null
           notes?: string | null
           share_link_token?: string
           shipped_at?: string | null
           so_id?: string
+          tracking_events?: Json | null
+          tracking_location?: string | null
           tracking_no?: string
+          tracking_status?: string | null
         }
         Relationships: [
           {
