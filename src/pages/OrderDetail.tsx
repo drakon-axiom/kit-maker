@@ -867,7 +867,12 @@ const OrderDetail = () => {
             <CardDescription>Actions available for this order</CardDescription>
           </CardHeader>
           <CardContent className="space-y-2">
-            <Button className="w-full" variant="outline">
+            <Button 
+              className="w-full" 
+              variant="outline"
+              onClick={() => handleStatusChange('quoted')}
+              disabled={updatingStatus}
+            >
               <DollarSign className="mr-2 h-4 w-4" />
               Generate Quote
             </Button>
