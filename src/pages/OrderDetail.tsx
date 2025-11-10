@@ -878,7 +878,14 @@ const OrderDetail = () => {
               <Eye className="mr-2 h-4 w-4" />
               Preview & Send Quote
             </Button>
-            <Button className="w-full" variant="outline">
+            <Button 
+              className="w-full" 
+              variant="outline"
+              onClick={() => {
+                setBatchQuantity(totalBottles.toString());
+                setCreateBatchDialogOpen(true);
+              }}
+            >
               <Package className="mr-2 h-4 w-4" />
               Plan Batches
             </Button>
