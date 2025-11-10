@@ -870,8 +870,32 @@ const OrderDetail = () => {
             <Button 
               className="w-full" 
               variant="outline"
-              onClick={() => handleStatusChange('quoted')}
-              disabled={updatingStatus}
+              onClick={async () => {
+                try {
+                  setUpdatingStatus(true);
+                  const { error } = await supabase.functions.invoke('generate-quote', {
+                    body: { orderId: id }
+                  });
+                  
+                  if (error) throw error;
+                  
+                  toast({
+                    title: "Quote Generated",
+                    description: "Quote has been generated and sent via email",
+                  });
+                  fetchOrder();
+                } catch (error: any) {
+                  console.error("Error generating quote:", error);
+                  toast({
+                    title: "Error",
+                    description: "Failed to generate quote: " + error.message,
+                    variant: "destructive",
+                  });
+                } finally {
+                  setUpdatingStatus(false);
+                }
+              }}
+              disabled={updatingStatus || !order}
             >
               <DollarSign className="mr-2 h-4 w-4" />
               Generate Quote
