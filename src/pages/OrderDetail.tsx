@@ -408,8 +408,8 @@ const OrderDetail = () => {
       });
 
       // Refresh data
-      fetchBatches();
-      fetchBatchAllocations();
+      await fetchBatches();
+      await fetchBatchAllocations();
     } catch (error: any) {
       console.error('Error creating batches:', error);
       toast({
@@ -816,7 +816,10 @@ const OrderDetail = () => {
                 </CardDescription>
               </div>
               {userRole === 'admin' && remainingBottles > 0 && (
-                <Button onClick={() => setBatchPlannerOpen(true)}>
+                <Button onClick={async () => {
+                  await fetchBatchAllocations();
+                  setBatchPlannerOpen(true);
+                }}>
                   <Plus className="mr-2 h-4 w-4" />
                   Plan Batches
                 </Button>
@@ -920,7 +923,10 @@ const OrderDetail = () => {
             <Button 
               className="w-full" 
               variant="outline"
-              onClick={() => setBatchPlannerOpen(true)}
+              onClick={async () => {
+                await fetchBatchAllocations();
+                setBatchPlannerOpen(true);
+              }}
             >
               <Package className="mr-2 h-4 w-4" />
               Plan Batches
