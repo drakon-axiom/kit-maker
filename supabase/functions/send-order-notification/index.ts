@@ -46,13 +46,15 @@ const getEmailContent = (
   let greeting = '';
   let mainMessage = '';
   let additionalInfo = '';
+  let preheader = '';
 
   switch (status) {
     case 'in_production':
       subject = `Your Order ${orderNumber} is Now in Production`;
       greeting = `Great news, ${customerName}!`;
       mainMessage = `Your order <strong>${orderNumber}</strong> has entered production. Our team is working on preparing your items.`;
-      additionalInfo = `<p style="color: #555;">We'll notify you when your order is ready to ship.</p>`;
+      additionalInfo = `We'll notify you when your order is ready to ship.`;
+      preheader = `Great news! Your order ${orderNumber} is now in production.`;
       break;
 
     case 'in_packing':
@@ -60,7 +62,8 @@ const getEmailContent = (
       subject = `Your Order ${orderNumber} is Ready to Ship`;
       greeting = `Hello ${customerName},`;
       mainMessage = `Your order <strong>${orderNumber}</strong> has been completed and is now being prepared for shipment.`;
-      additionalInfo = `<p style="color: #555;">You'll receive tracking information as soon as your order ships.</p>`;
+      additionalInfo = `You'll receive tracking information as soon as your order ships.`;
+      preheader = `Your order ${orderNumber} is ready to ship.`;
       break;
 
     case 'shipped':
@@ -69,23 +72,22 @@ const getEmailContent = (
       mainMessage = `Your order <strong>${orderNumber}</strong> has been shipped and is on its way to you.`;
       
       if (orderDetails.shipmentCount > 0) {
-        additionalInfo = `
-          <p style="color: #555;">Your order contains ${orderDetails.shipmentCount} shipment${orderDetails.shipmentCount !== 1 ? 's' : ''}.</p>
-          <p style="color: #555;">You'll receive separate tracking information for each shipment.</p>
-        `;
+        additionalInfo = `Your order contains ${orderDetails.shipmentCount} shipment${orderDetails.shipmentCount !== 1 ? 's' : ''}. You'll receive separate tracking information for each shipment.`;
       } else {
-        additionalInfo = `<p style="color: #555;">You'll receive tracking information shortly.</p>`;
+        additionalInfo = `You'll receive tracking information shortly.`;
       }
+      preheader = `Your order ${orderNumber} has shipped!`;
       break;
 
     default:
       subject = `Update on Your Order ${orderNumber}`;
       greeting = `Hello ${customerName},`;
       mainMessage = `Your order <strong>${orderNumber}</strong> status has been updated to <strong>${statusDisplay}</strong>.`;
-      additionalInfo = `<p style="color: #555;">We'll keep you updated on your order's progress.</p>`;
+      additionalInfo = `We'll keep you updated on your order's progress.`;
+      preheader = `Update on your order ${orderNumber}.`;
   }
 
-  const body = `<!doctype html><html><head><meta charset="utf-8"><title>${subject}</title></head><body style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;background:#ffffff;color:#222;"><h2 style="color:#333;margin-bottom:16px;">${greeting}</h2><p style="font-size:16px;color:#555;line-height:1.5;">${mainMessage}</p><div style="background-color:#f5f5f5;padding:20px;border-radius:8px;margin:20px 0;"><p style="margin:8px 0;"><strong>Order Number:</strong> ${orderNumber}</p><p style="margin:8px 0;"><strong>Status:</strong> ${statusDisplay}</p>${orderDetails.etaDate ? `<p style="margin:8px 0;"><strong>Estimated Delivery:</strong> ${new Date(orderDetails.etaDate).toLocaleDateString()}</p>` : ''}${orderDetails.promisedDate ? `<p style="margin:8px 0;"><strong>Promised Date:</strong> ${new Date(orderDetails.promisedDate).toLocaleDateString()}</p>` : ''}</div>${additionalInfo}<p style="font-size:16px;color:#555;margin-top:20px;">Thank you for your business!</p><p style="color:#999;font-size:12px;margin-top:30px;">This is an automated notification from Nexus Aminos.</p></body></html>`;
+  const body = `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8" /><title>${subject}</title><meta name="viewport" content="width=device-width, initial-scale=1.0" /><style type="text/css">@media only screen and (max-width: 600px) { .container { width: 100% !important; } .content { padding: 15px !important; } }</style></head><body style="font-family: Arial, sans-serif; margin: 0; padding: 0; background-color: #ffffff; color: #222222;"><div style="display: none; font-size: 1px; color: #ffffff; line-height: 1px; max-height: 0px; max-width: 0px; opacity: 0; overflow: hidden;">${preheader}</div><table border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 600px; margin: 0 auto; background-color: #ffffff;"><tr><td align="center" valign="top" style="padding: 20px;"><table border="0" cellpadding="0" cellspacing="0" width="100%" class="container"><tr><td align="left" style="padding: 0;"><h2 style="color: #333333; margin: 0 0 16px 0; font-size: 24px;">${greeting}</h2><p style="font-size: 16px; color: #555555; line-height: 1.5; margin: 0 0 20px 0;">${mainMessage}</p></td></tr><tr><td align="left" style="background-color: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0;"><p style="margin: 8px 0; font-size: 14px;"><strong>Order Number:</strong> ${orderNumber}</p><p style="margin: 8px 0; font-size: 14px;"><strong>Status:</strong> ${statusDisplay}</p>${orderDetails.etaDate ? `<p style="margin: 8px 0; font-size: 14px;"><strong>Estimated Delivery:</strong> ${new Date(orderDetails.etaDate).toLocaleDateString()}</p>` : ''}${orderDetails.promisedDate ? `<p style="margin: 8px 0; font-size: 14px;"><strong>Promised Date:</strong> ${new Date(orderDetails.promisedDate).toLocaleDateString()}</p>` : ''}</td></tr><tr><td align="left" style="padding: 0;"><p style="color: #555555; font-size: 16px; line-height: 1.5; margin: 0 0 20px 0;">${additionalInfo}</p><p style="font-size: 16px; color: #555555; margin: 0 0 30px 0;">Thank you for your business!</p><p style="color: #999999; font-size: 12px; margin: 0;">This is an automated notification from Nexus Aminos.</p></td></tr></table></td></tr></table></body></html>`;
 
   return { subject, body };
 };
