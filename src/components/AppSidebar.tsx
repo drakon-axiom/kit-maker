@@ -54,9 +54,9 @@ export function AppSidebar() {
       <SidebarHeader className="border-b p-4">
         <div className="flex items-center justify-center">
           {collapsed ? (
-            <div className="w-6 h-6 bg-primary rounded" />
+            <img src={axiomLogo} alt="Axiom Collective" className="h-6 w-6 object-contain" />
           ) : (
-            <img src={axiomLogo} alt="Axiom Collective" className="h-8" />
+            <img src={axiomLogo} alt="Axiom Collective" className="h-8 object-contain" />
           )}
         </div>
       </SidebarHeader>

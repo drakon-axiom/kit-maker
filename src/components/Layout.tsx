@@ -1,3 +1,4 @@
+import React from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { AppSidebar } from '@/components/AppSidebar';
@@ -19,8 +20,19 @@ interface LayoutProps {
 const Layout = ({ children }: LayoutProps) => {
   const { user, userRole, signOut } = useAuth();
 
+  // Load sidebar state from localStorage
+  const [defaultOpen, setDefaultOpen] = React.useState(() => {
+    const saved = localStorage.getItem('sidebar-state');
+    return saved ? saved !== 'collapsed' : true;
+  });
+
   return (
-    <SidebarProvider>
+    <SidebarProvider
+      defaultOpen={defaultOpen}
+      onOpenChange={(open) => {
+        localStorage.setItem('sidebar-state', open ? 'expanded' : 'collapsed');
+      }}
+    >
       <div className="min-h-screen flex w-full bg-background">
         <AppSidebar />
         <div className="flex-1 flex flex-col">
