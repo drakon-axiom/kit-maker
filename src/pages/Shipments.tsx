@@ -97,7 +97,7 @@ const Shipments = () => {
           human_uid,
           customer:customers(name)
         `)
-        .in('status', ['in_production', 'in_packing', 'in_labeling'])
+        .in('status', ['packed', 'in_packing', 'in_labeling'])
         .order('human_uid', { ascending: false });
 
       if (error) throw error;
