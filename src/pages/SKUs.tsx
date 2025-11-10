@@ -14,6 +14,7 @@ import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
 
@@ -87,6 +88,8 @@ const SKUs = () => {
   const [importData, setImportData] = useState<ImportRow[]>([]);
   const [importing, setImporting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [skuToDelete, setSKUToDelete] = useState<SKU | null>(null);
   const [formData, setFormData] = useState({
     code: '',
     description: '',
@@ -853,6 +856,39 @@ const SKUs = () => {
     setExpandedRows(newExpanded);
   };
 
+  const handleDelete = async () => {
+    if (!skuToDelete) return;
+
+    try {
+      // Delete related pricing tiers and sizes first (cascading delete should handle this, but being explicit)
+      await supabase.from('sku_pricing_tiers').delete().eq('sku_id', skuToDelete.id);
+      await supabase.from('sku_sizes').delete().eq('sku_id', skuToDelete.id);
+      
+      const { error } = await supabase
+        .from('skus')
+        .delete()
+        .eq('id', skuToDelete.id);
+
+      if (error) throw error;
+
+      toast({
+        title: 'Success',
+        description: 'SKU deleted successfully',
+      });
+
+      fetchSKUs();
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } finally {
+      setDeleteDialogOpen(false);
+      setSKUToDelete(null);
+    }
+  };
+
   return (
     <div className="p-6 space-y-6">
       <div className="flex justify-between items-center">
@@ -1157,13 +1193,25 @@ const SKUs = () => {
                         )}
                       </TableCell>
                       <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => openEditDialog(sku)}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
+                        <div className="flex gap-1 justify-end">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => openEditDialog(sku)}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              setSKUToDelete(sku);
+                              setDeleteDialogOpen(true);
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                     {expandedRows.has(sku.id) && (
@@ -1441,6 +1489,23 @@ const SKUs = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete SKU</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete "{skuToDelete?.code}"? This will also delete all pricing tiers and sizes. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
