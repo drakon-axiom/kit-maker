@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Plus, Pencil, Loader2, Trash2, ChevronDown, ChevronRight, Check, Upload, AlertCircle } from 'lucide-react';
+import { Plus, Pencil, Loader2, Trash2, ChevronDown, ChevronRight, Check, Upload, AlertCircle, Search } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
@@ -90,6 +90,7 @@ const SKUs = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [skuToDelete, setSKUToDelete] = useState<SKU | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
   const [formData, setFormData] = useState({
     code: '',
     description: '',
@@ -856,6 +857,16 @@ const SKUs = () => {
     setExpandedRows(newExpanded);
   };
 
+  const filteredSKUs = skus.filter(sku => {
+    if (!searchQuery) return true;
+    const query = searchQuery.toLowerCase();
+    return (
+      sku.code.toLowerCase().includes(query) ||
+      sku.description.toLowerCase().includes(query) ||
+      sku.sizes?.some(s => s.size_ml.toString().includes(query))
+    );
+  });
+
   const handleDelete = async () => {
     if (!skuToDelete) return;
 
@@ -1109,10 +1120,23 @@ const SKUs = () => {
 
       <Card>
         <CardHeader>
-          <CardTitle>All Products</CardTitle>
-          <CardDescription>
-            {skus.length} product{skus.length !== 1 ? 's' : ''} in catalog
-          </CardDescription>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>All Products</CardTitle>
+              <CardDescription>
+                {filteredSKUs.length} of {skus.length} product{skus.length !== 1 ? 's' : ''}
+              </CardDescription>
+            </div>
+            <div className="relative w-80">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search by code, description, size..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
           {loading ? (
@@ -1122,6 +1146,10 @@ const SKUs = () => {
           ) : skus.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
               No products yet. Click "Add SKU" to get started.
+            </div>
+          ) : filteredSKUs.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              No products match your search "{searchQuery}"
             </div>
           ) : (
             <Table>
@@ -1144,7 +1172,7 @@ const SKUs = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {skus.map((sku) => (
+                {filteredSKUs.map((sku) => (
                   <>
                     <TableRow key={sku.id} className="cursor-pointer" onClick={() => toggleRow(sku.id)}>
                       <TableCell onClick={(e) => e.stopPropagation()}>
