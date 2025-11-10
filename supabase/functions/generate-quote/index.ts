@@ -1,7 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { SMTPClient } from "https://deno.land/x/denomailer@1.6.0/mod.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.80.0";
-import { PDFDocument, rgb, StandardFonts } from "https://esm.sh/pdf-lib@1.17.1";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -55,156 +54,10 @@ serve(async (req) => {
       throw new Error("Order not found");
     }
 
-    // Generate PDF
-    const pdfDoc = await PDFDocument.create();
-    const page = pdfDoc.addPage([612, 792]); // Letter size
-    const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
-    const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
-    
-    const { width, height } = page.getSize();
-    let yPosition = height - 50;
-    
-    // Header background
-    page.drawRectangle({
-      x: 0,
-      y: height - 80,
-      width: width,
-      height: 80,
-      color: rgb(0.76, 0.89, 0.98), // #c2e4fb
-    });
-    
-    // Header text
-    page.drawText("NEXUS AMINOS", {
-      x: width / 2 - 80,
-      y: height - 40,
-      size: 24,
-      font: fontBold,
-      color: rgb(0, 0, 0),
-    });
-    
-    page.drawText("Sales Quote", {
-      x: width / 2 - 40,
-      y: height - 65,
-      size: 12,
-      font: font,
-      color: rgb(0, 0, 0),
-    });
-    
-    yPosition = height - 110;
-    
-    // Quote Information
-    page.drawText("Quote Information", { x: 50, y: yPosition, size: 14, font: fontBold });
-    yPosition -= 20;
-    page.drawText(`Quote #: ${order.human_uid}`, { x: 50, y: yPosition, size: 10, font: font });
-    yPosition -= 15;
-    page.drawText(`Date: ${new Date(order.created_at).toLocaleDateString()}`, { x: 50, y: yPosition, size: 10, font: font });
-    yPosition -= 30;
-    
-    // Customer Information
-    page.drawText("Customer Information", { x: 50, y: yPosition, size: 14, font: fontBold });
-    yPosition -= 20;
-    page.drawText(`Name: ${order.customer?.name || "N/A"}`, { x: 50, y: yPosition, size: 10, font: font });
-    yPosition -= 15;
-    page.drawText(`Email: ${order.customer?.email || "N/A"}`, { x: 50, y: yPosition, size: 10, font: font });
-    if (order.customer?.phone) {
-      yPosition -= 15;
-      page.drawText(`Phone: ${order.customer.phone}`, { x: 50, y: yPosition, size: 10, font: font });
-    }
-    yPosition -= 30;
-    
-    // Line Items
-    page.drawText("Line Items", { x: 50, y: yPosition, size: 14, font: fontBold });
-    yPosition -= 20;
-    
-    // Table header
-    page.drawRectangle({
-      x: 50,
-      y: yPosition - 5,
-      width: width - 100,
-      height: 20,
-      color: rgb(0.94, 0.94, 0.94),
-    });
-    page.drawText("SKU", { x: 60, y: yPosition, size: 9, font: fontBold });
-    page.drawText("Quantity", { x: 250, y: yPosition, size: 9, font: fontBold });
-    page.drawText("Unit Price", { x: 350, y: yPosition, size: 9, font: fontBold });
-    page.drawText("Total", { x: 480, y: yPosition, size: 9, font: fontBold });
-    yPosition -= 25;
-    
-    // Table rows
-    let subtotal = 0;
-    for (const line of order.sales_order_lines) {
-      const lineTotal = line.line_subtotal;
-      subtotal += lineTotal;
-      
-      page.drawText(line.sku?.code || "N/A", { x: 60, y: yPosition, size: 9, font: font });
-      page.drawText(`${line.qty_entered} (${line.bottle_qty} bottles)`, { x: 250, y: yPosition, size: 9, font: font });
-      page.drawText(`$${line.unit_price.toFixed(2)}`, { x: 350, y: yPosition, size: 9, font: font });
-      page.drawText(`$${lineTotal.toFixed(2)}`, { x: 480, y: yPosition, size: 9, font: font });
-      yPosition -= 20;
-    }
-    
-    // Totals
-    yPosition -= 10;
-    page.drawLine({
-      start: { x: 50, y: yPosition },
-      end: { x: width - 50, y: yPosition },
-      thickness: 1,
-      color: rgb(0, 0, 0),
-    });
-    yPosition -= 15;
-    page.drawText(`Subtotal: $${subtotal.toFixed(2)}`, { x: 450, y: yPosition, size: 10, font: fontBold });
-    
-    if (order.deposit_required) {
-      yPosition -= 15;
-      const depositAmount = subtotal * 0.5;
-      page.drawText(`Deposit Required (50%): $${depositAmount.toFixed(2)}`, { x: 380, y: yPosition, size: 10, font: font });
-    }
-    
-    // Terms & Conditions
-    yPosition -= 40;
-    page.drawText("Terms & Conditions", { x: 50, y: yPosition, size: 12, font: fontBold });
-    yPosition -= 18;
-    
-    const terms = [
-      "• This quote is valid for 30 days from the date of issue",
-      "• 50% deposit required before production begins (if applicable)",
-      "• Payment terms: Net 30 days from invoice date",
-      "• Lead time: 2-4 weeks from deposit receipt",
-      "• All prices are in USD",
-      "• Custom formulations may require additional time and cost"
-    ];
-    
-    for (const term of terms) {
-      page.drawText(term, { x: 50, y: yPosition, size: 9, font: font });
-      yPosition -= 14;
-    }
-    
-    // Footer
-    page.drawRectangle({
-      x: 0,
-      y: 0,
-      width: width,
-      height: 50,
-      color: rgb(0.76, 0.89, 0.98),
-    });
-    page.drawText("Nexus Aminos | info@nexusaminos.com", {
-      x: width / 2 - 110,
-      y: 30,
-      size: 9,
-      font: font,
-      color: rgb(0, 0, 0),
-    });
-    page.drawText("Thank you for your business!", {
-      x: width / 2 - 70,
-      y: 15,
-      size: 9,
-      font: font,
-      color: rgb(0, 0, 0),
-    });
-    
-    // Get PDF as base64
-    const pdfBytes = await pdfDoc.save();
-    const pdfBase64 = btoa(String.fromCharCode(...pdfBytes));
+    const customerEmail = order.customer?.email || "";
+    const customerName = order.customer?.name || "Customer";
+    const depositAmount = order.deposit_amount || 0;
+    const depositPercentage = order.subtotal > 0 ? Math.round((depositAmount / order.subtotal) * 100) : 0;
 
     // Send email with PDF attachment
     const smtpHost = Deno.env.get("SMTP_HOST")!;
@@ -213,6 +66,27 @@ serve(async (req) => {
     const smtpPassword = Deno.env.get("SMTP_PASSWORD")!;
     const effectivePort = smtpHost?.includes("protonmail") ? 465 : (envPort || 465);
     const useTls = effectivePort === 465;
+
+    // Generate line items HTML
+    let lineItemsHtml = '';
+    for (const line of order.sales_order_lines) {
+      lineItemsHtml += `
+        <tr style="border-bottom: 1px solid #eee;">
+          <td style="padding: 8px;">
+            ${line.sku?.code || "N/A"}
+          </td>
+          <td style="padding: 8px;">
+            ${line.qty_entered} (${line.bottle_qty} bottles)
+          </td>
+          <td style="padding: 8px; text-align: right;">
+            $${line.unit_price.toFixed(2)}
+          </td>
+          <td style="padding: 8px; text-align: right;">
+            $${line.line_subtotal.toFixed(2)}
+          </td>
+        </tr>
+      `;
+    }
 
     const client = new SMTPClient({
       connection: {
@@ -226,9 +100,6 @@ serve(async (req) => {
       },
     });
 
-    const customerEmail = order.customer?.email || "";
-    const customerName = order.customer?.name || "Customer";
-
     await client.send({
       from: `Nexus Aminos <${smtpUser}>`,
       to: customerEmail,
@@ -238,42 +109,97 @@ serve(async (req) => {
         <html>
           <head>
             <meta charset="utf-8">
-            <style>
-              body { font-family: 'Open Sans', Arial, sans-serif; background: #ffffff; color: #222; margin: 0; padding: 0; }
-              .header { background: #c2e4fb; padding: 30px; text-align: center; }
-              .content { max-width: 600px; margin: 0 auto; padding: 30px 20px; }
-              .footer { background: #c2e4fb; padding: 20px; text-align: center; margin-top: 40px; }
-              h1 { color: #000; margin: 0; }
-              .btn { display: inline-block; padding: 12px 30px; background: #0066cc; color: #fff; text-decoration: none; border-radius: 5px; margin: 20px 0; }
-            </style>
           </head>
-          <body>
-            <div class="header">
-              <h1>NEXUS AMINOS</h1>
+          <body style="font-family: 'Open Sans', Arial, sans-serif; background: #ffffff; color: #222; margin: 0; padding: 0;">
+            <!-- Header -->
+            <div style="background: #c2e4fb; padding: 30px; text-align: center;">
+              <h1 style="color: #000; margin: 0; font-size: 24px; font-weight: bold;">NEXUS AMINOS</h1>
             </div>
-            <div class="content">
-              <h2>Hello ${customerName},</h2>
-              <p>Thank you for your interest in Nexus Aminos. Please find your quote attached to this email.</p>
-              <p><strong>Quote Number:</strong> ${order.human_uid}</p>
-              <p>This quote is valid for 30 days. If you have any questions or would like to proceed with this order, please reply to this email or contact us.</p>
-              ${order.deposit_required ? '<p><strong>Note:</strong> A 50% deposit is required before production begins.</p>' : ''}
-              <p>We look forward to working with you!</p>
+
+            <!-- Content -->
+            <div style="max-width: 600px; margin: 0 auto; padding: 30px 20px;">
+              <h2 style="font-size: 20px; margin-bottom: 16px;">Hello ${customerName},</h2>
+              
+              <p style="margin-bottom: 16px; line-height: 1.6;">
+                Thank you for your interest in Nexus Aminos. Please find your quote details below.
+              </p>
+              
+              <!-- Quote Info Box -->
+              <div style="background: #f5f5f5; padding: 16px; border-radius: 8px; margin-bottom: 16px;">
+                <p style="margin: 8px 0;">
+                  <strong>Quote Number:</strong> ${order.human_uid}
+                </p>
+                <p style="margin: 8px 0;">
+                  <strong>Date:</strong> ${new Date(order.created_at).toLocaleDateString()}
+                </p>
+                <p style="margin: 8px 0;">
+                  <strong>Customer:</strong> ${customerName}
+                </p>
+                ${order.customer?.email ? `
+                  <p style="margin: 8px 0;">
+                    <strong>Email:</strong> ${order.customer.email}
+                  </p>
+                ` : ''}
+              </div>
+
+              <!-- Line Items Table -->
+              <div style="margin-bottom: 24px;">
+                <h3 style="font-size: 16px; font-weight: 600; margin-bottom: 12px;">Line Items</h3>
+                <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+                  <thead>
+                    <tr style="background: #f0f0f0; border-bottom: 2px solid #ddd;">
+                      <th style="padding: 8px; text-align: left;">SKU</th>
+                      <th style="padding: 8px; text-align: left;">Quantity</th>
+                      <th style="padding: 8px; text-align: right;">Unit Price</th>
+                      <th style="padding: 8px; text-align: right;">Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${lineItemsHtml}
+                  </tbody>
+                  <tfoot>
+                    <tr style="border-top: 2px solid #ddd; font-weight: 600;">
+                      <td colspan="3" style="padding: 8px; text-align: right;">Subtotal:</td>
+                      <td style="padding: 8px; text-align: right;">$${order.subtotal.toFixed(2)}</td>
+                    </tr>
+                    ${order.deposit_required && depositAmount > 0 ? `
+                      <tr>
+                        <td colspan="3" style="padding: 8px; text-align: right;">Deposit Required (${depositPercentage}%):</td>
+                        <td style="padding: 8px; text-align: right;">$${depositAmount.toFixed(2)}</td>
+                      </tr>
+                    ` : ''}
+                  </tfoot>
+                </table>
+              </div>
+
+              <p style="margin-bottom: 16px; line-height: 1.6;">
+                This quote is valid for 30 days. If you have any questions or would like to proceed with this order, please reply to this email or contact us.
+              </p>
+              
+              ${order.deposit_required && depositAmount > 0 ? `
+                <div style="background: #fff3cd; border: 1px solid #ffc107; padding: 12px; border-radius: 4px; margin-bottom: 16px;">
+                  <strong>Note:</strong> A ${depositPercentage}% deposit ($${depositAmount.toFixed(2)}) is required before production begins.
+                </div>
+              ` : ''}
+              
+              <p style="line-height: 1.6;">
+                We look forward to working with you!
+              </p>
             </div>
-            <div class="footer">
-              <p>Nexus Aminos<br>info@nexusaminos.com</p>
-              <p style="font-size: 12px; color: #666;">© ${new Date().getFullYear()} Nexus Aminos. All rights reserved.</p>
+
+            <!-- Footer -->
+            <div style="background: #c2e4fb; padding: 20px; text-align: center; margin-top: 40px;">
+              <p style="margin: 8px 0; font-weight: 500;">
+                Nexus Aminos<br>
+                info@nexusaminos.com
+              </p>
+              <p style="font-size: 12px; color: #666; margin: 8px 0;">
+                © ${new Date().getFullYear()} Nexus Aminos. All rights reserved.
+              </p>
             </div>
           </body>
         </html>
       `,
-      attachments: [
-        {
-          filename: `Quote_${order.human_uid}.pdf`,
-          content: pdfBase64,
-          encoding: "base64",
-          contentType: "application/pdf",
-        },
-      ],
     });
 
     await client.close();
