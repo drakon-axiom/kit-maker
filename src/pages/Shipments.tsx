@@ -53,6 +53,7 @@ const Shipments = () => {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [refreshingIds, setRefreshingIds] = useState<Record<string, boolean>>({});
   const [nextUpdateTime, setNextUpdateTime] = useState<string>('');
+  const [expandedOrders, setExpandedOrders] = useState<Record<string, boolean>>({});
   const { toast } = useToast();
 
   const [formData, setFormData] = useState({
@@ -151,6 +152,21 @@ const Shipments = () => {
       shipment.tracking_no.toLowerCase().includes(query)
     );
   });
+
+  // Group shipments by order
+  const groupedShipments = filteredShipments.reduce((acc, shipment) => {
+    const orderId = shipment.sales_order.id;
+    if (!acc[orderId]) {
+      acc[orderId] = {
+        order: shipment.sales_order,
+        shipments: [],
+      };
+    }
+    acc[orderId].shipments.push(shipment);
+    return acc;
+  }, {} as Record<string, { order: Shipment['sales_order'], shipments: Shipment[] }>);
+
+  const ordersWithShipments = Object.values(groupedShipments);
 
   const handleOpenDialog = (shipment?: Shipment) => {
     if (shipment) {
@@ -431,7 +447,7 @@ const Shipments = () => {
             <div>
               <CardTitle>All Shipments</CardTitle>
               <CardDescription>
-                {filteredShipments.length} of {shipments.length} shipment{shipments.length !== 1 ? 's' : ''}
+                {filteredShipments.length} shipment{filteredShipments.length !== 1 ? 's' : ''} across {ordersWithShipments.length} order{ordersWithShipments.length !== 1 ? 's' : ''}
               </CardDescription>
             </div>
             <div className="relative w-80">
@@ -463,93 +479,164 @@ const Shipments = () => {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-12"></TableHead>
                   <TableHead>Order</TableHead>
                   <TableHead>Customer</TableHead>
-                  <TableHead>Carrier</TableHead>
-                  <TableHead>Tracking Number</TableHead>
-                  <TableHead>Shipped Date</TableHead>
+                  <TableHead>Shipments</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead>Location</TableHead>
                   <TableHead>Last Update</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredShipments.map((shipment) => {
-                  const trackingUrl = getTrackingUrl(shipment.carrier, shipment.tracking_no);
+                {ordersWithShipments.map(({ order, shipments: orderShipments }) => {
+                  const isExpanded = expandedOrders[order.id];
+                  const allDelivered = orderShipments.every(s => s.tracking_status?.toLowerCase().includes('delivered'));
+                  const latestUpdate = orderShipments.reduce((latest, s) => {
+                    if (!s.last_tracking_update) return latest;
+                    if (!latest) return s.last_tracking_update;
+                    return new Date(s.last_tracking_update) > new Date(latest) ? s.last_tracking_update : latest;
+                  }, null as string | null);
+
                   return (
-                    <TableRow key={shipment.id}>
-                      <TableCell className="font-mono">{shipment.sales_order.human_uid}</TableCell>
-                      <TableCell>{shipment.sales_order.customer.name}</TableCell>
-                      <TableCell>{shipment.carrier || '-'}</TableCell>
-                      <TableCell className="font-mono">
-                        {trackingUrl ? (
-                          <a 
-                            href={trackingUrl} 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="text-primary hover:underline inline-flex items-center gap-1"
-                          >
-                            {shipment.tracking_no}
-                            <ExternalLink className="h-3 w-3" />
-                          </a>
-                        ) : (
-                          shipment.tracking_no
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {shipment.shipped_at 
-                          ? new Date(shipment.shipped_at).toLocaleDateString()
-                          : 'Pending'}
-                      </TableCell>
-                      <TableCell>
-                        {shipment.tracking_status ? (
-                          <Badge variant="outline">{shipment.tracking_status}</Badge>
-                        ) : (
-                          <Badge className="bg-success">Shipped</Badge>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
-                        {shipment.tracking_location || '-'}
-                      </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
-                        {shipment.last_tracking_update
-                          ? new Date(shipment.last_tracking_update).toLocaleDateString()
-                          : '-'}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleRefreshSingle(shipment.id)}
-                            disabled={!!refreshingIds[shipment.id]}
-                            aria-label="Refresh tracking"
-                          >
-                            <RefreshCw className={`h-4 w-4 ${refreshingIds[shipment.id] ? 'animate-spin' : ''}`} />
+                    <>
+                      <TableRow key={order.id} className="cursor-pointer hover:bg-muted/50">
+                        <TableCell onClick={() => setExpandedOrders(prev => ({ ...prev, [order.id]: !prev[order.id] }))}>
+                          <Button variant="ghost" size="icon" className="h-6 w-6">
+                            {isExpanded ? '−' : '+'}
                           </Button>
+                        </TableCell>
+                        <TableCell className="font-mono" onClick={() => setExpandedOrders(prev => ({ ...prev, [order.id]: !prev[order.id] }))}>
+                          {order.human_uid}
+                        </TableCell>
+                        <TableCell onClick={() => setExpandedOrders(prev => ({ ...prev, [order.id]: !prev[order.id] }))}>
+                          {order.customer.name}
+                        </TableCell>
+                        <TableCell onClick={() => setExpandedOrders(prev => ({ ...prev, [order.id]: !prev[order.id] }))}>
+                          <div className="flex flex-wrap gap-1">
+                            {orderShipments.map((shipment, idx) => {
+                              const trackingUrl = getTrackingUrl(shipment.carrier, shipment.tracking_no);
+                              return (
+                                <Badge key={shipment.id} variant="secondary" className="font-mono text-xs">
+                                  {trackingUrl ? (
+                                    <a
+                                      href={trackingUrl}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="hover:underline inline-flex items-center gap-1"
+                                      onClick={(e) => e.stopPropagation()}
+                                    >
+                                      {shipment.tracking_no}
+                                      <ExternalLink className="h-2 w-2" />
+                                    </a>
+                                  ) : (
+                                    shipment.tracking_no
+                                  )}
+                                </Badge>
+                              );
+                            })}
+                          </div>
+                        </TableCell>
+                        <TableCell onClick={() => setExpandedOrders(prev => ({ ...prev, [order.id]: !prev[order.id] }))}>
+                          {allDelivered ? (
+                            <Badge className="bg-success">All Delivered</Badge>
+                          ) : (
+                            <Badge variant="outline">In Transit ({orderShipments.length})</Badge>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground" onClick={() => setExpandedOrders(prev => ({ ...prev, [order.id]: !prev[order.id] }))}>
+                          {latestUpdate ? new Date(latestUpdate).toLocaleDateString() : '-'}
+                        </TableCell>
+                        <TableCell className="text-right">
                           <Button
                             variant="ghost"
                             size="icon"
-                            onClick={() => handleOpenDialog(shipment)}
-                            aria-label="Edit shipment"
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => {
-                              setShipmentToDelete(shipment);
-                              setDeleteDialogOpen(true);
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              orderShipments.forEach(s => handleRefreshSingle(s.id));
                             }}
-                            aria-label="Delete shipment"
+                            disabled={orderShipments.some(s => refreshingIds[s.id])}
+                            aria-label="Refresh all tracking"
                           >
-                            <Trash2 className="h-4 w-4" />
+                            <RefreshCw className={`h-4 w-4 ${orderShipments.some(s => refreshingIds[s.id]) ? 'animate-spin' : ''}`} />
                           </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
+                        </TableCell>
+                      </TableRow>
+                      
+                      {isExpanded && orderShipments.map((shipment) => {
+                        const trackingUrl = getTrackingUrl(shipment.carrier, shipment.tracking_no);
+                        return (
+                          <TableRow key={`detail-${shipment.id}`} className="bg-muted/30">
+                            <TableCell></TableCell>
+                            <TableCell className="text-sm text-muted-foreground">
+                              {shipment.carrier || '-'}
+                            </TableCell>
+                            <TableCell className="font-mono text-sm">
+                              {trackingUrl ? (
+                                <a
+                                  href={trackingUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-primary hover:underline inline-flex items-center gap-1"
+                                >
+                                  {shipment.tracking_no}
+                                  <ExternalLink className="h-3 w-3" />
+                                </a>
+                              ) : (
+                                shipment.tracking_no
+                              )}
+                            </TableCell>
+                            <TableCell className="text-sm">
+                              {shipment.shipped_at
+                                ? new Date(shipment.shipped_at).toLocaleDateString()
+                                : 'Pending'}
+                            </TableCell>
+                            <TableCell>
+                              {shipment.tracking_status ? (
+                                <Badge variant="outline" className="text-xs">{shipment.tracking_status}</Badge>
+                              ) : (
+                                <Badge className="bg-success text-xs">Shipped</Badge>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-sm text-muted-foreground">
+                              {shipment.tracking_location || '-'}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <div className="flex justify-end gap-2">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => handleRefreshSingle(shipment.id)}
+                                  disabled={!!refreshingIds[shipment.id]}
+                                  aria-label="Refresh tracking"
+                                >
+                                  <RefreshCw className={`h-4 w-4 ${refreshingIds[shipment.id] ? 'animate-spin' : ''}`} />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => handleOpenDialog(shipment)}
+                                  aria-label="Edit shipment"
+                                >
+                                  <Pencil className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => {
+                                    setShipmentToDelete(shipment);
+                                    setDeleteDialogOpen(true);
+                                  }}
+                                  aria-label="Delete shipment"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </>
                   );
                 })}
               </TableBody>
