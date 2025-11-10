@@ -104,12 +104,33 @@ Deno.serve(async (req) => {
     console.log('Getting UPS access token...');
     const accessToken = await getUPSAccessToken(upsClientId, upsClientSecret);
 
-    // Get all shipments that need tracking updates (not delivered)
-    const { data: shipments, error: fetchError } = await supabase
+    // Optional payload to update a single shipment
+    let filterShipmentId: string | null = null;
+    let filterTrackingNo: string | null = null;
+    if (req.method === 'POST') {
+      try {
+        const body = await req.json();
+        filterShipmentId = body?.shipmentId ?? null;
+        filterTrackingNo = body?.trackingNo ?? body?.tracking_no ?? null;
+      } catch (_) {}
+    }
+
+    // Build base query
+    let baseQuery = supabase
       .from('shipments')
       .select('id, tracking_no, carrier')
-      .or('tracking_status.is.null,tracking_status.neq.Delivered')
       .ilike('carrier', '%ups%');
+
+    if (filterShipmentId) {
+      baseQuery = baseQuery.eq('id', filterShipmentId);
+    } else if (filterTrackingNo) {
+      baseQuery = baseQuery.eq('tracking_no', filterTrackingNo);
+    } else {
+      // Default: update anything missing status or not delivered
+      baseQuery = baseQuery.or('tracking_status.is.null,tracking_status.neq.Delivered');
+    }
+
+    const { data: shipments, error: fetchError } = await baseQuery;
 
     if (fetchError) {
       console.error('Error fetching shipments:', fetchError);

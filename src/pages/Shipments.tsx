@@ -50,6 +50,7 @@ const Shipments = () => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [shipmentToDelete, setShipmentToDelete] = useState<Shipment | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [refreshingIds, setRefreshingIds] = useState<Record<string, boolean>>({});
   const { toast } = useToast();
 
   const [formData, setFormData] = useState({
@@ -246,6 +247,22 @@ const Shipments = () => {
       });
     } finally {
       setIsRefreshing(false);
+    }
+  };
+
+  const handleRefreshSingle = async (id: string) => {
+    setRefreshingIds((prev) => ({ ...prev, [id]: true }));
+    try {
+      const { data, error } = await supabase.functions.invoke('update-tracking', {
+        body: { shipmentId: id },
+      });
+      if (error) throw error;
+      toast({ title: 'Tracking refreshed', description: `Updated ${data.updated} shipment(s)` });
+      fetchShipments();
+    } catch (error: any) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    } finally {
+      setRefreshingIds((prev) => { const copy = { ...prev }; delete copy[id]; return copy; });
     }
   };
 
@@ -467,7 +484,17 @@ const Shipments = () => {
                           <Button
                             variant="ghost"
                             size="icon"
+                            onClick={() => handleRefreshSingle(shipment.id)}
+                            disabled={!!refreshingIds[shipment.id]}
+                            aria-label="Refresh tracking"
+                          >
+                            <RefreshCw className={`h-4 w-4 ${refreshingIds[shipment.id] ? 'animate-spin' : ''}`} />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
                             onClick={() => handleOpenDialog(shipment)}
+                            aria-label="Edit shipment"
                           >
                             <Pencil className="h-4 w-4" />
                           </Button>
@@ -478,6 +505,7 @@ const Shipments = () => {
                               setShipmentToDelete(shipment);
                               setDeleteDialogOpen(true);
                             }}
+                            aria-label="Delete shipment"
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
