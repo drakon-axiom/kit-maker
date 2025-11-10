@@ -117,6 +117,15 @@ serve(async (req) => {
 
     // Send email using SMTP
     console.log(`Sending email to ${recipientEmail}`);
+
+    // Build a clean plain-text alternative (no HTML artifacts)
+    const plainText = body
+      .replace(/<\/(p|div|h\d)>/gi, '\n')
+      .replace(/<br\s*\/?>(\s*)/gi, '\n')
+      .replace(/<li>/gi, '• ')
+      .replace(/<[^>]+>/g, '')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
     
     try {
       const client = new SMTPClient({
@@ -132,10 +141,10 @@ serve(async (req) => {
       });
 
       await client.send({
-        from: smtpUser,
+        from: `Nexus Aminos <${smtpUser}>`,
         to: recipientEmail,
         subject: subject,
-        content: "Shipment Update",
+        content: plainText,
         html: body,
       });
 
