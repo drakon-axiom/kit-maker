@@ -186,27 +186,39 @@ const OrderDetail = () => {
 
   const fetchBatchAllocations = async () => {
     try {
-      const { data, error } = await supabase
+      // 1) Get all batch ids for this order
+      const { data: batchRows, error: batchesErr } = await supabase
+        .from('production_batches')
+        .select('id')
+        .eq('so_id', id);
+
+      if (batchesErr) throw batchesErr;
+
+      const batchIds = (batchRows || []).map((b: any) => b.id);
+
+      if (batchIds.length === 0) {
+        setBatchAllocations({});
+        return;
+      }
+
+      // 2) Sum allocations per order line for those batches
+      const { data: itemsRows, error: itemsErr } = await supabase
         .from('production_batch_items')
-        .select(`
-          so_line_id,
-          bottle_qty_allocated,
-          batch:production_batches!inner(so_id)
-        `)
-        .eq('batch.so_id', id);
+        .select('so_line_id, bottle_qty_allocated, batch_id')
+        .in('batch_id', batchIds);
 
-      if (error) throw error;
+      if (itemsErr) throw itemsErr;
 
-      // Sum up allocations per order line
       const allocations: Record<string, number> = {};
-      data?.forEach((item: any) => {
+      (itemsRows || []).forEach((item: any) => {
         const lineId = item.so_line_id;
-        allocations[lineId] = (allocations[lineId] || 0) + item.bottle_qty_allocated;
+        allocations[lineId] = (allocations[lineId] || 0) + (item.bottle_qty_allocated || 0);
       });
 
       setBatchAllocations(allocations);
     } catch (error: any) {
       console.error('Error fetching batch allocations:', error);
+      setBatchAllocations({});
     }
   };
 
