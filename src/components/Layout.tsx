@@ -1,6 +1,6 @@
 import React from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
+import { SidebarProvider, SidebarTrigger, SidebarInset } from '@/components/ui/sidebar';
 import { AppSidebar } from '@/components/AppSidebar';
 import { Button } from '@/components/ui/button';
 import { LogOut, User } from 'lucide-react';
@@ -20,21 +20,9 @@ interface LayoutProps {
 const Layout = ({ children }: LayoutProps) => {
   const { user, userRole, signOut } = useAuth();
 
-  // Load sidebar state from localStorage safely
-  const defaultOpen = React.useMemo(() => {
-    if (typeof window === 'undefined') return true;
-    const saved = localStorage.getItem('sidebar-state');
-    return saved ? saved !== 'collapsed' : true;
-  }, []);
 
   return (
-    <SidebarProvider
-      defaultOpen={defaultOpen}
-      onOpenChange={(open) => {
-        console.log('Sidebar open:', open);
-        localStorage.setItem('sidebar-state', open ? 'expanded' : 'collapsed');
-      }}
-    >
+    <SidebarProvider>
       <div className="min-h-screen flex w-full bg-background">
         <AppSidebar />
         <div className="flex-1 flex flex-col">
@@ -67,9 +55,9 @@ const Layout = ({ children }: LayoutProps) => {
               </DropdownMenuContent>
             </DropdownMenu>
           </header>
-          <main className="flex-1 overflow-auto">
+          <SidebarInset className="flex-1 overflow-auto">
             {children}
-          </main>
+          </SidebarInset>
         </div>
       </div>
     </SidebarProvider>
