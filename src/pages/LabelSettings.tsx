@@ -9,7 +9,7 @@ import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
-import { Loader2, Save } from 'lucide-react';
+import { Loader2, Save, Upload, X } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { renderToStaticMarkup } from 'react-dom/server';
 
@@ -55,7 +55,9 @@ const LabelSettingsPage = () => {
   const [batchSettings, setBatchSettings] = useState<LabelSettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -204,6 +206,102 @@ const LabelSettingsPage = () => {
     });
   };
 
+  const handleLogoUpload = async (event: React.ChangeEvent<HTMLInputElement>, settings: LabelSettings, updateFn: (s: LabelSettings) => void) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast({
+        title: 'Invalid file',
+        description: 'Please upload an image file (PNG, JPG, WEBP)',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // Validate file size (2MB limit)
+    if (file.size > 2 * 1024 * 1024) {
+      toast({
+        title: 'File too large',
+        description: 'Logo must be under 2MB',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setUploading(true);
+    try {
+      // Delete old logo if exists
+      if (settings.logo_url) {
+        const oldPath = settings.logo_url.split('/').pop();
+        if (oldPath) {
+          await supabase.storage.from('company-logos').remove([oldPath]);
+        }
+      }
+
+      // Upload new logo
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${settings.label_type}-logo-${Date.now()}.${fileExt}`;
+      const { error: uploadError, data } = await supabase.storage
+        .from('company-logos')
+        .upload(fileName, file, {
+          cacheControl: '3600',
+          upsert: false,
+        });
+
+      if (uploadError) throw uploadError;
+
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('company-logos')
+        .getPublicUrl(fileName);
+
+      // Update settings with new logo URL
+      updateFn({ ...settings, logo_url: publicUrl, show_logo: true });
+
+      toast({
+        title: 'Logo uploaded',
+        description: 'Your logo has been uploaded successfully',
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Upload failed',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleDeleteLogo = async (settings: LabelSettings, updateFn: (s: LabelSettings) => void) => {
+    if (!settings.logo_url) return;
+
+    try {
+      const fileName = settings.logo_url.split('/').pop();
+      if (fileName) {
+        await supabase.storage.from('company-logos').remove([fileName]);
+      }
+
+      updateFn({ ...settings, logo_url: null, show_logo: false });
+
+      toast({
+        title: 'Logo deleted',
+        description: 'Your logo has been removed',
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Delete failed',
+        description: error.message,
+        variant: 'destructive',
+      });
+    }
+  };
+
   const renderSettingsForm = (settings: LabelSettings | null, updateFn: (s: LabelSettings) => void) => {
     if (!settings) return null;
 
@@ -258,7 +356,61 @@ const LabelSettingsPage = () => {
           {settings.show_logo && (
             <>
               <div className="space-y-2">
-                <Label htmlFor={`logo-url-${settings.label_type}`}>Logo URL</Label>
+                <Label htmlFor={`logo-upload-${settings.label_type}`}>Upload Logo</Label>
+                <div className="flex flex-col gap-2">
+                  {settings.logo_url && (
+                    <div className="relative w-32 h-32 border rounded-md p-2 bg-background">
+                      <img 
+                        src={settings.logo_url} 
+                        alt="Company logo" 
+                        className="w-full h-full object-contain"
+                      />
+                      <Button
+                        variant="destructive"
+                        size="icon"
+                        className="absolute -top-2 -right-2 h-6 w-6"
+                        onClick={() => handleDeleteLogo(settings, updateFn)}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  )}
+                  <div className="flex gap-2">
+                    <Input
+                      ref={fileInputRef}
+                      id={`logo-upload-${settings.label_type}`}
+                      type="file"
+                      accept="image/png,image/jpeg,image/jpg,image/webp"
+                      onChange={(e) => handleLogoUpload(e, settings, updateFn)}
+                      disabled={uploading}
+                      className="hidden"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={uploading}
+                    >
+                      {uploading ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Uploading...
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="mr-2 h-4 w-4" />
+                          {settings.logo_url ? 'Change Logo' : 'Upload Logo'}
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    PNG, JPG, or WEBP (max 2MB)
+                  </p>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor={`logo-url-${settings.label_type}`}>Or use external URL</Label>
                 <Input
                   id={`logo-url-${settings.label_type}`}
                   type="url"
