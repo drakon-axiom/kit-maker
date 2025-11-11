@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Textarea } from '@/components/ui/textarea';
 import { Loader2, Save } from 'lucide-react';
 
 interface LabelSettings {
@@ -28,7 +29,23 @@ interface LabelSettings {
   show_carrier: boolean;
   show_batch_quantity: boolean;
   show_order_reference: boolean;
+  custom_html: string | null;
 }
+
+const LABEL_VARIABLES = {
+  order: [
+    '{{orderUid}}', '{{humanUid}}', '{{customerName}}', '{{customerEmail}}',
+    '{{customerPhone}}', '{{subtotal}}', '{{totalBottles}}', '{{status}}', '{{date}}'
+  ],
+  shipping: [
+    '{{orderUid}}', '{{humanUid}}', '{{customerName}}', '{{customerEmail}}',
+    '{{customerPhone}}', '{{trackingNumber}}', '{{carrier}}', '{{totalBottles}}', '{{date}}'
+  ],
+  batch: [
+    '{{batchUid}}', '{{humanUid}}', '{{orderUid}}', '{{customerName}}',
+    '{{quantity}}', '{{date}}'
+  ]
+};
 
 const LabelSettingsPage = () => {
   const [orderSettings, setOrderSettings] = useState<LabelSettings | null>(null);
@@ -36,6 +53,7 @@ const LabelSettingsPage = () => {
   const [batchSettings, setBatchSettings] = useState<LabelSettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -87,6 +105,7 @@ const LabelSettingsPage = () => {
           show_carrier: settings.show_carrier,
           show_batch_quantity: settings.show_batch_quantity,
           show_order_reference: settings.show_order_reference,
+          custom_html: settings.custom_html,
         })
         .eq('id', settings.id);
 
@@ -105,6 +124,25 @@ const LabelSettingsPage = () => {
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleInsertVariable = (variable: string, settings: LabelSettings, updateFn: (s: LabelSettings) => void) => {
+    if (!textareaRef.current) return;
+
+    const textarea = textareaRef.current;
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const text = settings.custom_html || '';
+    const before = text.substring(0, start);
+    const after = text.substring(end);
+    const newText = before + variable + after;
+
+    updateFn({ ...settings, custom_html: newText });
+
+    setTimeout(() => {
+      textarea.focus();
+      textarea.setSelectionRange(start + variable.length, start + variable.length);
+    }, 0);
   };
 
   const renderSettingsForm = (settings: LabelSettings | null, updateFn: (s: LabelSettings) => void) => {
@@ -306,6 +344,37 @@ const LabelSettingsPage = () => {
             </div>
           </div>
         )}
+
+        <div className="space-y-4 border-t pt-4">
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label htmlFor={`html-${settings.label_type}`}>Custom HTML Template</Label>
+              <Select onValueChange={(variable) => handleInsertVariable(variable, settings, updateFn)}>
+                <SelectTrigger className="w-[200px] h-8">
+                  <SelectValue placeholder="Insert variable" />
+                </SelectTrigger>
+                <SelectContent>
+                  {LABEL_VARIABLES[settings.label_type as keyof typeof LABEL_VARIABLES]?.map((variable) => (
+                    <SelectItem key={variable} value={variable}>
+                      {variable}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <Textarea
+              ref={textareaRef}
+              id={`html-${settings.label_type}`}
+              value={settings.custom_html || ''}
+              onChange={(e) => updateFn({ ...settings, custom_html: e.target.value })}
+              placeholder="Leave empty to use default template. Use variables like {{customerName}} for dynamic content."
+              className="font-mono text-sm min-h-[300px]"
+            />
+            <p className="text-xs text-muted-foreground">
+              Leave empty to use the default template with settings above. Add custom HTML to fully customize the label design.
+            </p>
+          </div>
+        </div>
 
         <Button onClick={() => saveSettings(settings)} disabled={saving}>
           {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}

@@ -69,6 +69,7 @@ interface LabelSettings {
   show_carrier: boolean;
   show_batch_quantity: boolean;
   show_order_reference: boolean;
+  custom_html: string | null;
 }
 
 const statusColors: Record<string, string> = {

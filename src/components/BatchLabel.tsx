@@ -11,6 +11,7 @@ interface LabelSettings {
   show_batch_quantity: boolean;
   show_order_reference: boolean;
   show_date: boolean;
+  custom_html: string | null;
 }
 
 interface BatchLabelProps {
@@ -34,6 +35,36 @@ const BatchLabel = forwardRef<HTMLDivElement, BatchLabelProps>(
     const showQuantity = settings?.show_batch_quantity ?? true;
     const showOrderRef = settings?.show_order_reference ?? true;
     const showDate = settings?.show_date ?? true;
+
+    const replaceVariables = (html: string) => {
+      return html
+        .replace(/\{\{batchUid\}\}/g, batchUid)
+        .replace(/\{\{humanUid\}\}/g, humanUid)
+        .replace(/\{\{orderUid\}\}/g, orderUid)
+        .replace(/\{\{customerName\}\}/g, customerName)
+        .replace(/\{\{quantity\}\}/g, quantity.toString())
+        .replace(/\{\{date\}\}/g, new Date(createdDate).toLocaleDateString());
+    };
+
+    if (settings?.custom_html) {
+      return (
+        <div ref={ref} className="print:block">
+          <style>{`
+            @media print {
+              @page {
+                size: ${width}in ${height}in;
+                margin: 0.25in;
+              }
+              body {
+                margin: 0;
+                padding: 0;
+              }
+            }
+          `}</style>
+          <div dangerouslySetInnerHTML={{ __html: replaceVariables(settings.custom_html) }} />
+        </div>
+      );
+    }
 
     return (
       <div ref={ref} className="print:block">

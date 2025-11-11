@@ -14,6 +14,7 @@ interface LabelSettings {
   show_carrier: boolean;
   show_total_bottles: boolean;
   show_date: boolean;
+  custom_html: string | null;
 }
 
 interface ShippingLabelProps {
@@ -43,6 +44,39 @@ const ShippingLabel = forwardRef<HTMLDivElement, ShippingLabelProps>(
     const showCarrier = settings?.show_carrier ?? true;
     const showBottles = settings?.show_total_bottles ?? true;
     const showDate = settings?.show_date ?? true;
+
+    const replaceVariables = (html: string) => {
+      return html
+        .replace(/\{\{orderUid\}\}/g, orderUid)
+        .replace(/\{\{humanUid\}\}/g, humanUid)
+        .replace(/\{\{customerName\}\}/g, customerName)
+        .replace(/\{\{customerEmail\}\}/g, customerEmail || '')
+        .replace(/\{\{customerPhone\}\}/g, customerPhone || '')
+        .replace(/\{\{trackingNumber\}\}/g, trackingNumber || '')
+        .replace(/\{\{carrier\}\}/g, carrier || '')
+        .replace(/\{\{totalBottles\}\}/g, totalBottles.toString())
+        .replace(/\{\{date\}\}/g, new Date(createdDate).toLocaleDateString());
+    };
+
+    if (settings?.custom_html) {
+      return (
+        <div ref={ref} className="print:block">
+          <style>{`
+            @media print {
+              @page {
+                size: ${width}in ${height}in;
+                margin: 0.25in;
+              }
+              body {
+                margin: 0;
+                padding: 0;
+              }
+            }
+          `}</style>
+          <div dangerouslySetInnerHTML={{ __html: replaceVariables(settings.custom_html) }} />
+        </div>
+      );
+    }
 
     return (
       <div ref={ref} className="print:block">

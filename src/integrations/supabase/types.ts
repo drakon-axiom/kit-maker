@@ -210,6 +210,7 @@ export type Database = {
       label_settings: {
         Row: {
           created_at: string
+          custom_html: string | null
           id: string
           label_type: string
           logo_position: string
@@ -231,6 +232,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          custom_html?: string | null
           id?: string
           label_type: string
           logo_position?: string
@@ -252,6 +254,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          custom_html?: string | null
           id?: string
           label_type?: string
           logo_position?: string
