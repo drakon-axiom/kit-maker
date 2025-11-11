@@ -145,6 +145,35 @@ const LabelSettingsPage = () => {
     }, 0);
   };
 
+  const generatePreviewHtml = (settings: LabelSettings) => {
+    if (!settings.custom_html) {
+      return '<div style="padding: 20px; text-align: center; color: #888;">No custom template. Using default template.</div>';
+    }
+
+    const sampleData: { [key: string]: string } = {
+      '{{orderUid}}': 'ORD-2024-12345',
+      '{{humanUid}}': 'AX-001',
+      '{{customerName}}': 'John Doe',
+      '{{customerEmail}}': 'john.doe@example.com',
+      '{{customerPhone}}': '+1 (555) 123-4567',
+      '{{subtotal}}': '1250.00',
+      '{{totalBottles}}': '500',
+      '{{status}}': 'In Production',
+      '{{date}}': new Date().toLocaleDateString(),
+      '{{trackingNumber}}': '1Z999AA10123456784',
+      '{{carrier}}': 'UPS Ground',
+      '{{batchUid}}': 'BATCH-2024-001',
+      '{{quantity}}': '250',
+    };
+
+    let html = settings.custom_html;
+    Object.entries(sampleData).forEach(([variable, value]) => {
+      html = html.replace(new RegExp(variable, 'g'), value);
+    });
+
+    return html;
+  };
+
   const renderSettingsForm = (settings: LabelSettings | null, updateFn: (s: LabelSettings) => void) => {
     if (!settings) return null;
 
@@ -346,33 +375,54 @@ const LabelSettingsPage = () => {
         )}
 
         <div className="space-y-4 border-t pt-4">
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label htmlFor={`html-${settings.label_type}`}>Custom HTML Template</Label>
-              <Select onValueChange={(variable) => handleInsertVariable(variable, settings, updateFn)}>
-                <SelectTrigger className="w-[200px] h-8">
-                  <SelectValue placeholder="Insert variable" />
-                </SelectTrigger>
-                <SelectContent>
-                  {LABEL_VARIABLES[settings.label_type as keyof typeof LABEL_VARIABLES]?.map((variable) => (
-                    <SelectItem key={variable} value={variable}>
-                      {variable}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+          <h4 className="font-semibold">Custom HTML Template</h4>
+          <div className="grid md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label htmlFor={`html-${settings.label_type}`}>HTML Code</Label>
+                <Select onValueChange={(variable) => handleInsertVariable(variable, settings, updateFn)}>
+                  <SelectTrigger className="w-[200px] h-8">
+                    <SelectValue placeholder="Insert variable" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {LABEL_VARIABLES[settings.label_type as keyof typeof LABEL_VARIABLES]?.map((variable) => (
+                      <SelectItem key={variable} value={variable}>
+                        {variable}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <Textarea
+                ref={textareaRef}
+                id={`html-${settings.label_type}`}
+                value={settings.custom_html || ''}
+                onChange={(e) => updateFn({ ...settings, custom_html: e.target.value })}
+                placeholder="Leave empty to use default template. Use variables like {{customerName}} for dynamic content."
+                className="font-mono text-sm min-h-[400px]"
+              />
+              <p className="text-xs text-muted-foreground">
+                Leave empty to use the default template with settings above. Add custom HTML to fully customize the label design.
+              </p>
             </div>
-            <Textarea
-              ref={textareaRef}
-              id={`html-${settings.label_type}`}
-              value={settings.custom_html || ''}
-              onChange={(e) => updateFn({ ...settings, custom_html: e.target.value })}
-              placeholder="Leave empty to use default template. Use variables like {{customerName}} for dynamic content."
-              className="font-mono text-sm min-h-[300px]"
-            />
-            <p className="text-xs text-muted-foreground">
-              Leave empty to use the default template with settings above. Add custom HTML to fully customize the label design.
-            </p>
+            
+            <div className="space-y-2">
+              <Label>Live Preview</Label>
+              <div 
+                className="border rounded-md p-4 min-h-[400px] bg-background overflow-auto"
+                style={{
+                  width: `${settings.size_width}in`,
+                  height: `${settings.size_height}in`,
+                  maxWidth: '100%',
+                  maxHeight: '600px',
+                }}
+              >
+                <div dangerouslySetInnerHTML={{ __html: generatePreviewHtml(settings) }} />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Preview shows sample data. Actual labels will use real order/batch data.
+              </p>
+            </div>
           </div>
         </div>
 
