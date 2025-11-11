@@ -72,10 +72,10 @@ interface OrderDetail {
     sku: {
       code: string;
       description: string;
+      batch_prefix?: string;
     };
   }>;
 }
-
 interface Batch {
   id: string;
   uid: string;
@@ -150,7 +150,7 @@ const OrderDetail = () => {
           customer:customers(name, email, phone),
           sales_order_lines(
             *,
-            sku:skus(code, description)
+            sku:skus(code, description, batch_prefix)
           )
         `)
         .eq('id', id)
@@ -189,31 +189,52 @@ const OrderDetail = () => {
       // 1) Get all batch ids for this order
       const { data: batchRows, error: batchesErr } = await supabase
         .from('production_batches')
-        .select('id')
+        .select('id, human_uid, qty_bottle_planned')
         .eq('so_id', id);
 
       if (batchesErr) throw batchesErr;
 
       const batchIds = (batchRows || []).map((b: any) => b.id);
 
-      if (batchIds.length === 0) {
-        setBatchAllocations({});
-        return;
+      // Build a map of planned bottles per SKU prefix from existing batches
+      const plannedByPrefix: Record<string, number> = {};
+      (batchRows || []).forEach((b: any) => {
+        const prefix = (b.human_uid || '').split('-')[0];
+        if (!prefix) return;
+        plannedByPrefix[prefix] = (plannedByPrefix[prefix] || 0) + (b.qty_bottle_planned || 0);
+      });
+
+      // Start with allocations from explicit batch items if present
+      let allocations: Record<string, number> = {};
+
+      if (batchIds.length > 0) {
+        const { data: itemsRows, error: itemsErr } = await supabase
+          .from('production_batch_items')
+          .select('so_line_id, bottle_qty_allocated, batch_id')
+          .in('batch_id', batchIds);
+
+        if (itemsErr) throw itemsErr;
+
+        (itemsRows || []).forEach((item: any) => {
+          const lineId = item.so_line_id;
+          allocations[lineId] = (allocations[lineId] || 0) + (item.bottle_qty_allocated || 0);
+        });
       }
 
-      // 2) Sum allocations per order line for those batches
-      const { data: itemsRows, error: itemsErr } = await supabase
-        .from('production_batch_items')
-        .select('so_line_id, bottle_qty_allocated, batch_id')
-        .in('batch_id', batchIds);
+      // Fallback: if no explicit allocations for a line, infer from batch prefixes
+      if (order?.sales_order_lines) {
+        for (const line of order.sales_order_lines) {
+          const current = allocations[line.id] || 0;
+          if (current > 0) continue; // already has explicit allocation
 
-      if (itemsErr) throw itemsErr;
-
-      const allocations: Record<string, number> = {};
-      (itemsRows || []).forEach((item: any) => {
-        const lineId = item.so_line_id;
-        allocations[lineId] = (allocations[lineId] || 0) + (item.bottle_qty_allocated || 0);
-      });
+          const key = line.sku.batch_prefix || line.sku.code;
+          const plannedForKey = plannedByPrefix[key] || 0;
+          if (plannedForKey > 0) {
+            // Cap by line requirement (keeps parity with bottom summary logic)
+            allocations[line.id] = Math.min(line.bottle_qty, plannedForKey);
+          }
+        }
+      }
 
       setBatchAllocations(allocations);
     } catch (error: any) {
