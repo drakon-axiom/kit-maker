@@ -46,9 +46,14 @@ const BatchLabel = forwardRef<HTMLDivElement, BatchLabelProps>(
           includeMargin={false}
         />
       );
+
+      const logoHtml = settings?.logo_url 
+        ? `<img src="${settings.logo_url}" alt="Company Logo" style="max-height: 60px; object-fit: contain;" />`
+        : '';
       
       return html
         .replace(/\{\{qrCode\}\}/g, qrCodeSvg)
+        .replace(/\{\{logo\}\}/g, logoHtml)
         .replace(/\{\{batchUid\}\}/g, batchUid)
         .replace(/\{\{humanUid\}\}/g, humanUid)
         .replace(/\{\{orderUid\}\}/g, orderUid)

@@ -55,9 +55,14 @@ const ShippingLabel = forwardRef<HTMLDivElement, ShippingLabelProps>(
           includeMargin={false}
         />
       );
+
+      const logoHtml = settings?.logo_url 
+        ? `<img src="${settings.logo_url}" alt="Company Logo" style="max-height: 60px; object-fit: contain;" />`
+        : '';
       
       return html
         .replace(/\{\{qrCode\}\}/g, qrCodeSvg)
+        .replace(/\{\{logo\}\}/g, logoHtml)
         .replace(/\{\{orderUid\}\}/g, orderUid)
         .replace(/\{\{humanUid\}\}/g, humanUid)
         .replace(/\{\{customerName\}\}/g, customerName)

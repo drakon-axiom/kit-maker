@@ -36,15 +36,15 @@ interface LabelSettings {
 
 const LABEL_VARIABLES = {
   order: [
-    '{{qrCode}}', '{{orderUid}}', '{{humanUid}}', '{{customerName}}', '{{customerEmail}}',
+    '{{qrCode}}', '{{logo}}', '{{orderUid}}', '{{humanUid}}', '{{customerName}}', '{{customerEmail}}',
     '{{customerPhone}}', '{{subtotal}}', '{{totalBottles}}', '{{status}}', '{{date}}'
   ],
   shipping: [
-    '{{qrCode}}', '{{orderUid}}', '{{humanUid}}', '{{customerName}}', '{{customerEmail}}',
+    '{{qrCode}}', '{{logo}}', '{{orderUid}}', '{{humanUid}}', '{{customerName}}', '{{customerEmail}}',
     '{{customerPhone}}', '{{trackingNumber}}', '{{carrier}}', '{{totalBottles}}', '{{date}}'
   ],
   batch: [
-    '{{qrCode}}', '{{batchUid}}', '{{humanUid}}', '{{orderUid}}', '{{customerName}}',
+    '{{qrCode}}', '{{logo}}', '{{batchUid}}', '{{humanUid}}', '{{orderUid}}', '{{customerName}}',
     '{{quantity}}', '{{date}}'
   ]
 };
@@ -172,8 +172,13 @@ const LabelSettingsPage = () => {
       />
     );
 
+    const logoHtml = settings.logo_url 
+      ? `<img src="${settings.logo_url}" alt="Company Logo" style="max-height: 60px; object-fit: contain;" />`
+      : '<div style="padding: 10px; background: #f0f0f0; border: 1px dashed #999; text-align: center; font-size: 12px; color: #666;">Logo</div>';
+
     const sampleData: { [key: string]: string } = {
       '{{qrCode}}': qrCodeSvg,
+      '{{logo}}': logoHtml,
       '{{orderUid}}': 'ORD-2024-12345',
       '{{humanUid}}': 'AX-001',
       '{{customerName}}': 'John Doe',
@@ -591,7 +596,7 @@ const LabelSettingsPage = () => {
                 id={`html-${settings.label_type}`}
                 value={settings.custom_html || ''}
                 onChange={(e) => updateFn({ ...settings, custom_html: e.target.value })}
-                placeholder="Leave empty to use default template. Use variables like {{customerName}} for dynamic content. Use {{qrCode}} to insert a QR code."
+                placeholder="Leave empty to use default template. Use variables like {{customerName}} for dynamic content. Use {{qrCode}} to insert a QR code. Use {{logo}} to insert your uploaded logo."
                 className="font-mono text-sm min-h-[400px]"
               />
               <p className="text-xs text-muted-foreground">
