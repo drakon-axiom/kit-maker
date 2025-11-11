@@ -14,3 +14,6 @@ verify_jwt = false
 
 [functions.generate-quote]
 verify_jwt = false
+
+[functions.accept-quote]
+verify_jwt = false
