@@ -34,15 +34,15 @@ interface LabelSettings {
 
 const LABEL_VARIABLES = {
   order: [
-    '{{orderUid}}', '{{humanUid}}', '{{customerName}}', '{{customerEmail}}',
+    '{{qrCode}}', '{{orderUid}}', '{{humanUid}}', '{{customerName}}', '{{customerEmail}}',
     '{{customerPhone}}', '{{subtotal}}', '{{totalBottles}}', '{{status}}', '{{date}}'
   ],
   shipping: [
-    '{{orderUid}}', '{{humanUid}}', '{{customerName}}', '{{customerEmail}}',
+    '{{qrCode}}', '{{orderUid}}', '{{humanUid}}', '{{customerName}}', '{{customerEmail}}',
     '{{customerPhone}}', '{{trackingNumber}}', '{{carrier}}', '{{totalBottles}}', '{{date}}'
   ],
   batch: [
-    '{{batchUid}}', '{{humanUid}}', '{{orderUid}}', '{{customerName}}',
+    '{{qrCode}}', '{{batchUid}}', '{{humanUid}}', '{{orderUid}}', '{{customerName}}',
     '{{quantity}}', '{{date}}'
   ]
 };
@@ -151,6 +151,7 @@ const LabelSettingsPage = () => {
     }
 
     const sampleData: { [key: string]: string } = {
+      '{{qrCode}}': '<div style="display: inline-block; padding: 8px; background: white; border: 2px solid black;"><svg width="120" height="120" viewBox="0 0 120 120"><rect width="120" height="120" fill="white"/><text x="60" y="60" text-anchor="middle" dominant-baseline="middle" font-size="12" fill="black">QR Code</text></svg></div>',
       '{{orderUid}}': 'ORD-2024-12345',
       '{{humanUid}}': 'AX-001',
       '{{customerName}}': 'John Doe',
@@ -168,10 +169,19 @@ const LabelSettingsPage = () => {
 
     let html = settings.custom_html;
     Object.entries(sampleData).forEach(([variable, value]) => {
-      html = html.replace(new RegExp(variable, 'g'), value);
+      html = html.replace(new RegExp(variable.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), value);
     });
 
     return html;
+  };
+
+  const handleResetTemplate = async (settings: LabelSettings, updateFn: (s: LabelSettings) => void) => {
+    updateFn({ ...settings, custom_html: null });
+    
+    toast({
+      title: 'Template Reset',
+      description: 'Custom HTML cleared. Using default template.',
+    });
   };
 
   const renderSettingsForm = (settings: LabelSettings | null, updateFn: (s: LabelSettings) => void) => {
@@ -375,7 +385,18 @@ const LabelSettingsPage = () => {
         )}
 
         <div className="space-y-4 border-t pt-4">
-          <h4 className="font-semibold">Custom HTML Template</h4>
+          <div className="flex items-center justify-between">
+            <h4 className="font-semibold">Custom HTML Template</h4>
+            {settings.custom_html && (
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => handleResetTemplate(settings, updateFn)}
+              >
+                Reset to Default
+              </Button>
+            )}
+          </div>
           <div className="grid md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <div className="flex items-center justify-between">
@@ -398,7 +419,7 @@ const LabelSettingsPage = () => {
                 id={`html-${settings.label_type}`}
                 value={settings.custom_html || ''}
                 onChange={(e) => updateFn({ ...settings, custom_html: e.target.value })}
-                placeholder="Leave empty to use default template. Use variables like {{customerName}} for dynamic content."
+                placeholder="Leave empty to use default template. Use variables like {{customerName}} for dynamic content. Use {{qrCode}} to insert a QR code."
                 className="font-mono text-sm min-h-[400px]"
               />
               <p className="text-xs text-muted-foreground">
