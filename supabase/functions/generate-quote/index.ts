@@ -42,26 +42,6 @@ function generateQuoteHtml(params: QuoteEmailParams & { orderId?: string }): str
     orderId,
   } = params;
 
-  if (customHtml) {
-    return customHtml
-      .replace(/\{\{company_name\}\}/g, companyName)
-      .replace(/\{\{company_email\}\}/g, companyEmail)
-      .replace(/\{\{customer_name\}\}/g, customerName)
-      .replace(/\{\{quote_number\}\}/g, quoteNumber)
-      .replace(/\{\{date\}\}/g, date)
-      .replace(/\{\{customer_email\}\}/g, custEmail || '')
-      .replace(/\{\{line_items\}\}/g, lineItemsHtml)
-      .replace(/\{\{subtotal\}\}/g, `$${subtotal.toFixed(2)}`)
-      .replace(/\{\{logo_url\}\}/g, logoUrl)
-      .replace(/\{\{deposit_info\}\}/g, depositRequired && depositAmount > 0 
-        ? `<tr><td colspan="3" style="padding: 8px; text-align: right;">Deposit Required (${depositPercentage}%):</td><td style="padding: 8px; text-align: right;">$${depositAmount.toFixed(2)}</td></tr>`
-        : '');
-  }
-
-  const headerContent = logoUrl 
-    ? `<img src="${logoUrl}" alt="${companyName}" style="max-height: 80px; max-width: 300px;" />`
-    : `<h1 style="color: ${headerTextColor}; margin: 0; font-size: 24px; font-weight: bold;">${companyName.toUpperCase()}</h1>`;
-
   const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
   const acceptQuoteUrl = orderId ? `${supabaseUrl}/functions/v1/accept-quote?orderId=${orderId}` : "";
   
@@ -73,6 +53,27 @@ function generateQuoteHtml(params: QuoteEmailParams & { orderId?: string }): str
          <p style="font-size: 12px; color: #666; margin-top: 8px;">Click the button above to accept this quote and proceed with the deposit payment.</p>
        </div>`
     : '';
+
+  if (customHtml) {
+    return customHtml
+      .replace(/\{\{company_name\}\}/g, companyName)
+      .replace(/\{\{company_email\}\}/g, companyEmail)
+      .replace(/\{\{customer_name\}\}/g, customerName)
+      .replace(/\{\{quote_number\}\}/g, quoteNumber)
+      .replace(/\{\{date\}\}/g, date)
+      .replace(/\{\{customer_email\}\}/g, custEmail || '')
+      .replace(/\{\{line_items\}\}/g, lineItemsHtml)
+      .replace(/\{\{subtotal\}\}/g, `$${subtotal.toFixed(2)}`)
+      .replace(/\{\{logo_url\}\}/g, logoUrl)
+      .replace(/\{\{accept_button\}\}/g, acceptButtonHtml)
+      .replace(/\{\{deposit_info\}\}/g, depositRequired && depositAmount > 0 
+        ? `<tr><td colspan="3" style="padding: 8px; text-align: right;">Deposit Required (${depositPercentage}%):</td><td style="padding: 8px; text-align: right;">$${depositAmount.toFixed(2)}</td></tr>`
+        : '');
+  }
+
+  const headerContent = logoUrl 
+    ? `<img src="${logoUrl}" alt="${companyName}" style="max-height: 80px; max-width: 300px;" />`
+    : `<h1 style="color: ${headerTextColor}; margin: 0; font-size: 24px; font-weight: bold;">${companyName.toUpperCase()}</h1>`;
 
   return `<!doctype html><html><head><meta charset="utf-8"></head><body style="font-family: 'Open Sans', Arial, sans-serif; background: #ffffff; color: #222; margin: 0; padding: 0;"><div style="background: ${headerBgColor}; padding: 30px; text-align: center;">${headerContent}</div><div style="max-width: 600px; margin: 0 auto; padding: 30px 20px;"><h2 style="font-size: 20px; margin-bottom: 16px;">Hello ${customerName},</h2><p style="margin-bottom: 16px; line-height: 1.6;">Thank you for your interest in ${companyName}. Please find your quote details below.</p><div style="background: #f5f5f5; padding: 16px; border-radius: 8px; margin-bottom: 16px;"><p style="margin: 8px 0;"><strong>Quote Number:</strong> ${quoteNumber}</p><p style="margin: 8px 0;"><strong>Date:</strong> ${date}</p><p style="margin: 8px 0;"><strong>Customer:</strong> ${customerName}</p>${custEmail ? `<p style="margin: 8px 0;"><strong>Email:</strong> ${custEmail}</p>` : ''}</div><div style="margin-bottom: 24px;"><h3 style="font-size: 16px; font-weight: 600; margin-bottom: 12px;">Line Items</h3><table style="width: 100%; border-collapse: collapse; font-size: 14px;"><thead><tr style="background: #f0f0f0; border-bottom: 2px solid #ddd;"><th style="padding: 8px; text-align: left;">SKU</th><th style="padding: 8px; text-align: left;">Quantity</th><th style="padding: 8px; text-align: right;">Unit Price</th><th style="padding: 8px; text-align: right;">Total</th></tr></thead><tbody>${lineItemsHtml}</tbody><tfoot><tr style="border-top: 2px solid #ddd; font-weight: 600;"><td colspan="3" style="padding: 8px; text-align: right;">Subtotal:</td><td style="padding: 8px; text-align: right;">$${subtotal.toFixed(2)}</td></tr>${depositRequired && depositAmount > 0 ? `<tr><td colspan="3" style="padding: 8px; text-align: right;">Deposit Required (${depositPercentage}%):</td><td style="padding: 8px; text-align: right;">$${depositAmount.toFixed(2)}</td></tr>` : ''}</tfoot></table></div>${acceptButtonHtml}<p style="margin-bottom: 16px; line-height: 1.6;">This quote is valid for 30 days. If you have any questions or would like to proceed with this order, please reply to this email or contact us.</p>${depositRequired && depositAmount > 0 ? `<div style="background: #fff3cd; border: 1px solid #ffc107; padding: 12px; border-radius: 4px; margin-bottom: 16px;"><strong>Note:</strong> A ${depositPercentage}% deposit ($${depositAmount.toFixed(2)}) is required before production begins.</div>` : ''}<p style="line-height: 1.6;">${footerText}</p></div><div style="background: ${headerBgColor}; padding: 20px; text-align: center; margin-top: 40px;"><p style="margin: 8px 0; font-weight: 500;">${companyName}<br>${companyEmail}</p><p style="font-size: 12px; color: #666; margin: 8px 0;">© ${new Date().getFullYear()} ${companyName}. All rights reserved.</p></div></body></html>`;
 }
