@@ -17,6 +17,7 @@ import Operator from "./pages/Operator";
 import Notifications from "./pages/Notifications";
 import Shipments from "./pages/Shipments";
 import Settings from "./pages/Settings";
+import LabelSettings from "./pages/LabelSettings";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Layout from "./components/Layout";
 import NotFound from "./pages/NotFound";
@@ -148,6 +149,16 @@ const App = () => (
                 <ProtectedRoute requiredRole="admin">
                   <Layout>
                     <Settings />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/label-settings"
+              element={
+                <ProtectedRoute requiredRole="admin">
+                  <Layout>
+                    <LabelSettings />
                   </Layout>
                 </ProtectedRoute>
               }

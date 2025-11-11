@@ -53,6 +53,24 @@ interface OrderWithDetails extends Order {
   };
 }
 
+interface LabelSettings {
+  size_width: number;
+  size_height: number;
+  show_qr_code: boolean;
+  show_logo: boolean;
+  logo_url: string | null;
+  logo_position: string;
+  show_customer_email: boolean;
+  show_customer_phone: boolean;
+  show_status: boolean;
+  show_total_bottles: boolean;
+  show_date: boolean;
+  show_tracking_number: boolean;
+  show_carrier: boolean;
+  show_batch_quantity: boolean;
+  show_order_reference: boolean;
+}
+
 const statusColors: Record<string, string> = {
   draft: 'bg-muted',
   quoted: 'bg-blue-500',
@@ -103,9 +121,18 @@ const Orders = () => {
   // Print state
   const [printOrder, setPrintOrder] = useState<OrderWithDetails | null>(null);
   const [printType, setPrintType] = useState<'order' | 'shipping' | 'batch' | null>(null);
+  const [bulkPrintOrders, setBulkPrintOrders] = useState<OrderWithDetails[]>([]);
+  const [bulkPrintDialogOpen, setBulkPrintDialogOpen] = useState(false);
+  const [bulkPrintType, setBulkPrintType] = useState<'order' | 'shipping' | 'batch'>('order');
+  const [labelSettings, setLabelSettings] = useState<{
+    order?: LabelSettings;
+    shipping?: LabelSettings;
+    batch?: LabelSettings;
+  }>({});
   const orderLabelRef = useRef<HTMLDivElement>(null);
   const shippingLabelRef = useRef<HTMLDivElement>(null);
   const batchLabelsRef = useRef<HTMLDivElement>(null);
+  const bulkPrintRef = useRef<HTMLDivElement>(null);
   
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -122,10 +149,33 @@ const Orders = () => {
     contentRef: batchLabelsRef,
   });
 
+  const handlePrintBulk = useReactToPrint({
+    contentRef: bulkPrintRef,
+  });
+
   useEffect(() => {
     fetchOrders();
     fetchCustomers();
+    fetchLabelSettings();
   }, []);
+
+  const fetchLabelSettings = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('label_settings')
+        .select('*');
+
+      if (error) throw error;
+
+      const settings: any = {};
+      data?.forEach(setting => {
+        settings[setting.label_type] = setting;
+      });
+      setLabelSettings(settings);
+    } catch (error: any) {
+      console.error('Error fetching label settings:', error);
+    }
+  };
 
   const fetchCustomers = async () => {
     try {
@@ -420,6 +470,47 @@ const Orders = () => {
     }, 100);
   };
 
+  const handleBulkPrintSetup = async () => {
+    if (selectedOrders.size === 0) {
+      toast({
+        title: 'No orders selected',
+        description: 'Please select at least one order to print labels',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setBulkPrintDialogOpen(true);
+  };
+
+  const handleBulkPrintExecute = async () => {
+    const orderIds = Array.from(selectedOrders);
+    const orders: OrderWithDetails[] = [];
+
+    for (const orderId of orderIds) {
+      const orderDetails = await fetchOrderDetails(orderId);
+      if (orderDetails) {
+        orders.push(orderDetails);
+      }
+    }
+
+    if (orders.length === 0) {
+      toast({
+        title: 'Error',
+        description: 'Failed to load order details',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setBulkPrintOrders(orders);
+    setBulkPrintDialogOpen(false);
+    
+    setTimeout(() => {
+      handlePrintBulk();
+    }, 100);
+  };
+
   return (
     <div className="p-6 space-y-6">
       <div className="flex justify-between items-center">
@@ -429,59 +520,102 @@ const Orders = () => {
         </div>
         <div className="flex gap-2">
           {selectedOrders.size > 0 && (
-            <Dialog open={bulkEditOpen} onOpenChange={setBulkEditOpen}>
-              <DialogTrigger asChild>
-                <Button variant="outline">
-                  <Edit className="mr-2 h-4 w-4" />
-                  Bulk Update ({selectedOrders.size})
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Bulk Update Orders</DialogTitle>
-                  <DialogDescription>
-                    Update status for {selectedOrders.size} selected order(s)
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="bulk-status">New Status</Label>
-                    <Select value={bulkStatus} onValueChange={setBulkStatus}>
-                      <SelectTrigger id="bulk-status">
-                        <SelectValue placeholder="Select status" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="draft">Draft</SelectItem>
-                        <SelectItem value="quoted">Quoted</SelectItem>
-                        <SelectItem value="deposit_due">Deposit Due</SelectItem>
-                        <SelectItem value="in_queue">In Queue</SelectItem>
-                        <SelectItem value="in_production">In Production</SelectItem>
-                        <SelectItem value="in_labeling">In Labeling</SelectItem>
-                        <SelectItem value="in_packing">In Packing</SelectItem>
-                        <SelectItem value="packed">Packed</SelectItem>
-                        <SelectItem value="invoiced">Invoiced</SelectItem>
-                        <SelectItem value="payment_due">Payment Due</SelectItem>
-                        <SelectItem value="ready_to_ship">Ready to Ship</SelectItem>
-                        <SelectItem value="shipped">Shipped</SelectItem>
-                        <SelectItem value="cancelled">Cancelled</SelectItem>
-                        <SelectItem value="on_hold_customer">On Hold (Customer)</SelectItem>
-                        <SelectItem value="on_hold_internal">On Hold (Internal)</SelectItem>
-                        <SelectItem value="on_hold_materials">On Hold (Materials)</SelectItem>
-                      </SelectContent>
-                    </Select>
+            <>
+              <Dialog open={bulkEditOpen} onOpenChange={setBulkEditOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="outline">
+                    <Edit className="mr-2 h-4 w-4" />
+                    Bulk Update ({selectedOrders.size})
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Bulk Update Orders</DialogTitle>
+                    <DialogDescription>
+                      Update status for {selectedOrders.size} selected order(s)
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="bulk-status">New Status</Label>
+                      <Select value={bulkStatus} onValueChange={setBulkStatus}>
+                        <SelectTrigger id="bulk-status">
+                          <SelectValue placeholder="Select status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="draft">Draft</SelectItem>
+                          <SelectItem value="quoted">Quoted</SelectItem>
+                          <SelectItem value="deposit_due">Deposit Due</SelectItem>
+                          <SelectItem value="in_queue">In Queue</SelectItem>
+                          <SelectItem value="in_production">In Production</SelectItem>
+                          <SelectItem value="in_labeling">In Labeling</SelectItem>
+                          <SelectItem value="in_packing">In Packing</SelectItem>
+                          <SelectItem value="packed">Packed</SelectItem>
+                          <SelectItem value="invoiced">Invoiced</SelectItem>
+                          <SelectItem value="payment_due">Payment Due</SelectItem>
+                          <SelectItem value="ready_to_ship">Ready to Ship</SelectItem>
+                          <SelectItem value="shipped">Shipped</SelectItem>
+                          <SelectItem value="cancelled">Cancelled</SelectItem>
+                          <SelectItem value="on_hold_customer">On Hold (Customer)</SelectItem>
+                          <SelectItem value="on_hold_internal">On Hold (Internal)</SelectItem>
+                          <SelectItem value="on_hold_materials">On Hold (Materials)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="flex gap-2 justify-end">
+                      <Button type="button" variant="outline" onClick={() => setBulkEditOpen(false)}>
+                        Cancel
+                      </Button>
+                      <Button onClick={handleBulkUpdate} disabled={saving}>
+                        {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                        Update Orders
+                      </Button>
+                    </div>
                   </div>
-                  <div className="flex gap-2 justify-end">
-                    <Button type="button" variant="outline" onClick={() => setBulkEditOpen(false)}>
-                      Cancel
-                    </Button>
-                    <Button onClick={handleBulkUpdate} disabled={saving}>
-                      {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                      Update Orders
-                    </Button>
+                </DialogContent>
+              </Dialog>
+              
+              <Dialog open={bulkPrintDialogOpen} onOpenChange={setBulkPrintDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="outline" onClick={handleBulkPrintSetup}>
+                    <Printer className="mr-2 h-4 w-4" />
+                    Bulk Print ({selectedOrders.size})
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Bulk Print Labels</DialogTitle>
+                    <DialogDescription>
+                      Print labels for {selectedOrders.size} selected order(s)
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="bulk-print-type">Label Type</Label>
+                      <Select value={bulkPrintType} onValueChange={(value: any) => setBulkPrintType(value)}>
+                        <SelectTrigger id="bulk-print-type">
+                          <SelectValue placeholder="Select label type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="order">Order Labels</SelectItem>
+                          <SelectItem value="shipping">Shipping Labels</SelectItem>
+                          <SelectItem value="batch">Batch Labels</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="flex gap-2 justify-end">
+                      <Button type="button" variant="outline" onClick={() => setBulkPrintDialogOpen(false)}>
+                        Cancel
+                      </Button>
+                      <Button onClick={handleBulkPrintExecute}>
+                        <Printer className="mr-2 h-4 w-4" />
+                        Print Labels
+                      </Button>
+                    </div>
                   </div>
-                </div>
-              </DialogContent>
-            </Dialog>
+                </DialogContent>
+              </Dialog>
+            </>
           )}
           <Button variant="outline" onClick={exportToCSV}>
             <Download className="mr-2 h-4 w-4" />
@@ -836,6 +970,7 @@ const Orders = () => {
             totalBottles={printOrder.totalBottles || 0}
             createdDate={printOrder.created_at}
             status={formatStatus(printOrder.status)}
+            settings={labelSettings.order}
           />
         </div>
       )}
@@ -853,6 +988,7 @@ const Orders = () => {
             carrier={printOrder.shipment?.carrier}
             totalBottles={printOrder.totalBottles || 0}
             createdDate={printOrder.created_at}
+            settings={labelSettings.shipping}
           />
         </div>
       )}
@@ -869,8 +1005,66 @@ const Orders = () => {
                   customerName={printOrder.customer.name}
                   quantity={batch.qty_bottle_planned}
                   createdDate={batch.created_at}
+                  settings={labelSettings.batch}
                 />
               </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Bulk print components */}
+      {bulkPrintOrders.length > 0 && (
+        <div className="hidden">
+          <div ref={bulkPrintRef}>
+            {bulkPrintType === 'order' && bulkPrintOrders.map((order) => (
+              <div key={order.uid} className="page-break-after">
+                <OrderLabel
+                  orderUid={order.uid}
+                  humanUid={order.human_uid}
+                  customerName={order.customer.name}
+                  customerEmail={order.customer.email}
+                  customerPhone={order.customer.phone}
+                  subtotal={order.subtotal}
+                  totalBottles={order.totalBottles || 0}
+                  createdDate={order.created_at}
+                  status={formatStatus(order.status)}
+                  settings={labelSettings.order}
+                />
+              </div>
+            ))}
+            
+            {bulkPrintType === 'shipping' && bulkPrintOrders.map((order) => (
+              <div key={order.uid} className="page-break-after">
+                <ShippingLabel
+                  orderUid={order.uid}
+                  humanUid={order.human_uid}
+                  customerName={order.customer.name}
+                  customerEmail={order.customer.email}
+                  customerPhone={order.customer.phone}
+                  trackingNumber={order.shipment?.tracking_no}
+                  carrier={order.shipment?.carrier}
+                  totalBottles={order.totalBottles || 0}
+                  createdDate={order.created_at}
+                  settings={labelSettings.shipping}
+                />
+              </div>
+            ))}
+            
+            {bulkPrintType === 'batch' && bulkPrintOrders.map((order) => (
+              order.batches?.map((batch) => (
+                <div key={batch.uid} className="page-break-after">
+                  <BatchLabel
+                    batchUid={batch.uid}
+                    humanUid={batch.human_uid}
+                    orderUid={order.human_uid}
+                    customerName={order.customer.name}
+                    quantity={batch.qty_bottle_planned}
+                    createdDate={batch.created_at}
+                    settings={labelSettings.batch}
+                  />
+                </div>
+              ))
             ))}
           </div>
         </div>

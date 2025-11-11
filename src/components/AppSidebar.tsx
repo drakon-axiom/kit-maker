@@ -12,6 +12,7 @@ import {
   Boxes,
   TruckIcon,
   Mail,
+  Tags,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -46,6 +47,7 @@ export function AppSidebar() {
     { title: 'Customers', url: '/customers', icon: Users },
     { title: 'Products (SKUs)', url: '/skus', icon: Package },
     { title: 'Notifications', url: '/notifications', icon: Mail },
+    { title: 'Label Settings', url: '/label-settings', icon: Tags },
     { title: 'Settings', url: '/settings', icon: Settings },
   ];
 

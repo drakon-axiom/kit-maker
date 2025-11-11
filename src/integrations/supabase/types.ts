@@ -207,6 +207,72 @@ export type Database = {
           },
         ]
       }
+      label_settings: {
+        Row: {
+          created_at: string
+          id: string
+          label_type: string
+          logo_position: string
+          logo_url: string | null
+          show_batch_quantity: boolean
+          show_carrier: boolean
+          show_customer_email: boolean
+          show_customer_phone: boolean
+          show_date: boolean
+          show_logo: boolean
+          show_order_reference: boolean
+          show_qr_code: boolean
+          show_status: boolean
+          show_total_bottles: boolean
+          show_tracking_number: boolean
+          size_height: number
+          size_width: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          label_type: string
+          logo_position?: string
+          logo_url?: string | null
+          show_batch_quantity?: boolean
+          show_carrier?: boolean
+          show_customer_email?: boolean
+          show_customer_phone?: boolean
+          show_date?: boolean
+          show_logo?: boolean
+          show_order_reference?: boolean
+          show_qr_code?: boolean
+          show_status?: boolean
+          show_total_bottles?: boolean
+          show_tracking_number?: boolean
+          size_height?: number
+          size_width?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          label_type?: string
+          logo_position?: string
+          logo_url?: string | null
+          show_batch_quantity?: boolean
+          show_carrier?: boolean
+          show_customer_email?: boolean
+          show_customer_phone?: boolean
+          show_date?: boolean
+          show_logo?: boolean
+          show_order_reference?: boolean
+          show_qr_code?: boolean
+          show_status?: boolean
+          show_total_bottles?: boolean
+          show_tracking_number?: boolean
+          size_height?: number
+          size_width?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       production_batch_items: {
         Row: {
           batch_id: string
