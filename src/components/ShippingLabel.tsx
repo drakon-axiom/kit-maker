@@ -1,5 +1,6 @@
 import { forwardRef } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
+import { renderToStaticMarkup } from 'react-dom/server';
 
 interface LabelSettings {
   size_width: number;
@@ -46,7 +47,14 @@ const ShippingLabel = forwardRef<HTMLDivElement, ShippingLabelProps>(
     const showDate = settings?.show_date ?? true;
 
     const replaceVariables = (html: string) => {
-      const qrCodeSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="0 0 120 120"><rect width="120" height="120" fill="white"/><g transform="translate(10,10)">${generateQRCodePath(orderUid)}</g></svg>`;
+      const qrCodeSvg = renderToStaticMarkup(
+        <QRCodeSVG 
+          value={orderUid} 
+          size={120}
+          level="H"
+          includeMargin={false}
+        />
+      );
       
       return html
         .replace(/\{\{qrCode\}\}/g, qrCodeSvg)
@@ -59,11 +67,6 @@ const ShippingLabel = forwardRef<HTMLDivElement, ShippingLabelProps>(
         .replace(/\{\{carrier\}\}/g, carrier || '')
         .replace(/\{\{totalBottles\}\}/g, totalBottles.toString())
         .replace(/\{\{date\}\}/g, new Date(createdDate).toLocaleDateString());
-    };
-
-    const generateQRCodePath = (value: string) => {
-      // Simple QR code placeholder - in production, this would generate actual QR code paths
-      return `<rect width="100" height="100" fill="black"/><text x="50" y="50" text-anchor="middle" dominant-baseline="middle" font-size="10" fill="white">QR: ${value.substring(0, 8)}</text>`;
     };
 
     if (settings?.custom_html) {

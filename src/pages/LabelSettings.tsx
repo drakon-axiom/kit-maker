@@ -10,6 +10,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { Loader2, Save } from 'lucide-react';
+import { QRCodeSVG } from 'qrcode.react';
+import { renderToStaticMarkup } from 'react-dom/server';
 
 interface LabelSettings {
   id: string;
@@ -150,8 +152,26 @@ const LabelSettingsPage = () => {
       return '<div style="padding: 20px; text-align: center; color: #888;">No custom template. Using default template.</div>';
     }
 
+    // Generate appropriate QR code based on label type
+    const qrValue = settings.label_type === 'order' ? 'ORD-2024-12345' 
+      : settings.label_type === 'shipping' ? 'ORD-2024-12345'
+      : 'BATCH-2024-001';
+    
+    const qrSize = settings.label_type === 'order' ? 140 
+      : settings.label_type === 'shipping' ? 120 
+      : 180;
+
+    const qrCodeSvg = renderToStaticMarkup(
+      <QRCodeSVG 
+        value={qrValue} 
+        size={qrSize}
+        level="H"
+        includeMargin={false}
+      />
+    );
+
     const sampleData: { [key: string]: string } = {
-      '{{qrCode}}': '<div style="display: inline-block; padding: 8px; background: white; border: 2px solid black;"><svg width="120" height="120" viewBox="0 0 120 120"><rect width="120" height="120" fill="white"/><text x="60" y="60" text-anchor="middle" dominant-baseline="middle" font-size="12" fill="black">QR Code</text></svg></div>',
+      '{{qrCode}}': qrCodeSvg,
       '{{orderUid}}': 'ORD-2024-12345',
       '{{humanUid}}': 'AX-001',
       '{{customerName}}': 'John Doe',
