@@ -4,7 +4,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Plus, Loader2, Eye, Search, Download, Edit } from 'lucide-react';
+import { Plus, Loader2, Eye, Search, Download, Edit, ArrowUpDown, ChevronLeft, ChevronRight, Filter, X } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useNavigate } from 'react-router-dom';
 import { Input } from '@/components/ui/input';
@@ -12,6 +12,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import Papa from 'papaparse';
 
 interface Order {
@@ -19,6 +20,7 @@ interface Order {
   uid: string;
   human_uid: string;
   status: string;
+  customer_id: string;
   customer: {
     name: string;
   };
@@ -47,20 +49,55 @@ const statusColors: Record<string, string> = {
   on_hold_materials: 'bg-amber-700',
 };
 
+type SortField = 'created_at' | 'subtotal' | 'status' | 'customer_name' | 'human_uid';
+type SortDirection = 'asc' | 'desc';
+
 const Orders = () => {
   const [orders, setOrders] = useState<Order[]>([]);
+  const [customers, setCustomers] = useState<Array<{ id: string; name: string }>>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedOrders, setSelectedOrders] = useState<Set<string>>(new Set());
   const [bulkEditOpen, setBulkEditOpen] = useState(false);
   const [bulkStatus, setBulkStatus] = useState('');
   const [saving, setSaving] = useState(false);
+  
+  // Sorting
+  const [sortField, setSortField] = useState<SortField>('created_at');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+  
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(25);
+  
+  // Advanced Filters
+  const [filterStatus, setFilterStatus] = useState('');
+  const [filterDepositStatus, setFilterDepositStatus] = useState('');
+  const [filterCustomer, setFilterCustomer] = useState('');
+  const [filterDateFrom, setFilterDateFrom] = useState('');
+  const [filterDateTo, setFilterDateTo] = useState('');
+  
   const { toast } = useToast();
   const navigate = useNavigate();
 
   useEffect(() => {
     fetchOrders();
+    fetchCustomers();
   }, []);
+
+  const fetchCustomers = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('customers')
+        .select('id, name')
+        .order('name');
+
+      if (error) throw error;
+      setCustomers(data || []);
+    } catch (error: any) {
+      console.error('Error fetching customers:', error);
+    }
+  };
 
   const fetchOrders = async () => {
     try {
@@ -176,15 +213,107 @@ const Orders = () => {
     window.URL.revokeObjectURL(url);
   };
 
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+    setCurrentPage(1);
+  };
+
+  const clearFilters = () => {
+    setFilterStatus('');
+    setFilterDepositStatus('');
+    setFilterCustomer('');
+    setFilterDateFrom('');
+    setFilterDateTo('');
+    setSearchQuery('');
+    setCurrentPage(1);
+  };
+
+  const hasActiveFilters = !!(filterStatus || filterDepositStatus || filterCustomer || filterDateFrom || filterDateTo);
+
   const filteredOrders = orders.filter(order => {
-    if (!searchQuery) return true;
-    const query = searchQuery.toLowerCase();
-    return (
-      order.human_uid.toLowerCase().includes(query) ||
-      order.customer?.name.toLowerCase().includes(query) ||
-      formatStatus(order.status).toLowerCase().includes(query)
-    );
+    // Search query
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      const matchesSearch = (
+        order.human_uid.toLowerCase().includes(query) ||
+        order.customer?.name.toLowerCase().includes(query) ||
+        formatStatus(order.status).toLowerCase().includes(query)
+      );
+      if (!matchesSearch) return false;
+    }
+
+    // Status filter
+    if (filterStatus && order.status !== filterStatus) return false;
+
+    // Deposit status filter
+    if (filterDepositStatus && order.deposit_status !== filterDepositStatus) return false;
+
+    // Customer filter
+    if (filterCustomer && order.customer_id !== filterCustomer) return false;
+
+    // Date range filter
+    if (filterDateFrom) {
+      const orderDate = new Date(order.created_at);
+      const fromDate = new Date(filterDateFrom);
+      if (orderDate < fromDate) return false;
+    }
+    if (filterDateTo) {
+      const orderDate = new Date(order.created_at);
+      const toDate = new Date(filterDateTo);
+      toDate.setHours(23, 59, 59, 999);
+      if (orderDate > toDate) return false;
+    }
+
+    return true;
   });
+
+  const sortedOrders = [...filteredOrders].sort((a, b) => {
+    let aVal: any, bVal: any;
+
+    switch (sortField) {
+      case 'created_at':
+        aVal = new Date(a.created_at).getTime();
+        bVal = new Date(b.created_at).getTime();
+        break;
+      case 'subtotal':
+        aVal = a.subtotal;
+        bVal = b.subtotal;
+        break;
+      case 'status':
+        aVal = a.status;
+        bVal = b.status;
+        break;
+      case 'customer_name':
+        aVal = a.customer?.name || '';
+        bVal = b.customer?.name || '';
+        break;
+      case 'human_uid':
+        aVal = a.human_uid;
+        bVal = b.human_uid;
+        break;
+      default:
+        return 0;
+    }
+
+    if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1;
+    if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1;
+    return 0;
+  });
+
+  // Pagination
+  const totalPages = Math.ceil(sortedOrders.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedOrders = sortedOrders.slice(startIndex, endIndex);
+
+  const goToPage = (page: number) => {
+    setCurrentPage(Math.min(Math.max(1, page), totalPages));
+  };
 
   return (
     <div className="p-6 space-y-6">
@@ -262,21 +391,130 @@ const Orders = () => {
 
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle>All Orders</CardTitle>
-              <CardDescription>
-                {filteredOrders.length} of {orders.length} order{orders.length !== 1 ? 's' : ''}
-              </CardDescription>
-            </div>
-            <div className="relative w-72">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search by order ID, customer..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10"
-              />
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle>All Orders</CardTitle>
+                <CardDescription>
+                  Showing {paginatedOrders.length} of {sortedOrders.length} filtered order{sortedOrders.length !== 1 ? 's' : ''} ({orders.length} total)
+                </CardDescription>
+              </div>
+              <div className="flex gap-2">
+                <div className="relative w-64">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search orders..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="relative">
+                      <Filter className="mr-2 h-4 w-4" />
+                      Filters
+                      {hasActiveFilters && (
+                        <Badge variant="destructive" className="ml-2 h-5 w-5 rounded-full p-0 flex items-center justify-center">
+                          !
+                        </Badge>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-80 bg-background border shadow-lg z-50" align="end">
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <h4 className="font-semibold">Advanced Filters</h4>
+                        {hasActiveFilters && (
+                          <Button variant="ghost" size="sm" onClick={clearFilters}>
+                            <X className="h-4 w-4 mr-1" />
+                            Clear
+                          </Button>
+                        )}
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <Label>Status</Label>
+                        <Select value={filterStatus} onValueChange={setFilterStatus}>
+                          <SelectTrigger className="bg-background">
+                            <SelectValue placeholder="All statuses" />
+                          </SelectTrigger>
+                          <SelectContent className="bg-background z-50">
+                            <SelectItem value="">All statuses</SelectItem>
+                            <SelectItem value="draft">Draft</SelectItem>
+                            <SelectItem value="quoted">Quoted</SelectItem>
+                            <SelectItem value="deposit_due">Deposit Due</SelectItem>
+                            <SelectItem value="in_queue">In Queue</SelectItem>
+                            <SelectItem value="in_production">In Production</SelectItem>
+                            <SelectItem value="in_labeling">In Labeling</SelectItem>
+                            <SelectItem value="in_packing">In Packing</SelectItem>
+                            <SelectItem value="packed">Packed</SelectItem>
+                            <SelectItem value="invoiced">Invoiced</SelectItem>
+                            <SelectItem value="payment_due">Payment Due</SelectItem>
+                            <SelectItem value="ready_to_ship">Ready to Ship</SelectItem>
+                            <SelectItem value="shipped">Shipped</SelectItem>
+                            <SelectItem value="cancelled">Cancelled</SelectItem>
+                            <SelectItem value="on_hold_customer">On Hold (Customer)</SelectItem>
+                            <SelectItem value="on_hold_internal">On Hold (Internal)</SelectItem>
+                            <SelectItem value="on_hold_materials">On Hold (Materials)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>Deposit Status</Label>
+                        <Select value={filterDepositStatus} onValueChange={setFilterDepositStatus}>
+                          <SelectTrigger className="bg-background">
+                            <SelectValue placeholder="All deposit statuses" />
+                          </SelectTrigger>
+                          <SelectContent className="bg-background z-50">
+                            <SelectItem value="">All deposit statuses</SelectItem>
+                            <SelectItem value="unpaid">Unpaid</SelectItem>
+                            <SelectItem value="paid">Paid</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>Customer</Label>
+                        <Select value={filterCustomer} onValueChange={setFilterCustomer}>
+                          <SelectTrigger className="bg-background">
+                            <SelectValue placeholder="All customers" />
+                          </SelectTrigger>
+                          <SelectContent className="bg-background z-50">
+                            <SelectItem value="">All customers</SelectItem>
+                            {customers.map(customer => (
+                              <SelectItem key={customer.id} value={customer.id}>
+                                {customer.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>Date From</Label>
+                        <Input
+                          type="date"
+                          value={filterDateFrom}
+                          onChange={(e) => setFilterDateFrom(e.target.value)}
+                          className="bg-background"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>Date To</Label>
+                        <Input
+                          type="date"
+                          value={filterDateTo}
+                          onChange={(e) => setFilterDateTo(e.target.value)}
+                          className="bg-background"
+                        />
+                      </div>
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              </div>
             </div>
           </div>
         </CardHeader>
@@ -285,71 +523,176 @@ const Orders = () => {
             <div className="flex justify-center py-8">
               <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
             </div>
-          ) : filteredOrders.length === 0 ? (
+          ) : sortedOrders.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
               {orders.length === 0 
                 ? "No orders yet. Click \"New Order\" to create your first one."
-                : "No orders match your search criteria."}
+                : "No orders match your filters."}
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-12">
-                    <Checkbox
-                      checked={selectedOrders.size === filteredOrders.length && filteredOrders.length > 0}
-                      onCheckedChange={toggleSelectAll}
-                    />
-                  </TableHead>
-                  <TableHead>Order ID</TableHead>
-                  <TableHead>Customer</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Deposit</TableHead>
-                  <TableHead>Subtotal</TableHead>
-                  <TableHead>Created</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredOrders.map((order) => (
-                  <TableRow key={order.id}>
-                    <TableCell>
+            <>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-12">
                       <Checkbox
-                        checked={selectedOrders.has(order.id)}
-                        onCheckedChange={() => toggleSelectOrder(order.id)}
+                        checked={selectedOrders.size === paginatedOrders.length && paginatedOrders.length > 0}
+                        onCheckedChange={toggleSelectAll}
                       />
-                    </TableCell>
-                    <TableCell className="font-mono font-medium">{order.human_uid}</TableCell>
-                    <TableCell>{order.customer?.name}</TableCell>
-                    <TableCell>
-                      <Badge className={statusColors[order.status] || 'bg-muted'}>
-                        {formatStatus(order.status)}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      {order.deposit_required ? (
-                        <Badge variant={order.deposit_status === 'paid' ? 'default' : 'outline'}>
-                          {order.deposit_status}
-                        </Badge>
-                      ) : (
-                        <span className="text-muted-foreground">-</span>
-                      )}
-                    </TableCell>
-                    <TableCell>${order.subtotal.toFixed(2)}</TableCell>
-                    <TableCell>{new Date(order.created_at).toLocaleDateString()}</TableCell>
-                    <TableCell className="text-right">
+                    </TableHead>
+                    <TableHead>
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => navigate(`/orders/${order.id}`)}
+                        onClick={() => handleSort('human_uid')}
+                        className="flex items-center gap-1 hover:bg-transparent"
                       >
-                        <Eye className="h-4 w-4" />
+                        Order ID
+                        <ArrowUpDown className="h-3 w-3" />
                       </Button>
-                    </TableCell>
+                    </TableHead>
+                    <TableHead>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleSort('customer_name')}
+                        className="flex items-center gap-1 hover:bg-transparent"
+                      >
+                        Customer
+                        <ArrowUpDown className="h-3 w-3" />
+                      </Button>
+                    </TableHead>
+                    <TableHead>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleSort('status')}
+                        className="flex items-center gap-1 hover:bg-transparent"
+                      >
+                        Status
+                        <ArrowUpDown className="h-3 w-3" />
+                      </Button>
+                    </TableHead>
+                    <TableHead>Deposit</TableHead>
+                    <TableHead>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleSort('subtotal')}
+                        className="flex items-center gap-1 hover:bg-transparent"
+                      >
+                        Subtotal
+                        <ArrowUpDown className="h-3 w-3" />
+                      </Button>
+                    </TableHead>
+                    <TableHead>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleSort('created_at')}
+                        className="flex items-center gap-1 hover:bg-transparent"
+                      >
+                        Created
+                        <ArrowUpDown className="h-3 w-3" />
+                      </Button>
+                    </TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {paginatedOrders.map((order) => (
+                    <TableRow key={order.id}>
+                      <TableCell>
+                        <Checkbox
+                          checked={selectedOrders.has(order.id)}
+                          onCheckedChange={() => toggleSelectOrder(order.id)}
+                        />
+                      </TableCell>
+                      <TableCell className="font-mono font-medium">{order.human_uid}</TableCell>
+                      <TableCell>{order.customer?.name}</TableCell>
+                      <TableCell>
+                        <Badge className={statusColors[order.status] || 'bg-muted'}>
+                          {formatStatus(order.status)}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        {order.deposit_required ? (
+                          <Badge variant={order.deposit_status === 'paid' ? 'default' : 'outline'}>
+                            {order.deposit_status}
+                          </Badge>
+                        ) : (
+                          <span className="text-muted-foreground">-</span>
+                        )}
+                      </TableCell>
+                      <TableCell>${order.subtotal.toFixed(2)}</TableCell>
+                      <TableCell>{new Date(order.created_at).toLocaleDateString()}</TableCell>
+                      <TableCell className="text-right">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => navigate(`/orders/${order.id}`)}
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between px-6 py-4 border-t">
+                  <div className="text-sm text-muted-foreground">
+                    Showing {startIndex + 1} to {Math.min(endIndex, sortedOrders.length)} of {sortedOrders.length} results
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => goToPage(currentPage - 1)}
+                      disabled={currentPage === 1}
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                      Previous
+                    </Button>
+                    <div className="flex items-center gap-1">
+                      {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                        let pageNum;
+                        if (totalPages <= 5) {
+                          pageNum = i + 1;
+                        } else if (currentPage <= 3) {
+                          pageNum = i + 1;
+                        } else if (currentPage >= totalPages - 2) {
+                          pageNum = totalPages - 4 + i;
+                        } else {
+                          pageNum = currentPage - 2 + i;
+                        }
+                        return (
+                          <Button
+                            key={pageNum}
+                            variant={currentPage === pageNum ? 'default' : 'outline'}
+                            size="sm"
+                            onClick={() => goToPage(pageNum)}
+                            className="w-9"
+                          >
+                            {pageNum}
+                          </Button>
+                        );
+                      })}
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => goToPage(currentPage + 1)}
+                      disabled={currentPage === totalPages}
+                    >
+                      Next
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </CardContent>
       </Card>
