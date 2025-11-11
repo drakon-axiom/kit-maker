@@ -109,3 +109,9 @@ All colors MUST be HSL.
     @apply bg-background text-foreground;
   }
 }
+
+@media print {
+  .page-break-after {
+    page-break-after: always;
+  }
+}

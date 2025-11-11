@@ -1,10 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Plus, Loader2, Eye, Search, Download, Edit, ArrowUpDown, ChevronLeft, ChevronRight, Filter, X } from 'lucide-react';
+import { Plus, Loader2, Eye, Search, Download, Edit, ArrowUpDown, ChevronLeft, ChevronRight, Filter, X, Printer } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useNavigate } from 'react-router-dom';
 import { Input } from '@/components/ui/input';
@@ -13,7 +13,12 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { useReactToPrint } from 'react-to-print';
 import Papa from 'papaparse';
+import OrderLabel from '@/components/OrderLabel';
+import ShippingLabel from '@/components/ShippingLabel';
+import BatchLabel from '@/components/BatchLabel';
 
 interface Order {
   id: string;
@@ -23,11 +28,29 @@ interface Order {
   customer_id: string;
   customer: {
     name: string;
+    email?: string;
+    phone?: string;
   };
   subtotal: number;
   deposit_required: boolean;
   deposit_status: string;
   created_at: string;
+}
+
+interface Batch {
+  uid: string;
+  human_uid: string;
+  qty_bottle_planned: number;
+  created_at: string;
+}
+
+interface OrderWithDetails extends Order {
+  totalBottles?: number;
+  batches?: Batch[];
+  shipment?: {
+    tracking_no: string;
+    carrier: string;
+  };
 }
 
 const statusColors: Record<string, string> = {
@@ -77,8 +100,27 @@ const Orders = () => {
   const [filterDateFrom, setFilterDateFrom] = useState('');
   const [filterDateTo, setFilterDateTo] = useState('');
   
+  // Print state
+  const [printOrder, setPrintOrder] = useState<OrderWithDetails | null>(null);
+  const [printType, setPrintType] = useState<'order' | 'shipping' | 'batch' | null>(null);
+  const orderLabelRef = useRef<HTMLDivElement>(null);
+  const shippingLabelRef = useRef<HTMLDivElement>(null);
+  const batchLabelsRef = useRef<HTMLDivElement>(null);
+  
   const { toast } = useToast();
   const navigate = useNavigate();
+
+  const handlePrint = useReactToPrint({
+    contentRef: orderLabelRef,
+  });
+
+  const handlePrintShipping = useReactToPrint({
+    contentRef: shippingLabelRef,
+  });
+
+  const handlePrintBatch = useReactToPrint({
+    contentRef: batchLabelsRef,
+  });
 
   useEffect(() => {
     fetchOrders();
@@ -105,7 +147,7 @@ const Orders = () => {
         .from('sales_orders')
         .select(`
           *,
-          customer:customers(name)
+          customer:customers(name, email, phone)
         `)
         .order('created_at', { ascending: false });
 
@@ -119,6 +161,55 @@ const Orders = () => {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchOrderDetails = async (orderId: string) => {
+    try {
+      // Fetch order with customer and line items
+      const { data: orderData, error: orderError } = await supabase
+        .from('sales_orders')
+        .select(`
+          *,
+          customer:customers(name, email, phone),
+          lines:sales_order_lines(bottle_qty)
+        `)
+        .eq('id', orderId)
+        .single();
+
+      if (orderError) throw orderError;
+
+      // Calculate total bottles
+      const totalBottles = orderData.lines?.reduce((sum: number, line: any) => sum + line.bottle_qty, 0) || 0;
+
+      // Fetch batches
+      const { data: batches, error: batchError } = await supabase
+        .from('production_batches')
+        .select('uid, human_uid, qty_bottle_planned, created_at')
+        .eq('so_id', orderId);
+
+      if (batchError) throw batchError;
+
+      // Fetch shipment
+      const { data: shipment } = await supabase
+        .from('shipments')
+        .select('tracking_no, carrier')
+        .eq('so_id', orderId)
+        .single();
+
+      return {
+        ...orderData,
+        totalBottles,
+        batches: batches || [],
+        shipment: shipment || undefined,
+      } as OrderWithDetails;
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+      return null;
     }
   };
 
@@ -313,6 +404,20 @@ const Orders = () => {
 
   const goToPage = (page: number) => {
     setCurrentPage(Math.min(Math.max(1, page), totalPages));
+  };
+
+  const handlePrintLabel = async (order: Order, type: 'order' | 'shipping' | 'batch') => {
+    const orderDetails = await fetchOrderDetails(order.id);
+    if (!orderDetails) return;
+
+    setPrintOrder(orderDetails);
+    setPrintType(type);
+    
+    setTimeout(() => {
+      if (type === 'order') handlePrint();
+      else if (type === 'shipping') handlePrintShipping();
+      else if (type === 'batch') handlePrintBatch();
+    }, 100);
   };
 
   return (
@@ -627,13 +732,33 @@ const Orders = () => {
                       <TableCell>${order.subtotal.toFixed(2)}</TableCell>
                       <TableCell>{new Date(order.created_at).toLocaleDateString()}</TableCell>
                       <TableCell className="text-right">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => navigate(`/orders/${order.id}`)}
-                        >
-                          <Eye className="h-4 w-4" />
-                        </Button>
+                        <div className="flex items-center justify-end gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => navigate(`/orders/${order.id}`)}
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="sm">
+                                <Printer className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => handlePrintLabel(order, 'order')}>
+                                Order Label
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handlePrintLabel(order, 'shipping')}>
+                                Shipping Label
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handlePrintLabel(order, 'batch')}>
+                                Batch Labels
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -696,6 +821,60 @@ const Orders = () => {
           )}
         </CardContent>
       </Card>
+
+      {/* Hidden print components */}
+      {printOrder && printType === 'order' && (
+        <div className="hidden">
+          <OrderLabel
+            ref={orderLabelRef}
+            orderUid={printOrder.uid}
+            humanUid={printOrder.human_uid}
+            customerName={printOrder.customer.name}
+            customerEmail={printOrder.customer.email}
+            customerPhone={printOrder.customer.phone}
+            subtotal={printOrder.subtotal}
+            totalBottles={printOrder.totalBottles || 0}
+            createdDate={printOrder.created_at}
+            status={formatStatus(printOrder.status)}
+          />
+        </div>
+      )}
+
+      {printOrder && printType === 'shipping' && (
+        <div className="hidden">
+          <ShippingLabel
+            ref={shippingLabelRef}
+            orderUid={printOrder.uid}
+            humanUid={printOrder.human_uid}
+            customerName={printOrder.customer.name}
+            customerEmail={printOrder.customer.email}
+            customerPhone={printOrder.customer.phone}
+            trackingNumber={printOrder.shipment?.tracking_no}
+            carrier={printOrder.shipment?.carrier}
+            totalBottles={printOrder.totalBottles || 0}
+            createdDate={printOrder.created_at}
+          />
+        </div>
+      )}
+
+      {printOrder && printType === 'batch' && printOrder.batches && printOrder.batches.length > 0 && (
+        <div className="hidden">
+          <div ref={batchLabelsRef}>
+            {printOrder.batches.map((batch) => (
+              <div key={batch.uid} className="page-break-after">
+                <BatchLabel
+                  batchUid={batch.uid}
+                  humanUid={batch.human_uid}
+                  orderUid={printOrder.human_uid}
+                  customerName={printOrder.customer.name}
+                  quantity={batch.qty_bottle_planned}
+                  createdDate={batch.created_at}
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
