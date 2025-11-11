@@ -57,8 +57,15 @@ const WholesaleApplications = () => {
     setActionLoading(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
+      const application = applications.find(app => app.id === appId);
       
-      const { error } = await supabase
+      if (!application) {
+        toast.error('Application not found');
+        return;
+      }
+
+      // Update application status
+      const { error: updateError } = await supabase
         .from('wholesale_applications')
         .update({
           status: newStatus,
@@ -68,9 +75,30 @@ const WholesaleApplications = () => {
         })
         .eq('id', appId);
 
-      if (error) throw error;
+      if (updateError) throw updateError;
 
-      toast.success(`Application ${newStatus}`);
+      // If approved, create customer record
+      if (newStatus === 'approved') {
+        const { error: customerError } = await supabase
+          .from('customers')
+          .insert([{
+            name: application.company_name,
+            email: application.email,
+            phone: application.phone,
+            default_terms: 'Net 30',
+          }]);
+
+        if (customerError) {
+          console.error('Error creating customer:', customerError);
+          toast.error('Application approved but failed to create customer record');
+          return;
+        }
+        
+        toast.success('Application approved and customer created successfully!');
+      } else {
+        toast.success('Application rejected');
+      }
+
       setSelectedApp(null);
       setReviewNotes('');
       fetchApplications();
