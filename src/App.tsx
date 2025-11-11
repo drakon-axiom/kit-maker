@@ -18,6 +18,8 @@ import Notifications from "./pages/Notifications";
 import Shipments from "./pages/Shipments";
 import Settings from "./pages/Settings";
 import LabelSettings from "./pages/LabelSettings";
+import WholesaleSignup from "./pages/WholesaleSignup";
+import WholesaleApplications from "./pages/WholesaleApplications";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Layout from "./components/Layout";
 import NotFound from "./pages/NotFound";
@@ -33,6 +35,7 @@ const App = () => (
         <AuthProvider>
           <Routes>
             <Route path="/auth" element={<Auth />} />
+            <Route path="/wholesale-signup" element={<WholesaleSignup />} />
             <Route
               path="/"
               element={
@@ -160,6 +163,14 @@ const App = () => (
                   <Layout>
                     <LabelSettings />
                   </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/wholesale-applications"
+              element={
+                <ProtectedRoute requiredRole="admin">
+                  <WholesaleApplications />
                 </ProtectedRoute>
               }
             />

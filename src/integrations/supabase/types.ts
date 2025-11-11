@@ -730,6 +730,54 @@ export type Database = {
         }
         Relationships: []
       }
+      wholesale_applications: {
+        Row: {
+          business_type: string | null
+          company_name: string
+          contact_name: string
+          created_at: string
+          email: string
+          id: string
+          message: string | null
+          notes: string | null
+          phone: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: Database["public"]["Enums"]["application_status"]
+          website: string | null
+        }
+        Insert: {
+          business_type?: string | null
+          company_name: string
+          contact_name: string
+          created_at?: string
+          email: string
+          id?: string
+          message?: string | null
+          notes?: string | null
+          phone?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: Database["public"]["Enums"]["application_status"]
+          website?: string | null
+        }
+        Update: {
+          business_type?: string | null
+          company_name?: string
+          contact_name?: string
+          created_at?: string
+          email?: string
+          id?: string
+          message?: string | null
+          notes?: string | null
+          phone?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: Database["public"]["Enums"]["application_status"]
+          website?: string | null
+        }
+        Relationships: []
+      }
       workflow_steps: {
         Row: {
           batch_id: string
@@ -791,6 +839,7 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "operator"
+      application_status: "pending" | "approved" | "rejected"
       batch_status: "queued" | "wip" | "hold" | "complete"
       deposit_status: "unpaid" | "partial" | "paid"
       invoice_status: "unpaid" | "paid"
@@ -944,6 +993,7 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "operator"],
+      application_status: ["pending", "approved", "rejected"],
       batch_status: ["queued", "wip", "hold", "complete"],
       deposit_status: ["unpaid", "partial", "paid"],
       invoice_status: ["unpaid", "paid"],

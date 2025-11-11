@@ -13,6 +13,7 @@ import {
   TruckIcon,
   Mail,
   Tags,
+  UserPlus,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -46,6 +47,7 @@ export function AppSidebar() {
   const adminItems = [
     { title: 'Customers', url: '/customers', icon: Users },
     { title: 'Products (SKUs)', url: '/skus', icon: Package },
+    { title: 'Wholesale Applications', url: '/wholesale-applications', icon: UserPlus },
     { title: 'Notifications', url: '/notifications', icon: Mail },
     { title: 'Label Settings', url: '/label-settings', icon: Tags },
     { title: 'Settings', url: '/settings', icon: Settings },
