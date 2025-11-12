@@ -109,6 +109,34 @@ const Customers = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    // Validate shipping address if any field is filled
+    const hasShippingFields = formData.shipping_address_line1 || formData.shipping_city || 
+                              formData.shipping_state || formData.shipping_zip;
+    if (hasShippingFields && (!formData.shipping_address_line1 || !formData.shipping_city || 
+                               !formData.shipping_state || !formData.shipping_zip)) {
+      toast({
+        title: 'Incomplete Shipping Address',
+        description: 'Please fill in all required shipping address fields (Address Line 1, City, State, ZIP)',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // Validate billing address if not same as shipping and any field is filled
+    if (!formData.billing_same_as_shipping) {
+      const hasBillingFields = formData.billing_address_line1 || formData.billing_city || 
+                               formData.billing_state || formData.billing_zip;
+      if (hasBillingFields && (!formData.billing_address_line1 || !formData.billing_city || 
+                                !formData.billing_state || !formData.billing_zip)) {
+        toast({
+          title: 'Incomplete Billing Address',
+          description: 'Please fill in all required billing address fields (Address Line 1, City, State, ZIP)',
+          variant: 'destructive',
+        });
+        return;
+      }
+    }
+
     try {
       const customerData = {
         name: formData.name,

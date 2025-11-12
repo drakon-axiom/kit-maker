@@ -23,6 +23,19 @@ interface Application {
   created_at: string;
   reviewed_at: string | null;
   notes: string | null;
+  shipping_address_line1: string | null;
+  shipping_address_line2: string | null;
+  shipping_city: string | null;
+  shipping_state: string | null;
+  shipping_zip: string | null;
+  shipping_country: string | null;
+  billing_address_line1: string | null;
+  billing_address_line2: string | null;
+  billing_city: string | null;
+  billing_state: string | null;
+  billing_zip: string | null;
+  billing_country: string | null;
+  billing_same_as_shipping: boolean | null;
 }
 
 const WholesaleApplications = () => {
@@ -86,6 +99,19 @@ const WholesaleApplications = () => {
             email: application.email,
             phone: application.phone,
             default_terms: 'Net 30',
+            shipping_address_line1: application.shipping_address_line1,
+            shipping_address_line2: application.shipping_address_line2,
+            shipping_city: application.shipping_city,
+            shipping_state: application.shipping_state,
+            shipping_zip: application.shipping_zip,
+            shipping_country: application.shipping_country,
+            billing_address_line1: application.billing_address_line1,
+            billing_address_line2: application.billing_address_line2,
+            billing_city: application.billing_city,
+            billing_state: application.billing_state,
+            billing_zip: application.billing_zip,
+            billing_country: application.billing_country,
+            billing_same_as_shipping: application.billing_same_as_shipping,
           }]);
 
         if (customerError) {

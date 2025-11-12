@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Loader2 } from 'lucide-react';
@@ -20,6 +21,19 @@ const WholesaleSignup = () => {
     business_type: '',
     website: '',
     message: '',
+    shipping_address_line1: '',
+    shipping_address_line2: '',
+    shipping_city: '',
+    shipping_state: '',
+    shipping_zip: '',
+    shipping_country: 'USA',
+    billing_address_line1: '',
+    billing_address_line2: '',
+    billing_city: '',
+    billing_state: '',
+    billing_zip: '',
+    billing_country: 'USA',
+    billing_same_as_shipping: true,
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -28,6 +42,26 @@ const WholesaleSignup = () => {
     if (!formData.company_name || !formData.contact_name || !formData.email) {
       toast.error('Please fill in all required fields');
       return;
+    }
+
+    // Validate shipping address if any field is filled
+    const hasShippingFields = formData.shipping_address_line1 || formData.shipping_city || 
+                              formData.shipping_state || formData.shipping_zip;
+    if (hasShippingFields && (!formData.shipping_address_line1 || !formData.shipping_city || 
+                               !formData.shipping_state || !formData.shipping_zip)) {
+      toast.error('Please fill in all required shipping address fields (Address Line 1, City, State, ZIP)');
+      return;
+    }
+
+    // Validate billing address if not same as shipping and any field is filled
+    if (!formData.billing_same_as_shipping) {
+      const hasBillingFields = formData.billing_address_line1 || formData.billing_city || 
+                               formData.billing_state || formData.billing_zip;
+      if (hasBillingFields && (!formData.billing_address_line1 || !formData.billing_city || 
+                                !formData.billing_state || !formData.billing_zip)) {
+        toast.error('Please fill in all required billing address fields (Address Line 1, City, State, ZIP)');
+        return;
+      }
     }
 
     setLoading(true);
@@ -48,6 +82,19 @@ const WholesaleSignup = () => {
         business_type: '',
         website: '',
         message: '',
+        shipping_address_line1: '',
+        shipping_address_line2: '',
+        shipping_city: '',
+        shipping_state: '',
+        shipping_zip: '',
+        shipping_country: 'USA',
+        billing_address_line1: '',
+        billing_address_line2: '',
+        billing_city: '',
+        billing_state: '',
+        billing_zip: '',
+        billing_country: 'USA',
+        billing_same_as_shipping: true,
       });
     } catch (error: any) {
       console.error('Error submitting application:', error);
@@ -145,6 +192,139 @@ const WholesaleSignup = () => {
                 placeholder="Tell us about your business and why you'd like to become a wholesale customer..."
                 rows={4}
               />
+            </div>
+
+            <div className="space-y-4 border-t pt-4">
+              <h3 className="text-lg font-semibold">Shipping Address</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2 col-span-2">
+                  <Label htmlFor="shipping_address_line1">Address Line 1</Label>
+                  <Input
+                    id="shipping_address_line1"
+                    value={formData.shipping_address_line1}
+                    onChange={(e) => setFormData({ ...formData, shipping_address_line1: e.target.value })}
+                    placeholder="123 Main Street"
+                  />
+                </div>
+                <div className="space-y-2 col-span-2">
+                  <Label htmlFor="shipping_address_line2">Address Line 2</Label>
+                  <Input
+                    id="shipping_address_line2"
+                    value={formData.shipping_address_line2}
+                    onChange={(e) => setFormData({ ...formData, shipping_address_line2: e.target.value })}
+                    placeholder="Suite 100"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="shipping_city">City</Label>
+                  <Input
+                    id="shipping_city"
+                    value={formData.shipping_city}
+                    onChange={(e) => setFormData({ ...formData, shipping_city: e.target.value })}
+                    placeholder="New York"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="shipping_state">State</Label>
+                  <Input
+                    id="shipping_state"
+                    value={formData.shipping_state}
+                    onChange={(e) => setFormData({ ...formData, shipping_state: e.target.value })}
+                    placeholder="NY"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="shipping_zip">ZIP Code</Label>
+                  <Input
+                    id="shipping_zip"
+                    value={formData.shipping_zip}
+                    onChange={(e) => setFormData({ ...formData, shipping_zip: e.target.value })}
+                    placeholder="10001"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="shipping_country">Country</Label>
+                  <Input
+                    id="shipping_country"
+                    value={formData.shipping_country}
+                    onChange={(e) => setFormData({ ...formData, shipping_country: e.target.value })}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="billing_same"
+                  checked={formData.billing_same_as_shipping}
+                  onCheckedChange={(checked) => setFormData({ ...formData, billing_same_as_shipping: checked as boolean })}
+                />
+                <Label htmlFor="billing_same" className="text-sm font-normal cursor-pointer">
+                  Billing address is the same as shipping address
+                </Label>
+              </div>
+
+              {!formData.billing_same_as_shipping && (
+                <>
+                  <h3 className="text-lg font-semibold">Billing Address</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2 col-span-2">
+                      <Label htmlFor="billing_address_line1">Address Line 1</Label>
+                      <Input
+                        id="billing_address_line1"
+                        value={formData.billing_address_line1}
+                        onChange={(e) => setFormData({ ...formData, billing_address_line1: e.target.value })}
+                        placeholder="123 Main Street"
+                      />
+                    </div>
+                    <div className="space-y-2 col-span-2">
+                      <Label htmlFor="billing_address_line2">Address Line 2</Label>
+                      <Input
+                        id="billing_address_line2"
+                        value={formData.billing_address_line2}
+                        onChange={(e) => setFormData({ ...formData, billing_address_line2: e.target.value })}
+                        placeholder="Suite 100"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="billing_city">City</Label>
+                      <Input
+                        id="billing_city"
+                        value={formData.billing_city}
+                        onChange={(e) => setFormData({ ...formData, billing_city: e.target.value })}
+                        placeholder="New York"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="billing_state">State</Label>
+                      <Input
+                        id="billing_state"
+                        value={formData.billing_state}
+                        onChange={(e) => setFormData({ ...formData, billing_state: e.target.value })}
+                        placeholder="NY"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="billing_zip">ZIP Code</Label>
+                      <Input
+                        id="billing_zip"
+                        value={formData.billing_zip}
+                        onChange={(e) => setFormData({ ...formData, billing_zip: e.target.value })}
+                        placeholder="10001"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="billing_country">Country</Label>
+                      <Input
+                        id="billing_country"
+                        value={formData.billing_country}
+                        onChange={(e) => setFormData({ ...formData, billing_country: e.target.value })}
+                      />
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
 
             <div className="flex gap-3 pt-4">

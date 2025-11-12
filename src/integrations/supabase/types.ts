@@ -774,6 +774,13 @@ export type Database = {
       }
       wholesale_applications: {
         Row: {
+          billing_address_line1: string | null
+          billing_address_line2: string | null
+          billing_city: string | null
+          billing_country: string | null
+          billing_same_as_shipping: boolean | null
+          billing_state: string | null
+          billing_zip: string | null
           business_type: string | null
           company_name: string
           contact_name: string
@@ -785,10 +792,23 @@ export type Database = {
           phone: string | null
           reviewed_at: string | null
           reviewed_by: string | null
+          shipping_address_line1: string | null
+          shipping_address_line2: string | null
+          shipping_city: string | null
+          shipping_country: string | null
+          shipping_state: string | null
+          shipping_zip: string | null
           status: Database["public"]["Enums"]["application_status"]
           website: string | null
         }
         Insert: {
+          billing_address_line1?: string | null
+          billing_address_line2?: string | null
+          billing_city?: string | null
+          billing_country?: string | null
+          billing_same_as_shipping?: boolean | null
+          billing_state?: string | null
+          billing_zip?: string | null
           business_type?: string | null
           company_name: string
           contact_name: string
@@ -800,10 +820,23 @@ export type Database = {
           phone?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
+          shipping_address_line1?: string | null
+          shipping_address_line2?: string | null
+          shipping_city?: string | null
+          shipping_country?: string | null
+          shipping_state?: string | null
+          shipping_zip?: string | null
           status?: Database["public"]["Enums"]["application_status"]
           website?: string | null
         }
         Update: {
+          billing_address_line1?: string | null
+          billing_address_line2?: string | null
+          billing_city?: string | null
+          billing_country?: string | null
+          billing_same_as_shipping?: boolean | null
+          billing_state?: string | null
+          billing_zip?: string | null
           business_type?: string | null
           company_name?: string
           contact_name?: string
@@ -815,6 +848,12 @@ export type Database = {
           phone?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
+          shipping_address_line1?: string | null
+          shipping_address_line2?: string | null
+          shipping_city?: string | null
+          shipping_country?: string | null
+          shipping_state?: string | null
+          shipping_zip?: string | null
           status?: Database["public"]["Enums"]["application_status"]
           website?: string | null
         }
