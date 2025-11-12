@@ -157,164 +157,155 @@ const Queue = () => {
   return (
     <div className="p-6 space-y-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Production Dashboard</h1>
-        <p className="text-muted-foreground mt-1">Monitor active batches and workflow stages</p>
+        <h1 className="text-3xl font-bold tracking-tight">Production Queue</h1>
+        <p className="text-muted-foreground mt-1">Visual overview of current and upcoming production batches (FIFO)</p>
       </div>
 
-      {/* Batch Summary */}
-      <div>
-        <h2 className="text-xl font-semibold mb-3">Production Batches</h2>
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Queued Batches</CardTitle>
-              <Clock className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {batchSummary.find(b => b.status === 'queued')?.count || 0}
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">
-                {batchSummary.find(b => b.status === 'queued')?.total_bottles || 0} bottles planned
-              </p>
-            </CardContent>
-          </Card>
+      {/* Key Metrics */}
+      <div className="grid gap-4 md:grid-cols-4">
+        <Card className="border-l-4 border-l-purple-500">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Queued</CardTitle>
+            <Clock className="h-5 w-5 text-purple-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold">
+              {batchSummary.find(b => b.status === 'queued')?.count || 0}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              {batchSummary.find(b => b.status === 'queued')?.total_bottles || 0} bottles
+            </p>
+          </CardContent>
+        </Card>
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">In Progress</CardTitle>
-              <PlayCircle className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {batchSummary.find(b => b.status === 'wip')?.count || 0}
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">
-                {batchSummary.find(b => b.status === 'wip')?.total_bottles || 0} bottles in production
-              </p>
-            </CardContent>
-          </Card>
-        </div>
+        <Card className="border-l-4 border-l-primary">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">In Progress</CardTitle>
+            <PlayCircle className="h-5 w-5 text-primary" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold">
+              {batchSummary.find(b => b.status === 'wip')?.count || 0}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              {batchSummary.find(b => b.status === 'wip')?.total_bottles || 0} bottles
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-l-4 border-l-blue-500">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Batches</CardTitle>
+            <Package className="h-5 w-5 text-blue-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold">
+              {activeBatches.length}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">Active</p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-l-4 border-l-green-500">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Bottles</CardTitle>
+            <Box className="h-5 w-5 text-green-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold">
+              {batchSummary.reduce((sum, b) => sum + b.total_bottles, 0)}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">Planned</p>
+          </CardContent>
+        </Card>
       </div>
 
-      {/* Order Workflow Stages */}
-      <div>
-        <h2 className="text-xl font-semibold mb-3">Order Workflow Stages</h2>
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">In Queue</CardTitle>
-              <Clock className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {orderSummary.find(o => o.status === 'in_queue')?.count || 0}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">In Production</CardTitle>
-              <PlayCircle className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {orderSummary.find(o => o.status === 'in_production')?.count || 0}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">In Labeling</CardTitle>
-              <Tag className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {orderSummary.find(o => o.status === 'in_labeling')?.count || 0}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">In Packing</CardTitle>
-              <Box className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {orderSummary.find(o => o.status === 'in_packing')?.count || 0}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Packed</CardTitle>
-              <Package className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {orderSummary.find(o => o.status === 'packed')?.count || 0}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Ready to Ship</CardTitle>
-              <CheckCircle className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {orderSummary.find(o => o.status === 'ready_to_ship')?.count || 0}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-
-      {/* Active Batches List */}
+      {/* Production Queue - FIFO Order */}
       <Card>
         <CardHeader>
-          <CardTitle>Active Batches</CardTitle>
-          <CardDescription>Currently queued and in-progress batches</CardDescription>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="text-xl">Production Queue (FIFO)</CardTitle>
+              <CardDescription>Batches ordered by priority and planned start date</CardDescription>
+            </div>
+            <Badge variant="outline" className="text-sm">
+              {activeBatches.length} Active
+            </Badge>
+          </div>
         </CardHeader>
         <CardContent>
           {activeBatches.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              No active batches. Create orders to see production batches here.
+            <div className="text-center py-12 text-muted-foreground">
+              <Package className="h-12 w-12 mx-auto mb-3 opacity-50" />
+              <p className="text-lg font-medium">No active batches</p>
+              <p className="text-sm">Create orders to see production batches here</p>
             </div>
           ) : (
-            <div className="space-y-3">
-              {activeBatches.map((batch) => (
+            <div className="space-y-2">
+              {activeBatches.map((batch, index) => (
                 <div
                   key={batch.id}
-                  className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
+                  className="relative flex items-center gap-4 p-4 border-2 rounded-lg hover:border-primary/50 transition-all"
                 >
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3">
-                      <span className="font-mono font-medium">{batch.human_uid}</span>
-                      <Badge className={statusColors[batch.status] || 'bg-muted'}>
-                        {formatStatus(batch.status)}
+                  {/* Queue Position */}
+                  <div className="flex flex-col items-center justify-center w-12 h-12 rounded-full bg-muted font-bold text-lg">
+                    {index + 1}
+                  </div>
+
+                  {/* Batch Info */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-3 mb-1">
+                      <span className="font-mono font-bold text-lg">{batch.human_uid}</span>
+                      <Badge 
+                        variant={batch.status === 'wip' ? 'default' : 'secondary'}
+                        className={batch.status === 'wip' ? 'bg-primary' : 'bg-purple-500'}
+                      >
+                        {batch.status === 'wip' ? 'IN PROGRESS' : 'QUEUED'}
                       </Badge>
                     </div>
-                    <div className="text-sm text-muted-foreground mt-1">
-                      Order: {batch.sales_order?.human_uid} • {batch.sales_order?.customer?.name}
+                    <div className="text-sm text-muted-foreground">
+                      <span className="font-medium">Order:</span> {batch.sales_order?.human_uid}
+                    </div>
+                    <div className="text-sm text-muted-foreground">
+                      <span className="font-medium">Customer:</span> {batch.sales_order?.customer?.name}
                     </div>
                   </div>
-                  <div className="text-right">
-                    <div className="text-sm font-medium">
-                      {batch.qty_bottle_good || 0} / {batch.qty_bottle_planned} bottles
+
+                  {/* Production Stats */}
+                  <div className="flex items-center gap-6">
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-primary">
+                        {batch.qty_bottle_planned}
+                      </div>
+                      <div className="text-xs text-muted-foreground">Planned</div>
                     </div>
-                    <div className="text-xs text-muted-foreground">
+                    {batch.status === 'wip' && (
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-green-600">
+                          {batch.qty_bottle_good}
+                        </div>
+                        <div className="text-xs text-muted-foreground">Completed</div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Schedule Info */}
+                  <div className="text-right min-w-[140px]">
+                    <div className="text-xs font-medium text-muted-foreground mb-1">
+                      {batch.actual_start ? 'Started' : 'Scheduled'}
+                    </div>
+                    <div className="text-sm font-medium">
                       {batch.actual_start 
-                        ? `Started ${new Date(batch.actual_start).toLocaleDateString()}`
+                        ? new Date(batch.actual_start).toLocaleDateString()
                         : batch.planned_start
-                        ? `Planned ${new Date(batch.planned_start).toLocaleDateString()}`
+                        ? new Date(batch.planned_start).toLocaleDateString()
                         : 'Not scheduled'}
                     </div>
+                    {batch.actual_start && (
+                      <div className="text-xs text-muted-foreground mt-1">
+                        {Math.round((Date.now() - new Date(batch.actual_start).getTime()) / (1000 * 60 * 60))}h ago
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}
