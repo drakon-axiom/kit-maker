@@ -11,6 +11,7 @@ import { Plus, Pencil, Loader2, Trash2, Upload, AlertCircle, Search } from 'luci
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Checkbox } from '@/components/ui/checkbox';
 import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
 
@@ -20,6 +21,20 @@ interface Customer {
   email: string | null;
   phone: string | null;
   default_terms: string | null;
+  shipping_address_line1: string | null;
+  shipping_address_line2: string | null;
+  shipping_city: string | null;
+  shipping_state: string | null;
+  shipping_zip: string | null;
+  shipping_country: string | null;
+  billing_address_line1: string | null;
+  billing_address_line2: string | null;
+  billing_city: string | null;
+  billing_state: string | null;
+  billing_zip: string | null;
+  billing_country: string | null;
+  billing_same_as_shipping: boolean | null;
+  notes: string | null;
   created_at: string;
 }
 
@@ -50,6 +65,20 @@ const Customers = () => {
     email: '',
     phone: '',
     default_terms: '',
+    shipping_address_line1: '',
+    shipping_address_line2: '',
+    shipping_city: '',
+    shipping_state: '',
+    shipping_zip: '',
+    shipping_country: 'USA',
+    billing_address_line1: '',
+    billing_address_line2: '',
+    billing_city: '',
+    billing_state: '',
+    billing_zip: '',
+    billing_country: 'USA',
+    billing_same_as_shipping: true,
+    notes: '',
   });
   const { toast } = useToast();
 
@@ -81,15 +110,31 @@ const Customers = () => {
     e.preventDefault();
 
     try {
+      const customerData = {
+        name: formData.name,
+        email: formData.email || null,
+        phone: formData.phone || null,
+        default_terms: formData.default_terms || null,
+        shipping_address_line1: formData.shipping_address_line1 || null,
+        shipping_address_line2: formData.shipping_address_line2 || null,
+        shipping_city: formData.shipping_city || null,
+        shipping_state: formData.shipping_state || null,
+        shipping_zip: formData.shipping_zip || null,
+        shipping_country: formData.shipping_country || null,
+        billing_address_line1: formData.billing_same_as_shipping ? null : (formData.billing_address_line1 || null),
+        billing_address_line2: formData.billing_same_as_shipping ? null : (formData.billing_address_line2 || null),
+        billing_city: formData.billing_same_as_shipping ? null : (formData.billing_city || null),
+        billing_state: formData.billing_same_as_shipping ? null : (formData.billing_state || null),
+        billing_zip: formData.billing_same_as_shipping ? null : (formData.billing_zip || null),
+        billing_country: formData.billing_same_as_shipping ? null : (formData.billing_country || null),
+        billing_same_as_shipping: formData.billing_same_as_shipping,
+        notes: formData.notes || null,
+      };
+
       if (editingCustomer) {
         const { error } = await supabase
           .from('customers')
-          .update({
-            name: formData.name,
-            email: formData.email || null,
-            phone: formData.phone || null,
-            default_terms: formData.default_terms || null,
-          })
+          .update(customerData)
           .eq('id', editingCustomer.id);
 
         if (error) throw error;
@@ -97,12 +142,7 @@ const Customers = () => {
       } else {
         const { error } = await supabase
           .from('customers')
-          .insert([{
-            name: formData.name,
-            email: formData.email || null,
-            phone: formData.phone || null,
-            default_terms: formData.default_terms || null,
-          }]);
+          .insert([customerData]);
 
         if (error) throw error;
         toast({ title: 'Success', description: 'Customer created successfully' });
@@ -121,7 +161,26 @@ const Customers = () => {
   };
 
   const resetForm = () => {
-    setFormData({ name: '', email: '', phone: '', default_terms: '' });
+    setFormData({
+      name: '',
+      email: '',
+      phone: '',
+      default_terms: '',
+      shipping_address_line1: '',
+      shipping_address_line2: '',
+      shipping_city: '',
+      shipping_state: '',
+      shipping_zip: '',
+      shipping_country: 'USA',
+      billing_address_line1: '',
+      billing_address_line2: '',
+      billing_city: '',
+      billing_state: '',
+      billing_zip: '',
+      billing_country: 'USA',
+      billing_same_as_shipping: true,
+      notes: '',
+    });
     setEditingCustomer(null);
   };
 
@@ -132,6 +191,20 @@ const Customers = () => {
       email: customer.email || '',
       phone: customer.phone || '',
       default_terms: customer.default_terms || '',
+      shipping_address_line1: customer.shipping_address_line1 || '',
+      shipping_address_line2: customer.shipping_address_line2 || '',
+      shipping_city: customer.shipping_city || '',
+      shipping_state: customer.shipping_state || '',
+      shipping_zip: customer.shipping_zip || '',
+      shipping_country: customer.shipping_country || 'USA',
+      billing_address_line1: customer.billing_address_line1 || '',
+      billing_address_line2: customer.billing_address_line2 || '',
+      billing_city: customer.billing_city || '',
+      billing_state: customer.billing_state || '',
+      billing_zip: customer.billing_zip || '',
+      billing_country: customer.billing_country || 'USA',
+      billing_same_as_shipping: customer.billing_same_as_shipping ?? true,
+      notes: customer.notes || '',
     });
     setDialogOpen(true);
   };
@@ -413,49 +486,189 @@ const Customers = () => {
                 Add Customer
               </Button>
             </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>{editingCustomer ? 'Edit Customer' : 'Add New Customer'}</DialogTitle>
               <DialogDescription>
                 {editingCustomer ? 'Update customer information' : 'Add a new customer to your database'}
               </DialogDescription>
             </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="name">Name *</Label>
-                <Input
-                  id="name"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  required
-                />
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <div className="space-y-4">
+                <h3 className="text-sm font-semibold">Basic Information</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="name">Name *</Label>
+                    <Input
+                      id="name"
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Email</Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      value={formData.email}
+                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="phone">Phone</Label>
+                    <Input
+                      id="phone"
+                      value={formData.phone}
+                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="terms">Default Terms</Label>
+                    <Input
+                      id="terms"
+                      value={formData.default_terms}
+                      onChange={(e) => setFormData({ ...formData, default_terms: e.target.value })}
+                      placeholder="e.g., Net 30"
+                    />
+                  </div>
+                </div>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                />
+
+              <div className="space-y-4">
+                <h3 className="text-sm font-semibold">Shipping Address</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2 col-span-2">
+                    <Label htmlFor="shipping_address_line1">Address Line 1</Label>
+                    <Input
+                      id="shipping_address_line1"
+                      value={formData.shipping_address_line1}
+                      onChange={(e) => setFormData({ ...formData, shipping_address_line1: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2 col-span-2">
+                    <Label htmlFor="shipping_address_line2">Address Line 2</Label>
+                    <Input
+                      id="shipping_address_line2"
+                      value={formData.shipping_address_line2}
+                      onChange={(e) => setFormData({ ...formData, shipping_address_line2: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="shipping_city">City</Label>
+                    <Input
+                      id="shipping_city"
+                      value={formData.shipping_city}
+                      onChange={(e) => setFormData({ ...formData, shipping_city: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="shipping_state">State</Label>
+                    <Input
+                      id="shipping_state"
+                      value={formData.shipping_state}
+                      onChange={(e) => setFormData({ ...formData, shipping_state: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="shipping_zip">ZIP Code</Label>
+                    <Input
+                      id="shipping_zip"
+                      value={formData.shipping_zip}
+                      onChange={(e) => setFormData({ ...formData, shipping_zip: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="shipping_country">Country</Label>
+                    <Input
+                      id="shipping_country"
+                      value={formData.shipping_country}
+                      onChange={(e) => setFormData({ ...formData, shipping_country: e.target.value })}
+                    />
+                  </div>
+                </div>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="phone">Phone</Label>
-                <Input
-                  id="phone"
-                  value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                />
+
+              <div className="space-y-4">
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="billing_same"
+                    checked={formData.billing_same_as_shipping}
+                    onCheckedChange={(checked) => setFormData({ ...formData, billing_same_as_shipping: checked as boolean })}
+                  />
+                  <Label htmlFor="billing_same" className="text-sm font-normal cursor-pointer">
+                    Billing address is the same as shipping address
+                  </Label>
+                </div>
+
+                {!formData.billing_same_as_shipping && (
+                  <>
+                    <h3 className="text-sm font-semibold">Billing Address</h3>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2 col-span-2">
+                        <Label htmlFor="billing_address_line1">Address Line 1</Label>
+                        <Input
+                          id="billing_address_line1"
+                          value={formData.billing_address_line1}
+                          onChange={(e) => setFormData({ ...formData, billing_address_line1: e.target.value })}
+                        />
+                      </div>
+                      <div className="space-y-2 col-span-2">
+                        <Label htmlFor="billing_address_line2">Address Line 2</Label>
+                        <Input
+                          id="billing_address_line2"
+                          value={formData.billing_address_line2}
+                          onChange={(e) => setFormData({ ...formData, billing_address_line2: e.target.value })}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="billing_city">City</Label>
+                        <Input
+                          id="billing_city"
+                          value={formData.billing_city}
+                          onChange={(e) => setFormData({ ...formData, billing_city: e.target.value })}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="billing_state">State</Label>
+                        <Input
+                          id="billing_state"
+                          value={formData.billing_state}
+                          onChange={(e) => setFormData({ ...formData, billing_state: e.target.value })}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="billing_zip">ZIP Code</Label>
+                        <Input
+                          id="billing_zip"
+                          value={formData.billing_zip}
+                          onChange={(e) => setFormData({ ...formData, billing_zip: e.target.value })}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="billing_country">Country</Label>
+                        <Input
+                          id="billing_country"
+                          value={formData.billing_country}
+                          onChange={(e) => setFormData({ ...formData, billing_country: e.target.value })}
+                        />
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
+
               <div className="space-y-2">
-                <Label htmlFor="terms">Default Terms</Label>
+                <Label htmlFor="notes">Notes</Label>
                 <Textarea
-                  id="terms"
-                  value={formData.default_terms}
-                  onChange={(e) => setFormData({ ...formData, default_terms: e.target.value })}
-                  placeholder="e.g., Net 30, 50% deposit required"
+                  id="notes"
+                  value={formData.notes}
+                  onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                  placeholder="Add any additional notes about this customer..."
+                  rows={4}
                 />
               </div>
+
               <div className="flex gap-2 justify-end">
                 <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
                   Cancel

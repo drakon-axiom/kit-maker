@@ -49,30 +49,72 @@ export type Database = {
       }
       customers: {
         Row: {
+          billing_address_line1: string | null
+          billing_address_line2: string | null
+          billing_city: string | null
+          billing_country: string | null
+          billing_same_as_shipping: boolean | null
+          billing_state: string | null
+          billing_zip: string | null
           created_at: string
           default_terms: string | null
           email: string | null
           id: string
           name: string
+          notes: string | null
           phone: string | null
+          shipping_address_line1: string | null
+          shipping_address_line2: string | null
+          shipping_city: string | null
+          shipping_country: string | null
+          shipping_state: string | null
+          shipping_zip: string | null
           updated_at: string
         }
         Insert: {
+          billing_address_line1?: string | null
+          billing_address_line2?: string | null
+          billing_city?: string | null
+          billing_country?: string | null
+          billing_same_as_shipping?: boolean | null
+          billing_state?: string | null
+          billing_zip?: string | null
           created_at?: string
           default_terms?: string | null
           email?: string | null
           id?: string
           name: string
+          notes?: string | null
           phone?: string | null
+          shipping_address_line1?: string | null
+          shipping_address_line2?: string | null
+          shipping_city?: string | null
+          shipping_country?: string | null
+          shipping_state?: string | null
+          shipping_zip?: string | null
           updated_at?: string
         }
         Update: {
+          billing_address_line1?: string | null
+          billing_address_line2?: string | null
+          billing_city?: string | null
+          billing_country?: string | null
+          billing_same_as_shipping?: boolean | null
+          billing_state?: string | null
+          billing_zip?: string | null
           created_at?: string
           default_terms?: string | null
           email?: string | null
           id?: string
           name?: string
+          notes?: string | null
           phone?: string | null
+          shipping_address_line1?: string | null
+          shipping_address_line2?: string | null
+          shipping_city?: string | null
+          shipping_country?: string | null
+          shipping_state?: string | null
+          shipping_zip?: string | null
           updated_at?: string
         }
         Relationships: []
