@@ -79,16 +79,13 @@ const statusColors: Record<string, string> = {
   in_queue: 'bg-purple-500',
   in_production: 'bg-primary',
   in_labeling: 'bg-indigo-500',
+  awaiting_invoice: 'bg-pink-500',
+  awaiting_payment: 'bg-rose-500',
   in_packing: 'bg-cyan-500',
   packed: 'bg-success',
-  invoiced: 'bg-orange-500',
-  payment_due: 'bg-warning',
-  ready_to_ship: 'bg-success',
   shipped: 'bg-muted-foreground',
   cancelled: 'bg-destructive',
-  on_hold_customer: 'bg-amber-500',
-  on_hold_internal: 'bg-amber-600',
-  on_hold_materials: 'bg-amber-700',
+  on_hold: 'bg-amber-600',
 };
 
 type SortField = 'created_at' | 'subtotal' | 'status' | 'customer_name' | 'human_uid';

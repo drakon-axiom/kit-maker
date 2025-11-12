@@ -94,16 +94,16 @@ const statusColors: Record<string, string> = {
   in_queue: 'bg-purple-500',
   in_production: 'bg-primary',
   in_labeling: 'bg-indigo-500',
+  awaiting_invoice: 'bg-pink-500',
+  awaiting_payment: 'bg-rose-500',
   in_packing: 'bg-cyan-500',
   packed: 'bg-success',
-  invoiced: 'bg-orange-500',
-  payment_due: 'bg-warning',
-  ready_to_ship: 'bg-success',
   shipped: 'bg-muted-foreground',
   cancelled: 'bg-destructive',
-  on_hold_customer: 'bg-amber-500',
-  on_hold_internal: 'bg-amber-600',
-  on_hold_materials: 'bg-amber-700',
+  on_hold: 'bg-amber-600',
+  queued: 'bg-purple-500',
+  wip: 'bg-primary',
+  complete: 'bg-success',
 };
 
 const OrderDetail = () => {
@@ -752,15 +752,12 @@ const OrderDetail = () => {
                   <SelectItem value="in_queue">In Queue</SelectItem>
                   <SelectItem value="in_production">In Production</SelectItem>
                   <SelectItem value="in_labeling">In Labeling</SelectItem>
+                  <SelectItem value="awaiting_invoice">Awaiting Invoice</SelectItem>
+                  <SelectItem value="awaiting_payment">Awaiting Payment</SelectItem>
                   <SelectItem value="in_packing">In Packing</SelectItem>
                   <SelectItem value="packed">Packed</SelectItem>
-                  <SelectItem value="invoiced">Invoiced</SelectItem>
-                  <SelectItem value="payment_due">Payment Due</SelectItem>
-                  <SelectItem value="ready_to_ship">Ready to Ship</SelectItem>
                   <SelectItem value="shipped">Shipped</SelectItem>
-                  <SelectItem value="on_hold_customer">On Hold (Customer Hold)</SelectItem>
-                  <SelectItem value="on_hold_internal">On Hold (Internal Hold)</SelectItem>
-                  <SelectItem value="on_hold_materials">On Hold (Materials Hold)</SelectItem>
+                  <SelectItem value="on_hold">On Hold</SelectItem>
                   <SelectItem value="cancelled">Cancelled</SelectItem>
                 </SelectContent>
               </Select>

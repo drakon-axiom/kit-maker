@@ -942,6 +942,8 @@ export type Database = {
         | "on_hold_materials"
         | "in_labeling"
         | "in_packing"
+        | "awaiting_invoice"
+        | "awaiting_payment"
       payment_method: "cash" | "check" | "ach" | "wire" | "other"
       sell_mode: "kit" | "piece"
       step_status: "pending" | "wip" | "done"
@@ -1096,6 +1098,8 @@ export const Constants = {
         "on_hold_materials",
         "in_labeling",
         "in_packing",
+        "awaiting_invoice",
+        "awaiting_payment",
       ],
       payment_method: ["cash", "check", "ach", "wire", "other"],
       sell_mode: ["kit", "piece"],
