@@ -14,6 +14,7 @@ import {
   Mail,
   Tags,
   UserPlus,
+  Monitor,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -41,6 +42,7 @@ export function AppSidebar() {
     { title: 'Orders', url: '/orders', icon: ClipboardList },
     { title: 'Production Queue', url: '/queue', icon: Boxes },
     { title: 'Operator Console', url: '/operator', icon: PackageSearch },
+    { title: 'Production Display', url: '/production-display', icon: Monitor },
     { title: 'Shipments', url: '/shipments', icon: TruckIcon },
   ];
 

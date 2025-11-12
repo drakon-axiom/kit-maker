@@ -14,6 +14,7 @@ import OrderDetail from "./pages/OrderDetail";
 import OrderEdit from "./pages/OrderEdit";
 import Queue from "./pages/Queue";
 import Operator from "./pages/Operator";
+import ProductionDisplay from "./pages/ProductionDisplay";
 import Notifications from "./pages/Notifications";
 import Shipments from "./pages/Shipments";
 import Settings from "./pages/Settings";
@@ -122,6 +123,16 @@ const App = () => (
                 <ProtectedRoute>
                   <Layout>
                     <Operator />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/production-display"
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <ProductionDisplay />
                   </Layout>
                 </ProtectedRoute>
               }
