@@ -131,9 +131,7 @@ const App = () => (
               path="/production-display"
               element={
                 <ProtectedRoute>
-                  <Layout>
-                    <ProductionDisplay />
-                  </Layout>
+                  <ProductionDisplay />
                 </ProtectedRoute>
               }
             />

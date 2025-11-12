@@ -1,6 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Database } from "@/integrations/supabase/types";
+import { Button } from "@/components/ui/button";
+import { Maximize, Minimize } from "lucide-react";
+import { useState } from "react";
 
 type Batch = Database["public"]["Tables"]["production_batches"]["Row"] & {
   sales_orders?: {
@@ -21,6 +24,17 @@ type Batch = Database["public"]["Tables"]["production_batches"]["Row"] & {
 };
 
 const ProductionDisplay = () => {
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  const toggleFullscreen = () => {
+    if (!isFullscreen) {
+      document.documentElement.requestFullscreen();
+    } else {
+      document.exitFullscreen();
+    }
+    setIsFullscreen(!isFullscreen);
+  };
+
   const { data: batches } = useQuery({
     queryKey: ["production-display-batches"],
     queryFn: async () => {
@@ -55,7 +69,15 @@ const ProductionDisplay = () => {
   return (
     <div className="min-h-screen bg-background p-8">
       <div className="max-w-7xl mx-auto space-y-8">
-        <div className="text-center space-y-2">
+        <div className="text-center space-y-2 relative">
+          <Button
+            onClick={toggleFullscreen}
+            variant="outline"
+            size="icon"
+            className="absolute right-0 top-0"
+          >
+            {isFullscreen ? <Minimize className="h-5 w-5" /> : <Maximize className="h-5 w-5" />}
+          </Button>
           <h1 className="text-5xl font-bold text-foreground">Production Floor</h1>
           <p className="text-2xl text-muted-foreground">Live Batch Queue</p>
         </div>
