@@ -906,7 +906,8 @@ const OrderDetail = () => {
                   {batches.length} batch(es) • {totalBatchedBottles} / {totalBottles} bottles batched
                 </CardDescription>
               </div>
-              {userRole === 'admin' && remainingBottles > 0 && (
+              {userRole === 'admin' && remainingBottles > 0 && 
+               order.status !== 'draft' && order.status !== 'quoted' && (
                 <Button onClick={async () => {
                   await fetchBatchAllocations();
                   setBatchPlannerOpen(true);
@@ -1021,17 +1022,6 @@ const OrderDetail = () => {
             >
               <Eye className="mr-2 h-4 w-4" />
               Preview & Send Quote
-            </Button>
-            <Button 
-              className="w-full" 
-              variant="outline"
-              onClick={async () => {
-                await fetchBatchAllocations();
-                setBatchPlannerOpen(true);
-              }}
-            >
-              <Package className="mr-2 h-4 w-4" />
-              Plan Batches
             </Button>
           </CardContent>
         </Card>
