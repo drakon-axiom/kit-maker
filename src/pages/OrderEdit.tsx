@@ -227,23 +227,7 @@ const OrderEdit = () => {
     } else if (field === 'qty_entered') {
       const enteredQty = parseInt(value) || 0;
       const sku = skus.find(s => s.id === line.sku_id);
-      
-      // Enforce MOQ for kit mode with tier pricing
-      if (line.sell_mode === 'kit' && sku?.use_tier_pricing) {
-        const moq = getMinimumOrderQuantity(sku);
-        if (enteredQty < moq && enteredQty > 0) {
-          toast({
-            title: 'Minimum Order Quantity',
-            description: `This product requires a minimum order of ${moq} kits`,
-            variant: 'destructive',
-          });
-          line.qty_entered = moq;
-        } else {
-          line.qty_entered = enteredQty;
-        }
-      } else {
-        line.qty_entered = enteredQty;
-      }
+      line.qty_entered = enteredQty;
       
       // Update price based on quantity tier for kit mode
       if (line.sell_mode === 'kit' && sku) {
@@ -262,6 +246,23 @@ const OrderEdit = () => {
 
   const removeLine = (index: number) => {
     setLines(lines.filter((_, i) => i !== index));
+  };
+
+  const validateMOQ = (index: number) => {
+    const line = lines[index];
+    const sku = skus.find(s => s.id === line.sku_id);
+    
+    if (line.sell_mode === 'kit' && sku?.use_tier_pricing) {
+      const moq = getMinimumOrderQuantity(sku);
+      if (line.qty_entered < moq && line.qty_entered > 0) {
+        toast({
+          title: 'Minimum Order Quantity',
+          description: `This product requires a minimum order of ${moq} kits`,
+          variant: 'destructive',
+        });
+        updateLine(index, 'qty_entered', moq.toString());
+      }
+    }
   };
 
   const calculateSubtotal = () => {
@@ -523,6 +524,7 @@ const OrderEdit = () => {
                             })() : 1}
                             value={line.qty_entered}
                             onChange={(e) => updateLine(index, 'qty_entered', e.target.value)}
+                            onBlur={() => validateMOQ(index)}
                             className="w-20"
                           />
                           {line.sell_mode === 'kit' && (() => {
