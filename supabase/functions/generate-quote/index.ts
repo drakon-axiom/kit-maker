@@ -19,6 +19,7 @@ interface QuoteEmailParams {
   depositRequired: boolean;
   depositAmount: number;
   depositPercentage: number;
+  approvalLink?: string;
 }
 
 function generateQuoteHtml(params: QuoteEmailParams & { orderId?: string }): string {
@@ -40,17 +41,21 @@ function generateQuoteHtml(params: QuoteEmailParams & { orderId?: string }): str
     depositAmount,
     depositPercentage,
     orderId,
+    approvalLink,
   } = params;
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
   const acceptQuoteUrl = orderId ? `${supabaseUrl}/functions/v1/accept-quote?orderId=${orderId}` : "";
   
-  const acceptButtonHtml = orderId && depositRequired && depositAmount > 0
+  // Use approval link if provided, otherwise use direct accept URL
+  const actionUrl = approvalLink || acceptQuoteUrl;
+  
+  const acceptButtonHtml = actionUrl
     ? `<div style="text-align: center; margin: 32px 0;">
-         <a href="${acceptQuoteUrl}" style="display: inline-block; background: #28a745; color: white; padding: 16px 32px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 16px;">
-           Accept Quote & Pay Deposit
+         <a href="${actionUrl}" style="display: inline-block; background: #28a745; color: white; padding: 16px 32px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 16px;">
+           ${depositRequired && depositAmount > 0 ? 'Accept Quote & Pay Deposit' : 'Accept Quote'}
          </a>
-         <p style="font-size: 12px; color: #666; margin-top: 8px;">Click the button above to accept this quote and proceed with the deposit payment.</p>
+         <p style="font-size: 12px; color: #666; margin-top: 8px;">Click the button above to review and accept this quote.</p>
        </div>`
     : '';
 
@@ -218,15 +223,15 @@ serve(async (req) => {
       .eq("id", orderId)
       .single();
 
-    if (orderError || !order) {
-      console.error("Order fetch error:", orderError);
-      throw new Error("Order not found");
-    }
 
     const customerEmail = order.customer?.email || "";
     const customerName = order.customer?.name || "Customer";
     const depositAmount = order.deposit_amount || 0;
     const depositPercentage = order.subtotal > 0 ? Math.round((depositAmount / order.subtotal) * 100) : 0;
+
+    // Generate approval link using the quote token
+    const baseUrl = Deno.env.get("SUPABASE_URL")?.replace('.supabase.co', '.lovable.app') || "";
+    const approvalLink = `${baseUrl}/quote-approval?token=${order.quote_link_token}`;
 
     // Send email with PDF attachment
     const smtpHost = Deno.env.get("SMTP_HOST")!;
@@ -272,6 +277,7 @@ serve(async (req) => {
       depositAmount,
       depositPercentage,
       orderId: order.id,
+      approvalLink,
     });
 
     await client.send({
