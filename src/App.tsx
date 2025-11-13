@@ -21,6 +21,7 @@ import Settings from "./pages/Settings";
 import LabelSettings from "./pages/LabelSettings";
 import WholesaleSignup from "./pages/WholesaleSignup";
 import WholesaleApplications from "./pages/WholesaleApplications";
+import QuoteApproval from "./pages/QuoteApproval";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Layout from "./components/Layout";
 import NotFound from "./pages/NotFound";
@@ -183,6 +184,7 @@ const App = () => (
                 </ProtectedRoute>
               }
             />
+            <Route path="/quote-approval" element={<QuoteApproval />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
