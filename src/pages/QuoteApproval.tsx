@@ -16,7 +16,7 @@ export default function QuoteApproval() {
   const [order, setOrder] = useState<any>(null);
   const [approving, setApproving] = useState(false);
   const [approved, setApproved] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     const fetchQuote = async () => {
@@ -27,7 +27,8 @@ export default function QuoteApproval() {
       }
 
       try {
-        const { data, error: fetchError } = await supabase
+        // Bypass type inference issues with direct any cast
+        const result = await (supabase as any)
           .from("sales_orders")
           .select(`
             *,
@@ -50,12 +51,12 @@ export default function QuoteApproval() {
           .eq("quote_link_token", token)
           .single();
 
-        if (fetchError || !data) {
+        if (result.error || !result.data) {
           setError("Quote not found or link expired");
-        } else if (data.status !== "quoted") {
+        } else if (result.data.status !== "quoted") {
           setError("This quote has already been processed");
         } else {
-          setOrder(data);
+          setOrder(result.data);
         }
       } catch (err) {
         setError("Failed to load quote");
