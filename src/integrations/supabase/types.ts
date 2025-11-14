@@ -63,6 +63,7 @@ export type Database = {
           name: string
           notes: string | null
           phone: string | null
+          quote_expiration_days: number | null
           shipping_address_line1: string | null
           shipping_address_line2: string | null
           shipping_city: string | null
@@ -86,6 +87,7 @@ export type Database = {
           name: string
           notes?: string | null
           phone?: string | null
+          quote_expiration_days?: number | null
           shipping_address_line1?: string | null
           shipping_address_line2?: string | null
           shipping_city?: string | null
@@ -109,6 +111,7 @@ export type Database = {
           name?: string
           notes?: string | null
           phone?: string | null
+          quote_expiration_days?: number | null
           shipping_address_line1?: string | null
           shipping_address_line2?: string | null
           shipping_city?: string | null
@@ -507,6 +510,9 @@ export type Database = {
           label_required: boolean
           manual_payment_notes: string | null
           promised_date: string | null
+          quote_expiration_days: number | null
+          quote_expires_at: string | null
+          quote_link_token: string
           source_channel: string
           status: Database["public"]["Enums"]["order_status"]
           subtotal: number
@@ -525,6 +531,9 @@ export type Database = {
           label_required?: boolean
           manual_payment_notes?: string | null
           promised_date?: string | null
+          quote_expiration_days?: number | null
+          quote_expires_at?: string | null
+          quote_link_token?: string
           source_channel?: string
           status?: Database["public"]["Enums"]["order_status"]
           subtotal?: number
@@ -543,6 +552,9 @@ export type Database = {
           label_required?: boolean
           manual_payment_notes?: string | null
           promised_date?: string | null
+          quote_expiration_days?: number | null
+          quote_expires_at?: string | null
+          quote_link_token?: string
           source_channel?: string
           status?: Database["public"]["Enums"]["order_status"]
           subtotal?: number

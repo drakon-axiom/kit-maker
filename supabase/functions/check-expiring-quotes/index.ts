@@ -20,7 +20,7 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     const now = new Date();
-    const reminderThreshold = new Date(now.getTime() + 24 * 60 * 60 * 1000); // 24 hours from now
+    const reminderThreshold = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000); // 3 days from now
 
     // Fetch quotes that are expired
     const { data: expiredQuotes, error: expiredError } = await supabase
@@ -62,7 +62,7 @@ serve(async (req) => {
     }
 
     console.log(`Found ${expiredQuotes?.length || 0} expired quotes`);
-    console.log(`Found ${expiringSoonQuotes?.length || 0} quotes expiring soon`);
+    console.log(`Found ${expiringSoonQuotes?.length || 0} quotes expiring within 3 days`);
 
     // Process expired quotes
     if (expiredQuotes && expiredQuotes.length > 0) {
@@ -167,6 +167,7 @@ async function sendExpirationNotification(
       month: "long",
       day: "numeric",
     });
+    const daysUntilExpiration = Math.ceil((expiresAt.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
 
     let subject: string;
     let body: string;
@@ -212,7 +213,7 @@ async function sendExpirationNotification(
         </html>
       `;
     } else {
-      subject = `Reminder: Quote ${order.human_uid} Expires Soon`;
+      subject = `Reminder: Quote ${order.human_uid} Expires in ${daysUntilExpiration} Day${daysUntilExpiration !== 1 ? 's' : ''}`;
       body = `
         <!DOCTYPE html>
         <html>
@@ -225,6 +226,7 @@ async function sendExpirationNotification(
               .content { padding: 20px 0; }
               .button { display: inline-block; padding: 12px 24px; background: #007bff; color: white; text-decoration: none; border-radius: 4px; margin: 20px 0; }
               .footer { margin-top: 30px; padding-top: 20px; border-top: 1px solid #dee2e6; font-size: 14px; color: #6c757d; }
+              .warning { background: #fff3cd; border-left: 4px solid #ffc107; padding: 12px; margin: 16px 0; }
             </style>
           </head>
           <body>
@@ -234,7 +236,10 @@ async function sendExpirationNotification(
               </div>
               <div class="content">
                 <p>Dear ${order.customer.name},</p>
-                <p>This is a friendly reminder that your quote <strong>${order.human_uid}</strong> will expire on <strong>${formattedDate}</strong>.</p>
+                <div class="warning">
+                  <strong>⚠️ Your quote expires in ${daysUntilExpiration} day${daysUntilExpiration !== 1 ? 's' : ''}!</strong>
+                </div>
+                <p>Your quote <strong>${order.human_uid}</strong> will expire on <strong>${formattedDate}</strong>.</p>
                 <p>To secure this pricing, please approve your quote before it expires.</p>
                 <p><strong>Quote Details:</strong></p>
                 <ul>
