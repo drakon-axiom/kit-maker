@@ -1,0 +1,205 @@
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.7';
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
+
+interface RequestBody {
+  customerId: string;
+}
+
+Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  try {
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+    );
+
+    const { customerId } = await req.json() as RequestBody;
+
+    // Get customer details
+    const { data: customer, error: customerError } = await supabase
+      .from('customers')
+      .select('id, name, email, created_at, user_id')
+      .eq('id', customerId)
+      .single();
+
+    if (customerError || !customer) {
+      throw new Error('Customer not found');
+    }
+
+    // Check if customer was created more than 24 hours ago
+    const createdAt = new Date(customer.created_at);
+    const now = new Date();
+    const hoursSinceCreation = (now.getTime() - createdAt.getTime()) / (1000 * 60 * 60);
+
+    if (hoursSinceCreation < 24) {
+      return new Response(
+        JSON.stringify({ 
+          error: 'Access request can only be submitted after 24 hours of signup',
+          hoursRemaining: Math.ceil(24 - hoursSinceCreation)
+        }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Check if there's already a pending request
+    const { data: existingRequest } = await supabase
+      .from('customer_access_requests')
+      .select('id, status')
+      .eq('customer_id', customerId)
+      .eq('status', 'pending')
+      .maybeSingle();
+
+    if (existingRequest) {
+      return new Response(
+        JSON.stringify({ message: 'Access request already submitted' }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Create access request
+    const { error: insertError } = await supabase
+      .from('customer_access_requests')
+      .insert({
+        customer_id: customerId,
+        requested_at: now.toISOString(),
+        status: 'pending'
+      });
+
+    if (insertError) {
+      throw insertError;
+    }
+
+    // Get all admin emails
+    const { data: adminRoles, error: adminError } = await supabase
+      .from('user_roles')
+      .select('user_id')
+      .eq('role', 'admin');
+
+    if (adminError) {
+      console.error('Error fetching admin roles:', adminError);
+    }
+
+    const adminUserIds = adminRoles?.map(r => r.user_id) || [];
+    
+    const { data: adminProfiles } = await supabase
+      .from('profiles')
+      .select('email')
+      .in('id', adminUserIds);
+
+    const adminEmails = adminProfiles?.map(p => p.email) || [];
+
+    // Send email notification to admins
+    if (adminEmails.length > 0) {
+      const smtpHost = Deno.env.get('SMTP_HOST');
+      const smtpPort = parseInt(Deno.env.get('SMTP_PORT') || '587');
+      const smtpUser = Deno.env.get('SMTP_USER');
+      const smtpPassword = Deno.env.get('SMTP_PASSWORD');
+
+      if (smtpHost && smtpUser && smtpPassword) {
+        try {
+          // Create SMTP connection
+          const conn = await Deno.connect({
+            hostname: smtpHost,
+            port: smtpPort,
+          });
+
+          const textEncoder = new TextEncoder();
+          const textDecoder = new TextDecoder();
+
+          // Simple SMTP communication
+          const reader = conn.readable.getReader();
+          const writer = conn.writable.getWriter();
+
+          // Read greeting
+          await reader.read();
+
+          // EHLO
+          await writer.write(textEncoder.encode(`EHLO ${smtpHost}\r\n`));
+          await reader.read();
+
+          // AUTH LOGIN
+          await writer.write(textEncoder.encode('AUTH LOGIN\r\n'));
+          await reader.read();
+
+          // Username
+          await writer.write(textEncoder.encode(btoa(smtpUser) + '\r\n'));
+          await reader.read();
+
+          // Password
+          await writer.write(textEncoder.encode(btoa(smtpPassword) + '\r\n'));
+          await reader.read();
+
+          // MAIL FROM
+          await writer.write(textEncoder.encode(`MAIL FROM:<${smtpUser}>\r\n`));
+          await reader.read();
+
+          // RCPT TO for each admin
+          for (const email of adminEmails) {
+            await writer.write(textEncoder.encode(`RCPT TO:<${email}>\r\n`));
+            await reader.read();
+          }
+
+          // DATA
+          await writer.write(textEncoder.encode('DATA\r\n'));
+          await reader.read();
+
+          const subject = `Customer Access Request - ${customer.name}`;
+          const body = `
+A customer has requested access to products:
+
+Customer Name: ${customer.name}
+Customer Email: ${customer.email}
+Request Date: ${now.toLocaleString()}
+Account Created: ${createdAt.toLocaleString()}
+
+Please log in to the admin panel to assign product or category access to this customer.
+          `.trim();
+
+          const emailContent = [
+            `From: ${smtpUser}`,
+            `To: ${adminEmails.join(', ')}`,
+            `Subject: ${subject}`,
+            'Content-Type: text/plain; charset=utf-8',
+            '',
+            body,
+            '.',
+          ].join('\r\n');
+
+          await writer.write(textEncoder.encode(emailContent + '\r\n'));
+          await reader.read();
+
+          // QUIT
+          await writer.write(textEncoder.encode('QUIT\r\n'));
+          await reader.read();
+
+          conn.close();
+          
+          console.log('Email sent successfully to admins');
+        } catch (emailError) {
+          console.error('Error sending email:', emailError);
+          // Don't fail the request if email fails
+        }
+      }
+    }
+
+    return new Response(
+      JSON.stringify({ message: 'Access request submitted successfully' }),
+      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+
+  } catch (error) {
+    console.error('Error:', error);
+    const errorMessage = error instanceof Error ? error.message : 'An error occurred';
+    return new Response(
+      JSON.stringify({ error: errorMessage }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+});

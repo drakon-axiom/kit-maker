@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { ArrowLeft, Plus, Trash2, Loader2, Package } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Loader2, Package, Send } from 'lucide-react';
 import { toast } from 'sonner';
 interface SKU {
   id: string;
@@ -41,11 +41,40 @@ export default function CustomerNewOrder() {
   const [lines, setLines] = useState<OrderLine[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [requestingAccess, setRequestingAccess] = useState(false);
+  const [hasRequestedAccess, setHasRequestedAccess] = useState(false);
   useEffect(() => {
     if (user) {
       fetchData();
+      checkAccessRequest();
     }
   }, [user]);
+
+  const checkAccessRequest = async () => {
+    if (!user) return;
+
+    try {
+      const { data: customerData } = await supabase
+        .from('customers')
+        .select('id')
+        .eq('user_id', user.id)
+        .single();
+
+      if (customerData) {
+        const { data: request } = await supabase
+          .from('customer_access_requests')
+          .select('id')
+          .eq('customer_id', customerData.id)
+          .eq('status', 'pending')
+          .maybeSingle();
+
+        setHasRequestedAccess(!!request);
+      }
+    } catch (error) {
+      console.error('Error checking access request:', error);
+    }
+  };
+
   const fetchData = async () => {
     try {
       const {
@@ -63,11 +92,6 @@ export default function CustomerNewOrder() {
       } = await supabase.from('skus').select('id, code, description, price_per_kit, price_per_piece, pack_size').eq('active', true);
       if (error) throw error;
       setSKUs(skusData || []);
-
-      // Show a helpful message if no products are available
-      if (!skusData || skusData.length === 0) {
-        toast.info('No products available yet. Please contact your administrator to get access to products.');
-      }
     } catch (error: any) {
       toast.error('Failed to load products');
       console.error(error);
@@ -75,6 +99,32 @@ export default function CustomerNewOrder() {
       setLoading(false);
     }
   };
+
+  const handleRequestAccess = async () => {
+    if (!customerId) return;
+
+    setRequestingAccess(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('request-customer-access', {
+        body: { customerId }
+      });
+
+      if (error) throw error;
+
+      if (data?.hoursRemaining) {
+        toast.error(`Please wait ${data.hoursRemaining} more hours before requesting access`);
+      } else {
+        toast.success('Access request submitted! Administrators have been notified.');
+        setHasRequestedAccess(true);
+      }
+    } catch (error: any) {
+      console.error('Error requesting access:', error);
+      toast.error('Failed to submit access request');
+    } finally {
+      setRequestingAccess(false);
+    }
+  };
+
   const addLine = () => {
     setLines([...lines, {
       sku_id: '',
@@ -185,15 +235,40 @@ export default function CustomerNewOrder() {
           </CardHeader>
           <CardContent className="space-y-4">
             {skus.length === 0 ? <div className="text-center py-12 border-2 border-dashed rounded-lg">
-                <Package className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                <h3 className="text-lg font-semibold mb-2">No Products Available</h3>
+                <Package className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
+                <h3 className="text-xl font-semibold mb-2">No Products Available</h3>
                 <p className="text-muted-foreground mb-4">
-                  You don't have access to any products yet.
+                  You don't have access to any products yet. Please request access from your administrator.
                 </p>
-                <p className="text-sm text-muted-foreground">
-                  Please allow 24 hours for products to be assigned to your account.
-If you don't seen prodcuts after 24 hours, contact us at wholesale@nexusaminos.com to request access to products or categories.
-                </p>
+                {hasRequestedAccess ? (
+                  <div className="bg-muted/50 border border-border rounded-lg p-4 max-w-md mx-auto">
+                    <p className="text-sm text-muted-foreground">
+                      Your access request is pending. An administrator will review it shortly.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <Button 
+                      onClick={handleRequestAccess} 
+                      disabled={requestingAccess}
+                    >
+                      {requestingAccess ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Submitting...
+                        </>
+                      ) : (
+                        <>
+                          <Send className="h-4 w-4 mr-2" />
+                          Request Access
+                        </>
+                      )}
+                    </Button>
+                    <p className="text-xs text-muted-foreground">
+                      Note: Requests can only be submitted 24 hours after signup
+                    </p>
+                  </div>
+                )}
               </div> : <>
             <Table>
               <TableHeader>
