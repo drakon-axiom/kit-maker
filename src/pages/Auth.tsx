@@ -84,9 +84,12 @@ const Auth = () => {
       });
     } else {
       toast({
-        title: 'Welcome!',
-        description: 'Your customer account has been created. You can now sign in to place orders.'
+        title: 'Check your email!',
+        description: 'We sent you a verification link. Please check your inbox to activate your account.'
       });
+      setEmail('');
+      setPassword('');
+      setFullName('');
     }
     setLoading(false);
   };
