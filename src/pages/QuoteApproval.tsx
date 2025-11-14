@@ -161,6 +161,15 @@ export default function QuoteApproval() {
     ? Math.round((depositAmount / order.subtotal) * 100) 
     : 0;
 
+  const expiresAt = order?.quote_expires_at ? new Date(order.quote_expires_at) : null;
+  const isExpired = expiresAt && expiresAt < new Date();
+  const expiresFormatted = expiresAt?.toLocaleDateString("en-US", {
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+
   return (
     <div className="min-h-screen bg-background p-4 md:p-8">
       <div className="max-w-4xl mx-auto space-y-6">
@@ -169,6 +178,11 @@ export default function QuoteApproval() {
             <CardTitle>Quote Review</CardTitle>
             <CardDescription>
               Quote #{order?.human_uid} • {new Date(order?.created_at).toLocaleDateString()}
+              {expiresAt && (
+                <span className={`ml-2 ${isExpired ? 'text-destructive' : 'text-amber-600'}`}>
+                  • {isExpired ? 'Expired' : 'Expires'}: {expiresFormatted}
+                </span>
+              )}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -230,27 +244,47 @@ export default function QuoteApproval() {
             {/* Approval Section */}
             <div className="border-t pt-6">
               <h3 className="font-semibold mb-4">Approve This Quote</h3>
-              <p className="text-sm text-muted-foreground mb-4">
-                By clicking the button below, you approve this quote and authorize us to proceed with your order.
-                {order?.deposit_required && depositAmount > 0 && (
-                  <span> You will be redirected to complete the deposit payment.</span>
-                )}
-              </p>
-              <Button 
-                onClick={handleApprove} 
-                disabled={approving}
-                size="lg"
-                className="w-full sm:w-auto"
-              >
-                {approving ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Processing...
-                  </>
-                ) : (
-                  "Approve Quote & Continue"
-                )}
-              </Button>
+              {isExpired ? (
+                <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4 mb-4">
+                  <p className="text-destructive font-semibold">
+                    ⚠️ This quote has expired and can no longer be approved.
+                  </p>
+                  <p className="text-sm text-muted-foreground mt-2">
+                    Please contact us to request a new quote.
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    By clicking the button below, you approve this quote and authorize us to proceed with your order.
+                    {order?.deposit_required && depositAmount > 0 && (
+                      <span> You will be redirected to complete the deposit payment.</span>
+                    )}
+                  </p>
+                  {expiresAt && (
+                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4">
+                      <p className="text-sm text-amber-800">
+                        ⏰ This quote expires on <strong>{expiresFormatted}</strong>. Please approve before the expiration date to secure this pricing.
+                      </p>
+                    </div>
+                  )}
+                  <Button 
+                    onClick={handleApprove} 
+                    disabled={approving}
+                    size="lg"
+                    className="w-full sm:w-auto"
+                  >
+                    {approving ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Processing...
+                      </>
+                    ) : (
+                      "Approve Quote & Continue"
+                    )}
+                  </Button>
+                </>
+              )}
             </div>
           </CardContent>
         </Card>
