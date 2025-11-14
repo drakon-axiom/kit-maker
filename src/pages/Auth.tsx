@@ -87,8 +87,8 @@ const Auth = () => {
       });
     } else {
       toast({
-        title: 'Success',
-        description: 'Account created! Please contact an admin to get role assigned.',
+        title: 'Welcome!',
+        description: 'Your customer account has been created. You can now sign in to place orders.',
       });
     }
 
