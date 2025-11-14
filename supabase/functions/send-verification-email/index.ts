@@ -1,8 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Webhook } from 'https://esm.sh/standardwebhooks@1.0.0';
-import { Resend } from 'npm:resend@2.0.0';
+import { SMTPClient } from "https://deno.land/x/denomailer@1.6.0/mod.ts";
 
-const resend = new Resend(Deno.env.get('RESEND_API_KEY') as string);
 const hookSecret = Deno.env.get('SEND_VERIFICATION_EMAIL_HOOK_SECRET') as string;
 
 const generateVerificationEmailHTML = (verificationUrl: string) => `
@@ -75,16 +74,32 @@ serve(async (req) => {
     
     const html = generateVerificationEmailHTML(verificationUrl);
 
-    const { error } = await resend.emails.send({
-      from: 'Production Manager <onboarding@resend.dev>',
-      to: [user.email],
+    // Get SMTP configuration from environment
+    const smtpHost = Deno.env.get('SMTP_HOST') as string;
+    const smtpPort = parseInt(Deno.env.get('SMTP_PORT') || '587');
+    const smtpUser = Deno.env.get('SMTP_USER') as string;
+    const smtpPassword = Deno.env.get('SMTP_PASSWORD') as string;
+
+    const client = new SMTPClient({
+      connection: {
+        hostname: smtpHost,
+        port: smtpPort,
+        tls: true,
+        auth: {
+          username: smtpUser,
+          password: smtpPassword,
+        },
+      },
+    });
+
+    await client.send({
+      from: smtpUser,
+      to: user.email,
       subject: 'Verify your email address',
       html,
     });
 
-    if (error) {
-      throw error;
-    }
+    await client.close();
 
     return new Response(JSON.stringify({ success: true }), {
       status: 200,
@@ -95,7 +110,7 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({
         error: {
-          message: error.message,
+          message: error instanceof Error ? error.message : 'Unknown error',
         },
       }),
       {
