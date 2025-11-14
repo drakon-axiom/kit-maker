@@ -19,6 +19,7 @@ import BatchScheduler from '@/components/BatchScheduler';
 import BatchSplitMerge from '@/components/BatchSplitMerge';
 import QuotePreview from '@/components/QuotePreview';
 import BatchPlanner from '@/components/BatchPlanner';
+import QuoteCountdown from '@/components/QuoteCountdown';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -860,19 +861,19 @@ const OrderDetail = () => {
             {(order.status === 'quoted' || order.status === 'draft') && (
               <>
                 <Separator />
-                <div className="space-y-2">
+                <div className="space-y-3">
                   <div className="flex justify-between items-center">
-                    <span className="text-sm text-muted-foreground">Quote Expiration</span>
-                    {order.quote_expires_at ? (
-                      <span className={`font-medium text-sm ${new Date(order.quote_expires_at) < new Date() ? 'text-destructive' : ''}`}>
-                        {new Date(order.quote_expires_at).toLocaleDateString()}
-                      </span>
-                    ) : (
-                      <span className="text-xs text-muted-foreground">Not set</span>
-                    )}
+                    <span className="text-sm font-medium">Quote Expiration</span>
                   </div>
+                  
+                  <QuoteCountdown 
+                    expiresAt={order.quote_expires_at}
+                    createdAt={order.created_at}
+                    expirationDays={order.quote_expiration_days}
+                  />
+                  
                   {userRole === 'admin' && (
-                    <div className="space-y-2">
+                    <div className="space-y-2 pt-2 border-t">
                       <div className="flex gap-2 items-center">
                         <Input
                           type="number"

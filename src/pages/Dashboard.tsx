@@ -9,6 +9,7 @@ import {
   AlertCircle 
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import ExpiringQuotesWidget from '@/components/ExpiringQuotesWidget';
 
 interface Stats {
   totalOrders: number;
@@ -118,6 +119,8 @@ const Dashboard = () => {
           </CardContent>
         </Card>
       )}
+
+      <ExpiringQuotesWidget />
     </div>
   );
 };
