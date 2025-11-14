@@ -109,6 +109,8 @@ const QuotePreview = ({ open, onOpenChange, order, onSend, sending }: QuotePrevi
         .replace(/\{\{customer_name\}\}/g, order.customer?.name || "Customer")
         .replace(/\{\{quote_number\}\}/g, order.human_uid)
         .replace(/\{\{date\}\}/g, new Date(order.created_at).toLocaleDateString())
+        .replace(/\{\{expires_at\}\}/g, '')
+        .replace(/\{\{expiration_warning\}\}/g, '')
         .replace(/\{\{customer_email\}\}/g, order.customer?.email || '')
         .replace(/\{\{line_items\}\}/g, lineItemsHtml)
         .replace(/\{\{subtotal\}\}/g, `$${order.subtotal.toFixed(2)}`)

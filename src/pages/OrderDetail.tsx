@@ -56,6 +56,8 @@ interface OrderDetail {
   label_required: boolean;
   eta_date: string | null;
   promised_date: string | null;
+  quote_expiration_days: number | null;
+  quote_expires_at: string | null;
   created_at: string;
   customer: {
     name: string;
@@ -850,6 +852,65 @@ const OrderDetail = () => {
               <span>Order Total</span>
               <span>${order.subtotal.toFixed(2)}</span>
             </div>
+            <Separator />
+            <div className="flex justify-between">
+              <span className="text-sm text-muted-foreground">Created</span>
+              <span className="font-medium">{new Date(order.created_at).toLocaleDateString()}</span>
+            </div>
+            {(order.status === 'quoted' || order.status === 'draft') && (
+              <>
+                <Separator />
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-muted-foreground">Quote Expiration</span>
+                    {order.quote_expires_at ? (
+                      <span className={`font-medium text-sm ${new Date(order.quote_expires_at) < new Date() ? 'text-destructive' : ''}`}>
+                        {new Date(order.quote_expires_at).toLocaleDateString()}
+                      </span>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">Not set</span>
+                    )}
+                  </div>
+                  {userRole === 'admin' && (
+                    <div className="flex gap-2 items-center">
+                      <Input
+                        type="number"
+                        min="1"
+                        max="365"
+                        placeholder="Days"
+                        defaultValue={order.quote_expiration_days || ''}
+                        className="h-8"
+                        onBlur={async (e) => {
+                          const days = e.target.value ? parseInt(e.target.value) : null;
+                          try {
+                            const { error } = await supabase
+                              .from('sales_orders')
+                              .update({ quote_expiration_days: days } as any)
+                              .eq('id', order.id);
+                            
+                            if (error) throw error;
+                            
+                            toast({
+                              title: 'Updated',
+                              description: 'Quote expiration days updated',
+                            });
+                            
+                            fetchOrder();
+                          } catch (error: any) {
+                            toast({
+                              title: 'Error',
+                              description: error.message,
+                              variant: 'destructive',
+                            });
+                          }
+                        }}
+                      />
+                      <span className="text-xs text-muted-foreground whitespace-nowrap">days</span>
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
           </CardContent>
         </Card>
       </div>
