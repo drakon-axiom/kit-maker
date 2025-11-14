@@ -122,7 +122,7 @@ const Auth = () => {
           </div>
           <CardTitle className="text-2xl font-bold">Wholesale Manager        </CardTitle>
           <CardDescription>
-            Sign in to manage production orders and workflows
+            Sign in to manage wholesale orders and workflows
           </CardDescription>
         </CardHeader>
         <CardContent>
