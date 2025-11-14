@@ -14,6 +14,7 @@ interface QuotePreviewProps {
     deposit_amount?: number;
     subtotal: number;
     quote_expires_at?: string;
+    quote_expiration_days?: number;
     customer?: {
       name: string;
       email: string;
@@ -103,13 +104,20 @@ const QuotePreview = ({ open, onOpenChange, order, onSend, sending }: QuotePrevi
       : '';
 
     // Calculate expiration data
-    const expiresAt = order.quote_expires_at 
-      ? new Date(order.quote_expires_at).toLocaleDateString()
-      : '';
+    let expiryDate: Date | null = null;
     
-    const expirationWarning = order.quote_expires_at 
+    if (order.quote_expires_at) {
+      expiryDate = new Date(order.quote_expires_at);
+    } else if (order.quote_expiration_days) {
+      // Calculate from days if not already set
+      expiryDate = new Date(order.created_at);
+      expiryDate.setDate(expiryDate.getDate() + order.quote_expiration_days);
+    }
+    
+    const expiresAt = expiryDate ? expiryDate.toLocaleDateString() : '';
+    
+    const expirationWarning = expiryDate 
       ? (() => {
-          const expiryDate = new Date(order.quote_expires_at);
           const now = new Date();
           const daysUntilExpiry = Math.ceil((expiryDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
           
