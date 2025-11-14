@@ -26,6 +26,7 @@ import CustomerPortal from "./pages/CustomerPortal";
 import CustomerProfile from "./pages/CustomerProfile";
 import CustomerNewOrder from "./pages/CustomerNewOrder";
 import CustomerOrderDetail from "./pages/CustomerOrderDetail";
+import CustomerAccess from "./pages/CustomerAccess";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Layout from "./components/Layout";
 import NotFound from "./pages/NotFound";
@@ -82,6 +83,16 @@ const App = () => (
                 <ProtectedRoute requiredRole="admin">
                   <Layout>
                     <Customers />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/customer-access"
+              element={
+                <ProtectedRoute requiredRole="admin">
+                  <Layout>
+                    <CustomerAccess />
                   </Layout>
                 </ProtectedRoute>
               }

@@ -85,6 +85,44 @@ export type Database = {
           },
         ]
       }
+      customer_access_requests: {
+        Row: {
+          admin_notes: string | null
+          created_at: string
+          customer_id: string
+          id: string
+          requested_at: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          admin_notes?: string | null
+          created_at?: string
+          customer_id: string
+          id?: string
+          requested_at?: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          admin_notes?: string | null
+          created_at?: string
+          customer_id?: string
+          id?: string
+          requested_at?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_access_requests_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customer_category_access: {
         Row: {
           category_id: string
