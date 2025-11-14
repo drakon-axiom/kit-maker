@@ -26,9 +26,28 @@ const Auth = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (user) {
-      navigate('/');
-    }
+    const checkUserRole = async () => {
+      if (user) {
+        try {
+          const { data: roleData } = await supabase
+            .from('user_roles')
+            .select('role')
+            .eq('user_id', user.id)
+            .maybeSingle();
+          
+          if (roleData?.role === 'customer') {
+            navigate('/customer');
+          } else {
+            navigate('/');
+          }
+        } catch (error) {
+          console.error('Error checking role:', error);
+          navigate('/');
+        }
+      }
+    };
+    
+    checkUserRole();
   }, [user, navigate]);
 
   const handleSignIn = async (e: React.FormEvent) => {
@@ -44,11 +63,11 @@ const Auth = () => {
         variant: 'destructive',
       });
     } else {
+      // Role-based redirect handled in useEffect
       toast({
         title: 'Success',
         description: 'Signed in successfully',
       });
-      navigate('/');
     }
 
     setLoading(false);
