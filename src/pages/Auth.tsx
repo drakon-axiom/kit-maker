@@ -20,6 +20,7 @@ const Auth = () => {
   const [resetEmail, setResetEmail] = useState('');
   const [resetDialogOpen, setResetDialogOpen] = useState(false);
   const [resetLoading, setResetLoading] = useState(false);
+  const [isRedirecting, setIsRedirecting] = useState(false);
   const {
     signIn,
     signUp,
@@ -31,8 +32,9 @@ const Auth = () => {
   const navigate = useNavigate();
   useEffect(() => {
     const checkUserRole = async () => {
-      if (user) {
+      if (user && !isRedirecting) {
         try {
+          setIsRedirecting(true);
           const {
             data: roleData
           } = await supabase.from('user_roles').select('role').eq('user_id', user.id).maybeSingle();
@@ -45,6 +47,8 @@ const Auth = () => {
           console.error('Error checking role:', error);
           navigate('/');
         }
+      } else if (!user) {
+        setIsRedirecting(false);
       }
     };
     checkUserRole();

@@ -19,7 +19,7 @@ interface Order {
 }
 
 export default function CustomerPortal() {
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
@@ -104,7 +104,7 @@ export default function CustomerPortal() {
               <Plus className="h-4 w-4 mr-2" />
               New Order
             </Button>
-            <Button variant="outline" onClick={() => navigate('/auth')}>
+            <Button variant="outline" onClick={signOut}>
               Sign Out
             </Button>
           </div>
