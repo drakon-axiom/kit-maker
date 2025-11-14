@@ -30,11 +30,15 @@ interface Access {
   sku?: SKU;
 }
 
-export const CustomerAccessManager = () => {
+interface CustomerAccessManagerProps {
+  initialCustomerId?: string;
+}
+
+export const CustomerAccessManager = ({ initialCustomerId }: CustomerAccessManagerProps = {}) => {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [skus, setSKUs] = useState<SKU[]>([]);
-  const [selectedCustomer, setSelectedCustomer] = useState<string>('');
+  const [selectedCustomer, setSelectedCustomer] = useState<string>(initialCustomerId || '');
   const [categoryAccess, setCategoryAccess] = useState<Access[]>([]);
   const [productAccess, setProductAccess] = useState<Access[]>([]);
   const [loading, setLoading] = useState(true);

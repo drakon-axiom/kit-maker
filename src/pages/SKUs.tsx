@@ -10,7 +10,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Plus, Pencil, Loader2, Trash2, ChevronDown, ChevronRight, Check, Upload, AlertCircle, Search } from 'lucide-react';
 import { BundleFormFields } from '@/components/BundleFormFields';
 import { CategoryManager } from '@/components/CategoryManager';
-import { CustomerAccessManager } from '@/components/CustomerAccessManager';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
@@ -965,7 +964,6 @@ const SKUs = () => {
   return (
     <div className="p-6 space-y-6">
       <CategoryManager />
-      <CustomerAccessManager />
       
       <div className="flex justify-between items-center">
         <div>

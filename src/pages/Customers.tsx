@@ -7,7 +7,8 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Plus, Pencil, Loader2, Trash2, Upload, AlertCircle, Search } from 'lucide-react';
+import { Plus, Pencil, Loader2, Trash2, Upload, AlertCircle, Search, Shield } from 'lucide-react';
+import { CustomerAccessManager } from '@/components/CustomerAccessManager';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -61,6 +62,8 @@ const Customers = () => {
   const [importing, setImporting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [accessDialogOpen, setAccessDialogOpen] = useState(false);
+  const [accessCustomerId, setAccessCustomerId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -787,6 +790,16 @@ const Customers = () => {
                         <Button
                           variant="ghost"
                           size="sm"
+                          onClick={() => {
+                            setAccessCustomerId(customer.id);
+                            setAccessDialogOpen(true);
+                          }}
+                        >
+                          <Shield className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
                           onClick={() => openEditDialog(customer)}
                         >
                           <Pencil className="h-4 w-4" />
@@ -912,6 +925,18 @@ const Customers = () => {
               </Button>
             </div>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={accessDialogOpen} onOpenChange={setAccessDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Manage Customer Access</DialogTitle>
+            <DialogDescription>
+              Grant or revoke access to categories and products for this customer
+            </DialogDescription>
+          </DialogHeader>
+          <CustomerAccessManager initialCustomerId={accessCustomerId || undefined} />
         </DialogContent>
       </Dialog>
     </div>
