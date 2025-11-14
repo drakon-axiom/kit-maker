@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { ArrowLeft, Plus, Trash2, Loader2 } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Loader2, Package } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface SKU {
@@ -73,6 +73,11 @@ export default function CustomerNewOrder() {
 
       if (error) throw error;
       setSKUs(skusData || []);
+      
+      // Show a helpful message if no products are available
+      if (!skusData || skusData.length === 0) {
+        toast.info('No products available yet. Please contact your administrator to get access to products.');
+      }
     } catch (error: any) {
       toast.error('Failed to load products');
       console.error(error);
@@ -209,6 +214,19 @@ export default function CustomerNewOrder() {
             <CardDescription>Add products to your order</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            {skus.length === 0 ? (
+              <div className="text-center py-12 border-2 border-dashed rounded-lg">
+                <Package className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                <h3 className="text-lg font-semibold mb-2">No Products Available</h3>
+                <p className="text-muted-foreground mb-4">
+                  You don't have access to any products yet.
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  Please contact your administrator to request access to products or categories.
+                </p>
+              </div>
+            ) : (
+              <>
             <Table>
               <TableHeader>
                 <TableRow>
@@ -281,7 +299,7 @@ export default function CustomerNewOrder() {
               </TableBody>
             </Table>
 
-            <Button onClick={addLine} variant="outline">
+            <Button onClick={addLine} variant="outline" disabled={skus.length === 0}>
               <Plus className="h-4 w-4 mr-2" />
               Add Product
             </Button>
@@ -294,7 +312,7 @@ export default function CustomerNewOrder() {
                 <Button variant="outline" onClick={() => navigate('/customer')}>
                   Cancel
                 </Button>
-                <Button onClick={handleSubmit} disabled={submitting}>
+                <Button onClick={handleSubmit} disabled={lines.length === 0 || submitting || skus.length === 0}>
                   {submitting ? (
                     <>
                       <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -306,6 +324,8 @@ export default function CustomerNewOrder() {
                 </Button>
               </div>
             </div>
+            </>
+            )}
           </CardContent>
         </Card>
       </div>
