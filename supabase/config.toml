@@ -20,3 +20,6 @@ verify_jwt = false
 
 [functions.check-expiring-quotes]
 verify_jwt = false
+
+[functions.send-verification-email]
+verify_jwt = false
