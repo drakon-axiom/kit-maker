@@ -216,7 +216,8 @@ serve(async (req) => {
         customer:customers (
           name,
           email,
-          phone
+          phone,
+          quote_expiration_days
         ),
         sales_order_lines (
           id,
@@ -257,15 +258,41 @@ serve(async (req) => {
       lineItemsHtml += `<tr style="border-bottom: 1px solid #eee;"><td style="padding: 8px;">${line.sku?.code || "N/A"}</td><td style="padding: 8px;">${line.qty_entered} (${line.bottle_qty} bottles)</td><td style="padding: 8px; text-align: right;">$${line.unit_price.toFixed(2)}</td><td style="padding: 8px; text-align: right;">$${line.line_subtotal.toFixed(2)}</td></tr>`;
     }
 
-    // Calculate quote expiration date (7 days from now by default)
+    // Determine quote expiration days using hierarchy: order > customer > default
+    let expirationDays = 7; // fallback default
+    
+    // Fetch default setting
+    const { data: defaultSetting } = await supabase
+      .from("settings")
+      .select("value")
+      .eq("key", "default_quote_expiration_days")
+      .single();
+    
+    if (defaultSetting?.value) {
+      expirationDays = parseInt(defaultSetting.value);
+    }
+    
+    // Override with customer-specific setting if exists
+    if (order.customer?.quote_expiration_days) {
+      expirationDays = order.customer.quote_expiration_days;
+    }
+    
+    // Override with order-specific setting if exists
+    if (order.quote_expiration_days) {
+      expirationDays = order.quote_expiration_days;
+    }
+
+    // Calculate quote expiration date
     const expirationDate = new Date();
-    expirationDate.setDate(expirationDate.getDate() + 7);
+    expirationDate.setDate(expirationDate.getDate() + expirationDays);
     const expiresAtFormatted = expirationDate.toLocaleDateString("en-US", {
       weekday: "long",
       year: "numeric",
       month: "long",
       day: "numeric",
     });
+
+    console.log(`Quote expiration: ${expirationDays} days (expires: ${expiresAtFormatted})`);
 
     // Update order with expiration date and status
     const { error: updateError } = await supabase
