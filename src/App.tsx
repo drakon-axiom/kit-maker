@@ -23,6 +23,7 @@ import WholesaleSignup from "./pages/WholesaleSignup";
 import WholesaleApplications from "./pages/WholesaleApplications";
 import QuoteApproval from "./pages/QuoteApproval";
 import CustomerPortal from "./pages/CustomerPortal";
+import CustomerProfile from "./pages/CustomerProfile";
 import CustomerNewOrder from "./pages/CustomerNewOrder";
 import CustomerOrderDetail from "./pages/CustomerOrderDetail";
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -47,6 +48,11 @@ const App = () => (
             <Route path="/customer" element={
               <ProtectedRoute requiredRole="customer">
                 <CustomerPortal />
+              </ProtectedRoute>
+            } />
+            <Route path="/customer/profile" element={
+              <ProtectedRoute requiredRole="customer">
+                <CustomerProfile />
               </ProtectedRoute>
             } />
             <Route path="/customer/new-order" element={

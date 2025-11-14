@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Plus, Package, Loader2, Eye } from 'lucide-react';
+import { Plus, Package, Loader2, Eye, User } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface Order {
@@ -96,6 +96,10 @@ export default function CustomerPortal() {
             <p className="text-muted-foreground mt-1">Manage your orders and place new ones</p>
           </div>
           <div className="flex gap-2">
+            <Button variant="outline" onClick={() => navigate('/customer/profile')}>
+              <User className="h-4 w-4 mr-2" />
+              Profile
+            </Button>
             <Button onClick={() => navigate('/customer/new-order')}>
               <Plus className="h-4 w-4 mr-2" />
               New Order
