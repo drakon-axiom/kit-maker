@@ -1046,13 +1046,12 @@ const SKUs = () => {
               />
               
               <div className="space-y-2">
-                <Label htmlFor="category_id">Category</Label>
-                <Select value={formData.category_id} onValueChange={(value) => setFormData({ ...formData, category_id: value })}>
+                <Label htmlFor="category_id">Category (Optional)</Label>
+                <Select value={formData.category_id || undefined} onValueChange={(value) => setFormData({ ...formData, category_id: value })}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Select a category (optional)" />
+                    <SelectValue placeholder="No category" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">None</SelectItem>
                     {categories.map((cat) => (
                       <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
                     ))}
