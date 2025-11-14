@@ -17,3 +17,6 @@ verify_jwt = false
 
 [functions.accept-quote]
 verify_jwt = false
+
+[functions.check-expiring-quotes]
+verify_jwt = false

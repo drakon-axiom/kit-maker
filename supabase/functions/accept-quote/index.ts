@@ -49,6 +49,16 @@ serve(async (req) => {
       throw new Error("Order is not in quoted status");
     }
 
+    // Check if quote has expired
+    if (order.quote_expires_at) {
+      const expiresAt = new Date(order.quote_expires_at);
+      const now = new Date();
+      
+      if (expiresAt < now) {
+        throw new Error("This quote has expired. Please contact us to request a new quote.");
+      }
+    }
+
     // Update order status to deposit_due
     const { error: updateError } = await supabase
       .from("sales_orders")
