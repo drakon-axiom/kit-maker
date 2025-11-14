@@ -13,6 +13,7 @@ interface QuotePreviewProps {
     deposit_required: boolean;
     deposit_amount?: number;
     subtotal: number;
+    quote_expires_at?: string;
     customer?: {
       name: string;
       email: string;
@@ -101,6 +102,26 @@ const QuotePreview = ({ open, onOpenChange, order, onSend, sending }: QuotePrevi
          </div>`
       : '';
 
+    // Calculate expiration data
+    const expiresAt = order.quote_expires_at 
+      ? new Date(order.quote_expires_at).toLocaleDateString()
+      : '';
+    
+    const expirationWarning = order.quote_expires_at 
+      ? (() => {
+          const expiryDate = new Date(order.quote_expires_at);
+          const now = new Date();
+          const daysUntilExpiry = Math.ceil((expiryDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+          
+          if (daysUntilExpiry < 0) {
+            return '<div style="background: #fee; border: 1px solid #fcc; padding: 12px; border-radius: 4px; margin: 16px 0; color: #c00;"><strong>This quote has expired.</strong></div>';
+          } else if (daysUntilExpiry <= 3) {
+            return `<div style="background: #fff3cd; border: 1px solid #ffc107; padding: 12px; border-radius: 4px; margin: 16px 0;"><strong>Note:</strong> This quote expires in ${daysUntilExpiry} day${daysUntilExpiry === 1 ? '' : 's'}.</div>`;
+          }
+          return '';
+        })()
+      : '';
+
     if (customHtml) {
       // Use custom template with variable replacement
       return customHtml
@@ -109,8 +130,8 @@ const QuotePreview = ({ open, onOpenChange, order, onSend, sending }: QuotePrevi
         .replace(/\{\{customer_name\}\}/g, order.customer?.name || "Customer")
         .replace(/\{\{quote_number\}\}/g, order.human_uid)
         .replace(/\{\{date\}\}/g, new Date(order.created_at).toLocaleDateString())
-        .replace(/\{\{expires_at\}\}/g, '')
-        .replace(/\{\{expiration_warning\}\}/g, '')
+        .replace(/\{\{expires_at\}\}/g, expiresAt)
+        .replace(/\{\{expiration_warning\}\}/g, expirationWarning)
         .replace(/\{\{customer_email\}\}/g, order.customer?.email || '')
         .replace(/\{\{line_items\}\}/g, lineItemsHtml)
         .replace(/\{\{subtotal\}\}/g, `$${order.subtotal.toFixed(2)}`)
