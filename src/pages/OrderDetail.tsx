@@ -872,40 +872,73 @@ const OrderDetail = () => {
                     )}
                   </div>
                   {userRole === 'admin' && (
-                    <div className="flex gap-2 items-center">
-                      <Input
-                        type="number"
-                        min="1"
-                        max="365"
-                        placeholder="Days"
-                        defaultValue={order.quote_expiration_days || ''}
-                        className="h-8"
-                        onBlur={async (e) => {
-                          const days = e.target.value ? parseInt(e.target.value) : null;
-                          try {
-                            const { error } = await supabase
-                              .from('sales_orders')
-                              .update({ quote_expiration_days: days } as any)
-                              .eq('id', order.id);
-                            
-                            if (error) throw error;
-                            
-                            toast({
-                              title: 'Updated',
-                              description: 'Quote expiration days updated',
-                            });
-                            
-                            fetchOrder();
-                          } catch (error: any) {
-                            toast({
-                              title: 'Error',
-                              description: error.message,
-                              variant: 'destructive',
-                            });
-                          }
-                        }}
-                      />
-                      <span className="text-xs text-muted-foreground whitespace-nowrap">days</span>
+                    <div className="space-y-2">
+                      <div className="flex gap-2 items-center">
+                        <Input
+                          type="number"
+                          min="1"
+                          max="365"
+                          placeholder="Days"
+                          defaultValue={order.quote_expiration_days || ''}
+                          className="h-8"
+                          onBlur={async (e) => {
+                            const days = e.target.value ? parseInt(e.target.value) : null;
+                            try {
+                              const { error } = await supabase
+                                .from('sales_orders')
+                                .update({ quote_expiration_days: days } as any)
+                                .eq('id', order.id);
+                              
+                              if (error) throw error;
+                              
+                              toast({
+                                title: 'Updated',
+                                description: 'Quote expiration days updated',
+                              });
+                              
+                              fetchOrder();
+                            } catch (error: any) {
+                              toast({
+                                title: 'Error',
+                                description: error.message,
+                                variant: 'destructive',
+                              });
+                            }
+                          }}
+                        />
+                        <span className="text-xs text-muted-foreground whitespace-nowrap">days</span>
+                      </div>
+                      {order.quote_expires_at && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="w-full h-8"
+                          onClick={async () => {
+                            try {
+                              const { data, error } = await supabase.functions.invoke('renew-quote', {
+                                body: { orderId: order.id }
+                              });
+
+                              if (error) throw error;
+
+                              toast({
+                                title: 'Quote Renewed',
+                                description: 'Quote expiration extended and customer notified',
+                              });
+
+                              fetchOrder();
+                            } catch (error: any) {
+                              toast({
+                                title: 'Error',
+                                description: error.message,
+                                variant: 'destructive',
+                              });
+                            }
+                          }}
+                        >
+                          Renew & Notify Customer
+                        </Button>
+                      )}
                     </div>
                   )}
                 </div>
