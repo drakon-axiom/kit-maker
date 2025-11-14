@@ -181,6 +181,7 @@ export type Database = {
           shipping_state: string | null
           shipping_zip: string | null
           updated_at: string
+          user_id: string | null
         }
         Insert: {
           billing_address_line1?: string | null
@@ -205,6 +206,7 @@ export type Database = {
           shipping_state?: string | null
           shipping_zip?: string | null
           updated_at?: string
+          user_id?: string | null
         }
         Update: {
           billing_address_line1?: string | null
@@ -229,6 +231,7 @@ export type Database = {
           shipping_state?: string | null
           shipping_zip?: string | null
           updated_at?: string
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -1071,9 +1074,10 @@ export type Database = {
         Returns: boolean
       }
       is_authenticated_user: { Args: never; Returns: boolean }
+      is_customer: { Args: never; Returns: boolean }
     }
     Enums: {
-      app_role: "admin" | "operator"
+      app_role: "admin" | "operator" | "customer"
       application_status: "pending" | "approved" | "rejected"
       batch_status: "queued" | "wip" | "hold" | "complete"
       deposit_status: "unpaid" | "partial" | "paid"
@@ -1229,7 +1233,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "operator"],
+      app_role: ["admin", "operator", "customer"],
       application_status: ["pending", "approved", "rejected"],
       batch_status: ["queued", "wip", "hold", "complete"],
       deposit_status: ["unpaid", "partial", "paid"],

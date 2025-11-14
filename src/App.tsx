@@ -22,6 +22,9 @@ import LabelSettings from "./pages/LabelSettings";
 import WholesaleSignup from "./pages/WholesaleSignup";
 import WholesaleApplications from "./pages/WholesaleApplications";
 import QuoteApproval from "./pages/QuoteApproval";
+import CustomerPortal from "./pages/CustomerPortal";
+import CustomerNewOrder from "./pages/CustomerNewOrder";
+import CustomerOrderDetail from "./pages/CustomerOrderDetail";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Layout from "./components/Layout";
 import NotFound from "./pages/NotFound";
@@ -38,6 +41,25 @@ const App = () => (
           <Routes>
             <Route path="/auth" element={<Auth />} />
             <Route path="/wholesale-signup" element={<WholesaleSignup />} />
+            <Route path="/quote-approval" element={<QuoteApproval />} />
+            
+            {/* Customer Portal Routes */}
+            <Route path="/customer" element={
+              <ProtectedRoute requiredRole="customer">
+                <CustomerPortal />
+              </ProtectedRoute>
+            } />
+            <Route path="/customer/new-order" element={
+              <ProtectedRoute requiredRole="customer">
+                <CustomerNewOrder />
+              </ProtectedRoute>
+            } />
+            <Route path="/customer/orders/:id" element={
+              <ProtectedRoute requiredRole="customer">
+                <CustomerOrderDetail />
+              </ProtectedRoute>
+            } />
+            
             <Route
               path="/"
               element={
