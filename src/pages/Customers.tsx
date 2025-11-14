@@ -35,6 +35,7 @@ interface Customer {
   billing_country: string | null;
   billing_same_as_shipping: boolean | null;
   notes: string | null;
+  quote_expiration_days: number | null;
   created_at: string;
 }
 
@@ -65,6 +66,7 @@ const Customers = () => {
     email: '',
     phone: '',
     default_terms: '',
+    quote_expiration_days: '',
     shipping_address_line1: '',
     shipping_address_line2: '',
     shipping_city: '',
@@ -143,6 +145,7 @@ const Customers = () => {
         email: formData.email || null,
         phone: formData.phone || null,
         default_terms: formData.default_terms || null,
+        quote_expiration_days: formData.quote_expiration_days ? parseInt(formData.quote_expiration_days) : null,
         shipping_address_line1: formData.shipping_address_line1 || null,
         shipping_address_line2: formData.shipping_address_line2 || null,
         shipping_city: formData.shipping_city || null,
@@ -194,6 +197,7 @@ const Customers = () => {
       email: '',
       phone: '',
       default_terms: '',
+      quote_expiration_days: '',
       shipping_address_line1: '',
       shipping_address_line2: '',
       shipping_city: '',
@@ -219,6 +223,7 @@ const Customers = () => {
       email: customer.email || '',
       phone: customer.phone || '',
       default_terms: customer.default_terms || '',
+      quote_expiration_days: customer.quote_expiration_days?.toString() || '',
       shipping_address_line1: customer.shipping_address_line1 || '',
       shipping_address_line2: customer.shipping_address_line2 || '',
       shipping_city: customer.shipping_city || '',
@@ -559,6 +564,21 @@ const Customers = () => {
                       onChange={(e) => setFormData({ ...formData, default_terms: e.target.value })}
                       placeholder="e.g., Net 30"
                     />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="quote_expiration">Quote Expiration (Days)</Label>
+                    <Input
+                      id="quote_expiration"
+                      type="number"
+                      min="1"
+                      max="365"
+                      value={formData.quote_expiration_days}
+                      onChange={(e) => setFormData({ ...formData, quote_expiration_days: e.target.value })}
+                      placeholder="Leave empty for default"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Override default quote expiration for this customer
+                    </p>
                   </div>
                 </div>
               </div>

@@ -51,6 +51,7 @@ const OrderNew = () => {
   const [depositRequired, setDepositRequired] = useState(false);
   const [depositPercent, setDepositPercent] = useState(50);
   const [labelRequired, setLabelRequired] = useState(false);
+  const [quoteExpirationDays, setQuoteExpirationDays] = useState<number | null>(null);
   const [lines, setLines] = useState<OrderLine[]>([]);
   const [kitSize, setKitSize] = useState(10);
   const [loading, setLoading] = useState(false);
@@ -286,6 +287,7 @@ const OrderNew = () => {
           deposit_amount: depositAmount,
           deposit_status: depositRequired ? 'unpaid' : 'paid',
           label_required: labelRequired,
+          quote_expiration_days: quoteExpirationDays,
         }])
         .select()
         .single();
@@ -405,6 +407,22 @@ const OrderNew = () => {
                   onCheckedChange={setLabelRequired}
                 />
               </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="quoteExpiration">Quote Expiration (Days)</Label>
+              <Input
+                id="quoteExpiration"
+                type="number"
+                min="1"
+                max="365"
+                value={quoteExpirationDays || ''}
+                onChange={(e) => setQuoteExpirationDays(e.target.value ? parseInt(e.target.value) : null)}
+                placeholder="Leave empty for default"
+              />
+              <p className="text-xs text-muted-foreground">
+                Override default quote expiration period for this order
+              </p>
             </div>
           </CardContent>
         </Card>

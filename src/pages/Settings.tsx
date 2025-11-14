@@ -215,6 +215,39 @@ const Settings = () => {
             </CardContent>
           </Card>
 
+          <Card>
+            <CardHeader>
+              <CardTitle>Quote Expiration</CardTitle>
+              <CardDescription>Default number of days until quotes expire</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="default_quote_expiration_days">Days Until Expiration</Label>
+                  <Input
+                    id="default_quote_expiration_days"
+                    type="number"
+                    min="1"
+                    max="365"
+                    value={settings.default_quote_expiration_days || '7'}
+                    onChange={(e) => setSettings({ ...settings, default_quote_expiration_days: e.target.value })}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Can be overridden per customer or per order
+                  </p>
+                </div>
+                <Button 
+                  onClick={() => handleSave('default_quote_expiration_days', settings.default_quote_expiration_days)}
+                  disabled={saving}
+                  size="sm"
+                >
+                  <Save className="mr-2 h-4 w-4" />
+                  Save
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
           <Card className="md:col-span-2">
             <CardHeader>
               <CardTitle>Tracking Carriers</CardTitle>
