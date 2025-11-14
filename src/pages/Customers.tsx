@@ -96,7 +96,7 @@ const Customers = () => {
         .order('name');
 
       if (error) throw error;
-      setCustomers(data || []);
+      setCustomers((data || []) as any);
     } catch (error: any) {
       toast({
         title: 'Error',
