@@ -8,6 +8,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Plus, Pencil, Loader2, Trash2, ChevronDown, ChevronRight, Check, Upload, AlertCircle, Search } from 'lucide-react';
+import { BundleFormFields } from '@/components/BundleFormFields';
+import { CategoryManager } from '@/components/CategoryManager';
+import { CustomerAccessManager } from '@/components/CustomerAccessManager';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
@@ -37,6 +41,15 @@ interface SKU {
   created_at: string;
   pricing_tiers?: PricingTier[];
   sizes?: Array<{ id: string; size_ml: number }>;
+  category_id?: string | null;
+  is_bundle: boolean;
+  pack_size: number;
+  bundle_product_price: number;
+  bundle_packaging_price: number;
+  bundle_labeling_price: number;
+  bundle_inserts_price: number;
+  inserts_optional: boolean;
+  categories?: { id: string; name: string };
 }
 
 interface ImportRow {
@@ -72,6 +85,7 @@ interface ImportRow {
 
 const SKUs = () => {
   const [skus, setSKUs] = useState<SKU[]>([]);
+  const [categories, setCategories] = useState<Array<{ id: string; name: string }>>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -100,6 +114,14 @@ const SKUs = () => {
     active: true,
     use_tier_pricing: false,
     sizes: [] as number[],
+    category_id: '',
+    is_bundle: false,
+    pack_size: 1,
+    bundle_product_price: '',
+    bundle_packaging_price: '',
+    bundle_labeling_price: '',
+    bundle_inserts_price: '',
+    inserts_optional: true,
   });
   const [pricingTiers, setPricingTiers] = useState<PricingTier[]>([
     { min_quantity: 5, max_quantity: 10, price_per_kit: 0 },
@@ -113,7 +135,22 @@ const SKUs = () => {
 
   useEffect(() => {
     fetchSKUs();
+    fetchCategories();
   }, []);
+
+  const fetchCategories = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('categories')
+        .select('id, name')
+        .eq('active', true)
+        .order('name');
+      if (error) throw error;
+      setCategories(data || []);
+    } catch (error: any) {
+      console.error('Error fetching categories:', error);
+    }
+  };
 
   const fetchSKUs = async () => {
     try {
@@ -122,7 +159,8 @@ const SKUs = () => {
         .select(`
           *,
           pricing_tiers:sku_pricing_tiers(*),
-          sizes:sku_sizes(id, size_ml)
+          sizes:sku_sizes(id, size_ml),
+          categories(id, name)
         `)
         .order('code');
 
@@ -157,6 +195,14 @@ const SKUs = () => {
         price_per_piece: parseFloat(formData.price_per_piece),
         active: formData.active,
         use_tier_pricing: formData.use_tier_pricing,
+        category_id: formData.category_id || null,
+        is_bundle: formData.is_bundle,
+        pack_size: formData.pack_size,
+        bundle_product_price: parseFloat(formData.bundle_product_price) || 0,
+        bundle_packaging_price: parseFloat(formData.bundle_packaging_price) || 0,
+        bundle_labeling_price: parseFloat(formData.bundle_labeling_price) || 0,
+        bundle_inserts_price: parseFloat(formData.bundle_inserts_price) || 0,
+        inserts_optional: formData.inserts_optional,
       };
 
       let skuId = editingSKU?.id;
@@ -774,6 +820,14 @@ const SKUs = () => {
       active: true,
       use_tier_pricing: false,
       sizes: [],
+      category_id: '',
+      is_bundle: false,
+      pack_size: 1,
+      bundle_product_price: '',
+      bundle_packaging_price: '',
+      bundle_labeling_price: '',
+      bundle_inserts_price: '',
+      inserts_optional: true,
     });
     setPricingTiers([
       { min_quantity: 5, max_quantity: 10, price_per_kit: 0 },
@@ -796,6 +850,14 @@ const SKUs = () => {
       active: sku.active,
       use_tier_pricing: sku.use_tier_pricing,
       sizes: sku.sizes?.map(s => s.size_ml) || [],
+      category_id: sku.category_id || '',
+      is_bundle: sku.is_bundle,
+      pack_size: sku.pack_size,
+      bundle_product_price: sku.bundle_product_price.toString(),
+      bundle_packaging_price: sku.bundle_packaging_price.toString(),
+      bundle_labeling_price: sku.bundle_labeling_price.toString(),
+      bundle_inserts_price: sku.bundle_inserts_price.toString(),
+      inserts_optional: sku.inserts_optional,
     });
     
     // Load pricing tiers or use defaults
@@ -902,6 +964,9 @@ const SKUs = () => {
 
   return (
     <div className="p-6 space-y-6">
+      <CategoryManager />
+      <CustomerAccessManager />
+      
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Products (SKUs)</h1>
@@ -968,6 +1033,33 @@ const SKUs = () => {
                   required
                 />
               </div>
+              
+              <BundleFormFields
+                isBundle={formData.is_bundle}
+                packSize={formData.pack_size}
+                bundleProductPrice={formData.bundle_product_price}
+                bundlePackagingPrice={formData.bundle_packaging_price}
+                bundleLabelingPrice={formData.bundle_labeling_price}
+                bundleInsertsPrice={formData.bundle_inserts_price}
+                insertsOptional={formData.inserts_optional}
+                onChange={(field, value) => setFormData({ ...formData, [field]: value })}
+              />
+              
+              <div className="space-y-2">
+                <Label htmlFor="category_id">Category</Label>
+                <Select value={formData.category_id} onValueChange={(value) => setFormData({ ...formData, category_id: value })}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a category (optional)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">None</SelectItem>
+                    {categories.map((cat) => (
+                      <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              
               <div className="space-y-2">
                 <Label>Size Variants (ml)</Label>
                 <div className="grid grid-cols-4 gap-2">

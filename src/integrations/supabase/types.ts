@@ -47,6 +47,116 @@ export type Database = {
         }
         Relationships: []
       }
+      categories: {
+        Row: {
+          active: boolean
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          parent_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          parent_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          parent_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "categories_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      customer_category_access: {
+        Row: {
+          category_id: string
+          created_at: string
+          customer_id: string
+          id: string
+        }
+        Insert: {
+          category_id: string
+          created_at?: string
+          customer_id: string
+          id?: string
+        }
+        Update: {
+          category_id?: string
+          created_at?: string
+          customer_id?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_category_access_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_category_access_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      customer_product_access: {
+        Row: {
+          created_at: string
+          customer_id: string
+          id: string
+          sku_id: string
+        }
+        Insert: {
+          created_at?: string
+          customer_id: string
+          id?: string
+          sku_id: string
+        }
+        Update: {
+          created_at?: string
+          customer_id?: string
+          id?: string
+          sku_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_product_access_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_product_access_sku_id_fkey"
+            columns: ["sku_id"]
+            isOneToOne: false
+            referencedRelation: "skus"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customers: {
         Row: {
           billing_address_line1: string | null
@@ -725,11 +835,19 @@ export type Database = {
         Row: {
           active: boolean
           batch_prefix: string | null
+          bundle_inserts_price: number | null
+          bundle_labeling_price: number | null
+          bundle_packaging_price: number | null
+          bundle_product_price: number | null
+          category_id: string | null
           code: string
           created_at: string
           description: string
           id: string
+          inserts_optional: boolean | null
+          is_bundle: boolean
           label_required: boolean
+          pack_size: number | null
           price_per_kit: number
           price_per_piece: number
           updated_at: string
@@ -738,11 +856,19 @@ export type Database = {
         Insert: {
           active?: boolean
           batch_prefix?: string | null
+          bundle_inserts_price?: number | null
+          bundle_labeling_price?: number | null
+          bundle_packaging_price?: number | null
+          bundle_product_price?: number | null
+          category_id?: string | null
           code: string
           created_at?: string
           description: string
           id?: string
+          inserts_optional?: boolean | null
+          is_bundle?: boolean
           label_required?: boolean
+          pack_size?: number | null
           price_per_kit: number
           price_per_piece: number
           updated_at?: string
@@ -751,17 +877,33 @@ export type Database = {
         Update: {
           active?: boolean
           batch_prefix?: string | null
+          bundle_inserts_price?: number | null
+          bundle_labeling_price?: number | null
+          bundle_packaging_price?: number | null
+          bundle_product_price?: number | null
+          category_id?: string | null
           code?: string
           created_at?: string
           description?: string
           id?: string
+          inserts_optional?: boolean | null
+          is_bundle?: boolean
           label_required?: boolean
+          pack_size?: number | null
           price_per_kit?: number
           price_per_piece?: number
           updated_at?: string
           use_tier_pricing?: boolean
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "skus_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {
