@@ -103,77 +103,87 @@ serve(async (req) => {
 
     const approvalLink = `${supabaseUrl.replace('/functions/v1', '')}/quote/${order.quote_link_token}`;
 
-    // Build email HTML
-    const emailHtml = template?.custom_html
-      ? template.custom_html
-          .replace(/\{\{company_name\}\}/g, settings.company_name || 'Company')
-          .replace(/\{\{company_email\}\}/g, settings.company_email || '')
-          .replace(/\{\{customer_name\}\}/g, order.customer.name)
-          .replace(/\{\{quote_number\}\}/g, order.human_uid)
-          .replace(/\{\{date\}\}/g, new Date().toLocaleDateString())
-          .replace(/\{\{expires_at\}\}/g, newExpirationDate.toLocaleDateString())
-          .replace(/\{\{customer_email\}\}/g, order.customer.email)
-          .replace(/\{\{line_items\}\}/g, lineItemsHtml)
-          .replace(/\{\{subtotal\}\}/g, `$${order.subtotal.toFixed(2)}`)
-          .replace(/\{\{logo_url\}\}/g, settings.company_logo_url || '')
-          .replace(/\{\{approval_link\}\}/g, approvalLink)
-          .replace(/\{\{expiration_warning\}\}/g, `<div style="background: #d1fae5; border: 1px solid #10b981; border-radius: 6px; padding: 12px; margin: 16px 0; text-align: center;">
-            <p style="margin: 0; color: #065f46; font-size: 14px;">✓ <strong>Quote Extended! New expiration date: ${newExpirationDate.toLocaleDateString()}</strong></p>
-          </div>`)
-      : `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <div style="background: ${settings.email_header_bg_color || '#000'}; color: ${settings.email_header_text_color || '#fff'}; padding: 20px; text-align: center;">
-            <h1>Quote Renewed</h1>
-          </div>
-          <div style="padding: 20px;">
-            <p>Dear ${order.customer.name},</p>
-            <p>Good news! Your quote <strong>${order.human_uid}</strong> has been extended.</p>
-            <div style="background: #d1fae5; border: 1px solid #10b981; border-radius: 6px; padding: 12px; margin: 16px 0; text-align: center;">
-              <p style="margin: 0; color: #065f46; font-size: 14px;">✓ <strong>New expiration date: ${newExpirationDate.toLocaleDateString()}</strong></p>
+    // Try to send email notification (non-blocking - quote renewal succeeds even if email fails)
+    let emailSent = false;
+    try {
+      // Build email HTML
+      const emailHtml = template?.custom_html
+        ? template.custom_html
+            .replace(/\{\{company_name\}\}/g, settings.company_name || 'Company')
+            .replace(/\{\{company_email\}\}/g, settings.company_email || '')
+            .replace(/\{\{customer_name\}\}/g, order.customer.name)
+            .replace(/\{\{quote_number\}\}/g, order.human_uid)
+            .replace(/\{\{date\}\}/g, new Date().toLocaleDateString())
+            .replace(/\{\{expires_at\}\}/g, newExpirationDate.toLocaleDateString())
+            .replace(/\{\{customer_email\}\}/g, order.customer.email)
+            .replace(/\{\{line_items\}\}/g, lineItemsHtml)
+            .replace(/\{\{subtotal\}\}/g, `$${order.subtotal.toFixed(2)}`)
+            .replace(/\{\{logo_url\}\}/g, settings.company_logo_url || '')
+            .replace(/\{\{approval_link\}\}/g, approvalLink)
+            .replace(/\{\{expiration_warning\}\}/g, `<div style="background: #d1fae5; border: 1px solid #10b981; border-radius: 6px; padding: 12px; margin: 16px 0; text-align: center;">
+              <p style="margin: 0; color: #065f46; font-size: 14px;">✓ <strong>Quote Extended! New expiration date: ${newExpirationDate.toLocaleDateString()}</strong></p>
+            </div>`)
+        : `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <div style="background: ${settings.email_header_bg_color || '#000'}; color: ${settings.email_header_text_color || '#fff'}; padding: 20px; text-align: center;">
+              <h1>Quote Renewed</h1>
             </div>
-            <div style="text-align: center; margin: 32px 0;">
-              <a href="${approvalLink}" style="display: inline-block; background: #28a745; color: white; padding: 16px 32px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 16px;">
-                View & Accept Quote
-              </a>
+            <div style="padding: 20px;">
+              <p>Dear ${order.customer.name},</p>
+              <p>Good news! Your quote <strong>${order.human_uid}</strong> has been extended.</p>
+              <div style="background: #d1fae5; border: 1px solid #10b981; border-radius: 6px; padding: 12px; margin: 16px 0; text-align: center;">
+                <p style="margin: 0; color: #065f46; font-size: 14px;">✓ <strong>New expiration date: ${newExpirationDate.toLocaleDateString()}</strong></p>
+              </div>
+              <div style="text-align: center; margin: 32px 0;">
+                <a href="${approvalLink}" style="display: inline-block; background: #28a745; color: white; padding: 16px 32px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 16px;">
+                  View & Accept Quote
+                </a>
+              </div>
+              <p>If you have any questions, please contact us at ${settings.company_email || 'support@company.com'}</p>
             </div>
-            <p>If you have any questions, please contact us at ${settings.company_email || 'support@company.com'}</p>
+            <div style="background: #f3f4f6; padding: 20px; text-align: center; font-size: 12px; color: #666;">
+              ${settings.email_footer_text || ''}
+            </div>
           </div>
-          <div style="background: #f3f4f6; padding: 20px; text-align: center; font-size: 12px; color: #666;">
-            ${settings.email_footer_text || ''}
-          </div>
-        </div>
-      `;
+        `;
 
-    // Send email
-    const client = new SMTPClient({
-      connection: {
-        hostname: settings.smtp_host,
-        port: parseInt(settings.smtp_port),
-        tls: true,
-        auth: {
-          username: settings.smtp_user,
-          password: settings.smtp_password,
+      // Send email
+      const client = new SMTPClient({
+        connection: {
+          hostname: settings.smtp_host,
+          port: parseInt(settings.smtp_port),
+          tls: true,
+          auth: {
+            username: settings.smtp_user,
+            password: settings.smtp_password,
+          },
         },
-      },
-    });
+      });
 
-    await client.send({
-      from: settings.company_email || settings.smtp_user,
-      to: order.customer.email,
-      subject: template?.subject?.replace(/\{\{quote_number\}\}/g, order.human_uid) || `Quote ${order.human_uid} Extended`,
-      content: emailHtml,
-      html: emailHtml,
-    });
+      await client.send({
+        from: settings.company_email || settings.smtp_user,
+        to: order.customer.email,
+        subject: template?.subject?.replace(/\{\{quote_number\}\}/g, order.human_uid) || `Quote ${order.human_uid} Extended`,
+        content: emailHtml,
+        html: emailHtml,
+      });
 
-    await client.close();
-
-    console.log(`Quote renewal email sent to ${order.customer.email}`);
+      await client.close();
+      emailSent = true;
+      console.log(`Quote renewal email sent to ${order.customer.email}`);
+    } catch (emailError: any) {
+      console.error('Failed to send email notification:', emailError.message);
+      console.log('Quote renewal successful, but email notification could not be sent');
+    }
 
     return new Response(
       JSON.stringify({ 
         success: true, 
-        message: 'Quote renewed and customer notified',
-        newExpirationDate: newExpirationDate.toISOString()
+        message: emailSent 
+          ? 'Quote renewed and customer notified'
+          : 'Quote renewed successfully (email notification failed)',
+        newExpirationDate: newExpirationDate.toISOString(),
+        emailSent
       }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
