@@ -16,6 +16,7 @@ import {
   UserPlus,
   Monitor,
   ShieldCheck,
+  UserCog,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -50,6 +51,7 @@ export function AppSidebar() {
   const adminItems = [
     { title: 'Customers', url: '/customers', icon: Users },
     { title: 'Customer Access', url: '/customer-access', icon: ShieldCheck },
+    { title: 'User Management', url: '/user-management', icon: UserCog },
     { title: 'Products (SKUs)', url: '/skus', icon: Package },
     { title: 'Wholesale Applications', url: '/wholesale-applications', icon: UserPlus },
     { title: 'Notifications', url: '/notifications', icon: Mail },
