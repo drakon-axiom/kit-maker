@@ -11,6 +11,8 @@ interface BundleFormFieldsProps {
   bundlePackagingPrice: string;
   bundleLabelingPrice: string;
   bundleInsertsPrice: string;
+  bundleLaborPrice: string;
+  bundleOverheadPrice: string;
   insertsOptional: boolean;
   pricePerKit: string;
   onChange: (field: string, value: any) => void;
@@ -23,6 +25,8 @@ export const BundleFormFields = ({
   bundlePackagingPrice,
   bundleLabelingPrice,
   bundleInsertsPrice,
+  bundleLaborPrice,
+  bundleOverheadPrice,
   insertsOptional,
   pricePerKit,
   onChange,
@@ -31,7 +35,9 @@ export const BundleFormFields = ({
     parseFloat(bundleProductPrice || '0') +
     parseFloat(bundlePackagingPrice || '0') +
     parseFloat(bundleLabelingPrice || '0') +
-    parseFloat(bundleInsertsPrice || '0');
+    parseFloat(bundleInsertsPrice || '0') +
+    parseFloat(bundleLaborPrice || '0') +
+    parseFloat(bundleOverheadPrice || '0');
 
   const sellingPrice = parseFloat(pricePerKit || '0');
   const margin = sellingPrice - totalBundlePrice;
@@ -125,6 +131,32 @@ export const BundleFormFields = ({
                   min="0"
                   value={bundleInsertsPrice}
                   onChange={(e) => onChange('bundle_inserts_price', e.target.value)}
+                  placeholder="0.00"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="bundle_labor_price">Labor Cost</Label>
+                <Input
+                  id="bundle_labor_price"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={bundleLaborPrice}
+                  onChange={(e) => onChange('bundle_labor_price', e.target.value)}
+                  placeholder="0.00"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="bundle_overhead_price">Overhead Cost</Label>
+                <Input
+                  id="bundle_overhead_price"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={bundleOverheadPrice}
+                  onChange={(e) => onChange('bundle_overhead_price', e.target.value)}
                   placeholder="0.00"
                 />
               </div>
