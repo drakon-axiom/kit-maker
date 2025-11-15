@@ -2,8 +2,9 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Database } from "@/integrations/supabase/types";
 import { Button } from "@/components/ui/button";
-import { Maximize, Minimize } from "lucide-react";
+import { Maximize, Minimize, Home } from "lucide-react";
 import { useState } from "react";
+import { Link } from "react-router-dom";
 
 type Batch = Database["public"]["Tables"]["production_batches"]["Row"] & {
   sales_orders?: {
@@ -70,6 +71,16 @@ const ProductionDisplay = () => {
     <div className="min-h-screen bg-background p-8">
       <div className="max-w-7xl mx-auto space-y-8">
         <div className="text-center space-y-2 relative">
+          <Button
+            asChild
+            variant="ghost"
+            size="icon"
+            className="absolute left-0 top-0 opacity-50 hover:opacity-100 transition-opacity"
+          >
+            <Link to="/">
+              <Home className="h-5 w-5" />
+            </Link>
+          </Button>
           <Button
             onClick={toggleFullscreen}
             variant="outline"
