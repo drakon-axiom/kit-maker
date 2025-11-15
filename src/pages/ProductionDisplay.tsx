@@ -3,8 +3,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { Database } from "@/integrations/supabase/types";
 import { Button } from "@/components/ui/button";
 import { Maximize, Minimize, Home } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
+import { format, formatDistanceToNow } from "date-fns";
 
 type Batch = Database["public"]["Tables"]["production_batches"]["Row"] & {
   sales_orders?: {
@@ -26,6 +27,14 @@ type Batch = Database["public"]["Tables"]["production_batches"]["Row"] & {
 
 const ProductionDisplay = () => {
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   const toggleFullscreen = () => {
     if (!isFullscreen) {
@@ -102,12 +111,15 @@ const ProductionDisplay = () => {
             <div className="space-y-3">
               {inProgressBatches.map((batch) => {
                 const sku = batch.production_batch_items?.[0]?.sales_order_lines?.skus;
+                const startTime = batch.actual_start ? new Date(batch.actual_start) : null;
+                const elapsedTime = startTime ? formatDistanceToNow(startTime, { includeSeconds: true }) : null;
+                
                 return (
                   <div
                     key={batch.id}
                     className="bg-blue-500/10 border-2 border-blue-500 rounded-lg p-6"
                   >
-                    <div className="grid grid-cols-3 gap-6">
+                    <div className="grid grid-cols-5 gap-6">
                       <div>
                         <div className="text-sm text-muted-foreground mb-1">Batch Number</div>
                         <div className="text-3xl font-bold text-foreground">{batch.human_uid}</div>
@@ -123,6 +135,21 @@ const ProductionDisplay = () => {
                         <div className="text-sm text-muted-foreground mb-1">Batch Size</div>
                         <div className="text-3xl font-bold text-foreground">
                           {batch.qty_bottle_planned} bottles
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-sm text-muted-foreground mb-1">Started At</div>
+                        <div className="text-xl font-semibold text-foreground">
+                          {startTime ? format(startTime, "h:mm a") : "N/A"}
+                        </div>
+                        <div className="text-sm text-muted-foreground">
+                          {startTime ? format(startTime, "MMM d") : ""}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-sm text-muted-foreground mb-1">Elapsed Time</div>
+                        <div className="text-2xl font-bold text-blue-500">
+                          {elapsedTime || "N/A"}
                         </div>
                       </div>
                     </div>
