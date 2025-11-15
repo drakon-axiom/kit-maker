@@ -39,7 +39,8 @@ export default function CustomerAccess() {
 
   const fetchAccessRequests = async () => {
     try {
-      const { data, error } = await supabase
+      // Fetch access requests with customer data
+      const { data: requestsData, error: requestsError } = await supabase
         .from('customer_access_requests')
         .select(`
           id,
@@ -49,13 +50,29 @@ export default function CustomerAccess() {
           admin_notes,
           customers (
             name,
-            email
+            email,
+            user_id
           )
         `)
         .order('requested_at', { ascending: false });
 
-      if (error) throw error;
-      setRequests(data || []);
+      if (requestsError) throw requestsError;
+
+      // Fetch users with admin or operator roles
+      const { data: rolesData, error: rolesError } = await supabase
+        .from('user_roles')
+        .select('user_id')
+        .in('role', ['admin', 'operator']);
+
+      if (rolesError) throw rolesError;
+
+      // Filter out requests from customers who have admin or operator roles
+      const internalUserIds = new Set(rolesData?.map(r => r.user_id) || []);
+      const filteredRequests = (requestsData || []).filter(
+        req => !req.customers?.user_id || !internalUserIds.has(req.customers.user_id)
+      );
+
+      setRequests(filteredRequests);
     } catch (error: any) {
       console.error('Error fetching requests:', error);
       toast.error('Failed to load access requests');

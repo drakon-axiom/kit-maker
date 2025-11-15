@@ -57,17 +57,25 @@ export const CustomerAccessManager = ({ initialCustomerId }: CustomerAccessManag
 
   const fetchData = async () => {
     try {
-      const [customersRes, categoriesRes, skusRes] = await Promise.all([
-        supabase.from('customers').select('id, name').order('name'),
+      const [customersRes, categoriesRes, skusRes, rolesRes] = await Promise.all([
+        supabase.from('customers').select('id, name, user_id').order('name'),
         supabase.from('categories').select('id, name').order('name'),
         supabase.from('skus').select('id, code, description').eq('active', true).order('code'),
+        supabase.from('user_roles').select('user_id').in('role', ['admin', 'operator']),
       ]);
 
       if (customersRes.error) throw customersRes.error;
       if (categoriesRes.error) throw categoriesRes.error;
       if (skusRes.error) throw skusRes.error;
+      if (rolesRes.error) throw rolesRes.error;
 
-      setCustomers(customersRes.data || []);
+      // Filter out customers who have admin or operator roles
+      const internalUserIds = new Set(rolesRes.data?.map(r => r.user_id) || []);
+      const filteredCustomers = (customersRes.data || []).filter(
+        customer => !customer.user_id || !internalUserIds.has(customer.user_id)
+      ).map(({ id, name }) => ({ id, name }));
+
+      setCustomers(filteredCustomers);
       setCategories(categoriesRes.data || []);
       setSKUs(skusRes.data || []);
     } catch (error: any) {
