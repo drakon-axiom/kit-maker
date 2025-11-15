@@ -93,13 +93,29 @@ const Customers = () => {
 
   const fetchCustomers = async () => {
     try {
-      const { data, error } = await supabase
+      // Fetch all customers
+      const { data: customersData, error: customersError } = await supabase
         .from('customers')
         .select('*')
         .order('name');
 
-      if (error) throw error;
-      setCustomers((data || []) as any);
+      if (customersError) throw customersError;
+
+      // Fetch user roles for admin and operator
+      const { data: internalRoles, error: rolesError } = await supabase
+        .from('user_roles')
+        .select('user_id')
+        .in('role', ['admin', 'operator']);
+
+      if (rolesError) throw rolesError;
+
+      // Filter out customers who have admin or operator roles
+      const internalUserIds = new Set(internalRoles?.map(r => r.user_id) || []);
+      const filteredCustomers = (customersData || []).filter(
+        customer => !customer.user_id || !internalUserIds.has(customer.user_id)
+      );
+
+      setCustomers(filteredCustomers as any);
     } catch (error: any) {
       toast({
         title: 'Error',
