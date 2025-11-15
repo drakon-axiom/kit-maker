@@ -1,7 +1,7 @@
 project_id = "dfaafbwhdnoaknuxonig"
 
 [functions.update-tracking]
-verify_jwt = false
+verify_jwt = true
 
 [functions.send-shipment-notification]
 verify_jwt = false
@@ -10,7 +10,7 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.email-test]
-verify_jwt = false
+verify_jwt = true
 
 [functions.generate-quote]
 verify_jwt = false
@@ -22,4 +22,7 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.send-verification-email]
+verify_jwt = false
+
+[functions.request-customer-access]
 verify_jwt = false
