@@ -12,6 +12,7 @@ interface BundleFormFieldsProps {
   bundleLabelingPrice: string;
   bundleInsertsPrice: string;
   insertsOptional: boolean;
+  pricePerKit: string;
   onChange: (field: string, value: any) => void;
 }
 
@@ -23,6 +24,7 @@ export const BundleFormFields = ({
   bundleLabelingPrice,
   bundleInsertsPrice,
   insertsOptional,
+  pricePerKit,
   onChange,
 }: BundleFormFieldsProps) => {
   const totalBundlePrice = 
@@ -30,6 +32,10 @@ export const BundleFormFields = ({
     parseFloat(bundlePackagingPrice || '0') +
     parseFloat(bundleLabelingPrice || '0') +
     parseFloat(bundleInsertsPrice || '0');
+
+  const sellingPrice = parseFloat(pricePerKit || '0');
+  const margin = sellingPrice - totalBundlePrice;
+  const marginPercentage = totalBundlePrice > 0 ? (margin / totalBundlePrice) * 100 : 0;
 
   return (
     <Card className="border-primary/20">
@@ -133,13 +139,37 @@ export const BundleFormFields = ({
               <Label htmlFor="inserts_optional">Inserts are optional</Label>
             </div>
 
-            <div className="bg-muted p-4 rounded-lg">
+            <div className="bg-muted p-4 rounded-lg space-y-3">
               <div className="flex justify-between items-center">
-                <span className="font-semibold">Total Bundle Price:</span>
-                <span className="text-2xl font-bold text-primary">
+                <span className="font-semibold">Manufacturing Cost:</span>
+                <span className="text-xl font-bold">
                   ${totalBundlePrice.toFixed(2)}
                 </span>
               </div>
+              
+              <div className="flex justify-between items-center">
+                <span className="font-semibold">Selling Price (per kit):</span>
+                <span className="text-xl font-bold">
+                  ${sellingPrice.toFixed(2)}
+                </span>
+              </div>
+              
+              <div className="border-t pt-3 mt-3">
+                <div className="flex justify-between items-center">
+                  <span className="font-semibold">Profit Margin:</span>
+                  <div className="text-right">
+                    <span className={`text-2xl font-bold ${margin >= 0 ? 'text-primary' : 'text-destructive'}`}>
+                      ${margin.toFixed(2)}
+                    </span>
+                    {totalBundlePrice > 0 && (
+                      <span className={`block text-sm ${margin >= 0 ? 'text-primary' : 'text-destructive'}`}>
+                        ({marginPercentage >= 0 ? '+' : ''}{marginPercentage.toFixed(1)}%)
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+              
               <p className="text-sm text-muted-foreground mt-2">
                 {packSize}-pack bundle with {insertsOptional ? 'optional' : 'included'} inserts
               </p>

@@ -1046,6 +1046,7 @@ const SKUs = () => {
                 bundleLabelingPrice={formData.bundle_labeling_price}
                 bundleInsertsPrice={formData.bundle_inserts_price}
                 insertsOptional={formData.inserts_optional}
+                pricePerKit={formData.price_per_kit}
                 onChange={(field, value) => setFormData({ ...formData, [field]: value })}
               />
               
