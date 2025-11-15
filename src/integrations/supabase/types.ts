@@ -878,6 +878,8 @@ export type Database = {
           batch_prefix: string | null
           bundle_inserts_price: number | null
           bundle_labeling_price: number | null
+          bundle_labor_price: number | null
+          bundle_overhead_price: number | null
           bundle_packaging_price: number | null
           bundle_product_price: number | null
           category_id: string | null
@@ -899,6 +901,8 @@ export type Database = {
           batch_prefix?: string | null
           bundle_inserts_price?: number | null
           bundle_labeling_price?: number | null
+          bundle_labor_price?: number | null
+          bundle_overhead_price?: number | null
           bundle_packaging_price?: number | null
           bundle_product_price?: number | null
           category_id?: string | null
@@ -920,6 +924,8 @@ export type Database = {
           batch_prefix?: string | null
           bundle_inserts_price?: number | null
           bundle_labeling_price?: number | null
+          bundle_labor_price?: number | null
+          bundle_overhead_price?: number | null
           bundle_packaging_price?: number | null
           bundle_product_price?: number | null
           category_id?: string | null

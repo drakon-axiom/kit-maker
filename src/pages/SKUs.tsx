@@ -47,6 +47,8 @@ interface SKU {
   bundle_packaging_price: number;
   bundle_labeling_price: number;
   bundle_inserts_price: number;
+  bundle_labor_price?: number;
+  bundle_overhead_price?: number;
   inserts_optional: boolean;
   categories?: { id: string; name: string };
 }
@@ -121,6 +123,8 @@ const SKUs = () => {
     bundle_packaging_price: '',
     bundle_labeling_price: '',
     bundle_inserts_price: '',
+    bundle_labor_price: '',
+    bundle_overhead_price: '',
     inserts_optional: true,
   });
   const [pricingTiers, setPricingTiers] = useState<PricingTier[]>([
@@ -202,6 +206,8 @@ const SKUs = () => {
         bundle_packaging_price: parseFloat(formData.bundle_packaging_price) || 0,
         bundle_labeling_price: parseFloat(formData.bundle_labeling_price) || 0,
         bundle_inserts_price: parseFloat(formData.bundle_inserts_price) || 0,
+        bundle_labor_price: parseFloat(formData.bundle_labor_price) || 0,
+        bundle_overhead_price: parseFloat(formData.bundle_overhead_price) || 0,
         inserts_optional: formData.inserts_optional,
       };
 
@@ -832,6 +838,8 @@ const SKUs = () => {
       bundle_packaging_price: '',
       bundle_labeling_price: '',
       bundle_inserts_price: '',
+      bundle_labor_price: '',
+      bundle_overhead_price: '',
       inserts_optional: true,
     });
     setPricingTiers([
@@ -862,6 +870,8 @@ const SKUs = () => {
       bundle_packaging_price: sku.bundle_packaging_price.toString(),
       bundle_labeling_price: sku.bundle_labeling_price.toString(),
       bundle_inserts_price: sku.bundle_inserts_price.toString(),
+      bundle_labor_price: sku.bundle_labor_price?.toString() || '',
+      bundle_overhead_price: sku.bundle_overhead_price?.toString() || '',
       inserts_optional: sku.inserts_optional,
     });
     
@@ -1045,6 +1055,8 @@ const SKUs = () => {
                 bundlePackagingPrice={formData.bundle_packaging_price}
                 bundleLabelingPrice={formData.bundle_labeling_price}
                 bundleInsertsPrice={formData.bundle_inserts_price}
+                bundleLaborPrice={formData.bundle_labor_price}
+                bundleOverheadPrice={formData.bundle_overhead_price}
                 insertsOptional={formData.inserts_optional}
                 pricePerKit={formData.price_per_kit}
                 onChange={(field, value) => setFormData({ ...formData, [field]: value })}
