@@ -96,6 +96,7 @@ const SKUs = () => {
     label_required: false,
     price_per_piece: '',
     sizes: [] as number[],
+    category_id: '',
   });
   const [importOpen, setImportOpen] = useState(false);
   const [importData, setImportData] = useState<ImportRow[]>([]);
@@ -308,6 +309,10 @@ const SKUs = () => {
         updates.price_per_piece = parseFloat(bulkFormData.price_per_piece);
       }
 
+      if (bulkFormData.category_id) {
+        updates.category_id = bulkFormData.category_id === 'none' ? null : bulkFormData.category_id;
+      }
+
       const updatePromises = Array.from(selectedSKUs).map(skuId =>
         supabase.from('skus').update(updates).eq('id', skuId)
       );
@@ -349,6 +354,7 @@ const SKUs = () => {
         label_required: false,
         price_per_piece: '',
         sizes: [],
+        category_id: '',
       });
       fetchSKUs();
     } catch (error: any) {
@@ -1562,6 +1568,29 @@ const SKUs = () => {
               />
               <p className="text-xs text-muted-foreground">
                 Leave empty to keep existing prices unchanged
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="bulk_category">Category</Label>
+              <Select
+                value={bulkFormData.category_id}
+                onValueChange={(value) => setBulkFormData({ ...bulkFormData, category_id: value })}
+              >
+                <SelectTrigger id="bulk_category">
+                  <SelectValue placeholder="Leave unchanged" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Leave unchanged</SelectItem>
+                  <SelectItem value="none">No category</SelectItem>
+                  {categories.map((category) => (
+                    <SelectItem key={category.id} value={category.id}>
+                      {category.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Leave unchanged to keep existing categories
               </p>
             </div>
             <div className="space-y-2">
