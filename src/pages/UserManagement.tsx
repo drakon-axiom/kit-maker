@@ -179,9 +179,8 @@ const UserManagement = () => {
     );
   }
 
-  // Separate internal users (admin/operator) from customers
+  // Only show internal users (admin/operator) - customers are managed on the Customers page
   const internalUsers = users?.filter(u => u.role === 'admin' || u.role === 'operator' || !u.role) || [];
-  const customerUsers = users?.filter(u => u.role === 'customer') || [];
 
   const handleCreateUser = () => {
     if (!newUserEmail || !newUserPassword || !newUserFullName) {
@@ -358,39 +357,6 @@ const UserManagement = () => {
             {internalUsers.length === 0 && (
               <p className="text-center text-muted-foreground py-8">
                 No internal users found
-              </p>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Customer Users</CardTitle>
-          <CardDescription>
-            Customers are automatically assigned their role on signup
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-2">
-            {customerUsers.map((user) => (
-              <div
-                key={user.id}
-                className="flex items-center justify-between p-3 border rounded-lg"
-              >
-                <div className="flex-1">
-                  <div className="font-medium text-sm">{user.full_name || user.email}</div>
-                  <div className="text-xs text-muted-foreground">{user.email}</div>
-                </div>
-                <Badge variant="secondary" className="gap-1">
-                  {getRoleIcon(user.role)}
-                  Customer
-                </Badge>
-              </div>
-            ))}
-            {customerUsers.length === 0 && (
-              <p className="text-center text-muted-foreground py-4 text-sm">
-                No customers found
               </p>
             )}
           </div>
