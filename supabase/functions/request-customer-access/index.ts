@@ -1,13 +1,17 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.7';
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-interface RequestBody {
-  customerId: string;
-}
+// Validation schema
+const RequestBodySchema = z.object({
+  customerId: z.string().uuid("Invalid customer ID format"),
+});
+
+type RequestBody = z.infer<typeof RequestBodySchema>;
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -20,7 +24,19 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     );
 
-    const { customerId } = await req.json() as RequestBody;
+    const rawBody = await req.json();
+    
+    // Validate input
+    const validationResult = RequestBodySchema.safeParse(rawBody);
+    if (!validationResult.success) {
+      console.error("Validation error:", validationResult.error);
+      return new Response(
+        JSON.stringify({ error: "Invalid request data", details: validationResult.error.issues }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const { customerId }: RequestBody = validationResult.data;
 
     // Get customer details
     const { data: customer, error: customerError } = await supabase

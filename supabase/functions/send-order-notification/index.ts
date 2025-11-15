@@ -1,17 +1,21 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 import { SMTPClient } from "https://deno.land/x/denomailer@1.6.0/mod.ts";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-webhook-secret",
 };
 
-interface EmailRequest {
-  orderId: string;
-  newStatus: string;
-  oldStatus?: string;
-}
+// Validation schema
+const EmailRequestSchema = z.object({
+  orderId: z.string().uuid("Invalid order ID format"),
+  newStatus: z.string().min(1, "Status is required"),
+  oldStatus: z.string().optional(),
+});
+
+type EmailRequest = z.infer<typeof EmailRequestSchema>;
 
 const getStatusDisplayName = (status: string): string => {
   const statusMap: Record<string, string> = {
@@ -325,7 +329,31 @@ serve(async (req) => {
   }
 
   try {
-    const { orderId, newStatus, oldStatus }: EmailRequest = await req.json();
+    // Validate webhook secret for trigger-based calls
+    const webhookSecret = req.headers.get("x-webhook-secret");
+    const expectedSecret = Deno.env.get("INTERNAL_WEBHOOK_SECRET");
+    
+    if (webhookSecret !== expectedSecret) {
+      console.error("Invalid or missing webhook secret");
+      return new Response(
+        JSON.stringify({ error: "Unauthorized" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const rawBody = await req.json();
+    
+    // Validate input with zod
+    const validationResult = EmailRequestSchema.safeParse(rawBody);
+    if (!validationResult.success) {
+      console.error("Validation error:", validationResult.error);
+      return new Response(
+        JSON.stringify({ error: "Invalid request data", details: validationResult.error.issues }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const { orderId, newStatus, oldStatus }: EmailRequest = validationResult.data;
     
     console.log(`Processing order notification: ${orderId}, status: ${oldStatus} -> ${newStatus}`);
 

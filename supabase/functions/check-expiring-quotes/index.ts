@@ -4,7 +4,7 @@ import { SMTPClient } from "https://deno.land/x/denomailer@1.6.0/mod.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-webhook-secret",
 };
 
 serve(async (req) => {
@@ -13,6 +13,18 @@ serve(async (req) => {
   }
 
   try {
+    // Validate webhook secret for scheduled/cron calls
+    const webhookSecret = req.headers.get("x-webhook-secret");
+    const expectedSecret = Deno.env.get("INTERNAL_WEBHOOK_SECRET");
+    
+    if (webhookSecret !== expectedSecret) {
+      console.error("Invalid or missing webhook secret");
+      return new Response(
+        JSON.stringify({ error: "Unauthorized" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     console.log("Starting quote expiration check...");
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
