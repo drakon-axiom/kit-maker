@@ -8,6 +8,11 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ArrowLeft, Loader2, Package } from 'lucide-react';
 import { toast } from 'sonner';
+import OrderTimeline from '@/components/OrderTimeline';
+import OrderComments from '@/components/OrderComments';
+import ShipmentTracker from '@/components/ShipmentTracker';
+import PaymentCard from '@/components/PaymentCard';
+import OrderDocuments from '@/components/OrderDocuments';
 
 interface Order {
   id: string;
@@ -35,12 +40,24 @@ interface OrderLine {
   };
 }
 
+interface Shipment {
+  id: string;
+  tracking_no: string;
+  carrier: string | null;
+  tracking_status: string | null;
+  tracking_location: string | null;
+  estimated_delivery: string | null;
+  shipped_at: string | null;
+  tracking_events: any;
+}
+
 export default function CustomerOrderDetail() {
   const { id } = useParams();
   const { user } = useAuth();
   const navigate = useNavigate();
   const [order, setOrder] = useState<Order | null>(null);
   const [lines, setLines] = useState<OrderLine[]>([]);
+  const [shipment, setShipment] = useState<Shipment | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -69,8 +86,16 @@ export default function CustomerOrderDetail() {
 
       if (linesError) throw linesError;
 
+      // Fetch shipment if exists
+      const { data: shipmentData } = await supabase
+        .from('shipments')
+        .select('*')
+        .eq('so_id', id)
+        .maybeSingle();
+
       setOrder(orderData);
       setLines(linesData || []);
+      setShipment(shipmentData);
     } catch (error: any) {
       toast.error('Failed to load order details');
       console.error(error);
@@ -137,56 +162,79 @@ export default function CustomerOrderDetail() {
           </div>
         </div>
 
-        <div className="grid gap-6 md:grid-cols-2">
-          <Card>
-            <CardHeader>
-              <CardTitle>Order Status</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">Current Status</span>
-                <Badge className={getStatusColor(order.status)}>
-                  {formatStatus(order.status)}
-                </Badge>
-              </div>
-              {order.promised_date && (
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-muted-foreground">Promised Date</span>
-                  <span className="font-medium">
-                    {new Date(order.promised_date).toLocaleDateString()}
-                  </span>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+        {/* Visual Progress Timeline */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Order Progress</CardTitle>
+            <CardDescription>Track your order status in real-time</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <OrderTimeline 
+              currentStatus={order.status}
+              depositRequired={order.deposit_required}
+              depositStatus={order.deposit_status}
+            />
+          </CardContent>
+        </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Order Summary</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">Subtotal</span>
-                <span className="font-medium">${order.subtotal.toFixed(2)}</span>
-              </div>
-              {order.deposit_required && (
-                <>
+        {/* Payment Cards */}
+        <div className="grid gap-6 md:grid-cols-2">
+          {order.deposit_required && order.status !== 'shipped' && (
+            <PaymentCard
+              type="deposit"
+              amount={order.deposit_amount || 0}
+              status={order.deposit_status}
+              orderId={order.id}
+              orderNumber={order.human_uid}
+            />
+          )}
+          
+          {(['awaiting_payment', 'ready_to_ship'].includes(order.status)) && (
+            <PaymentCard
+              type="final"
+              amount={order.subtotal}
+              status="unpaid"
+              orderId={order.id}
+              orderNumber={order.human_uid}
+            />
+          )}
+          
+          {!order.deposit_required && !['awaiting_payment', 'ready_to_ship'].includes(order.status) && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Order Summary</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-muted-foreground">Subtotal</span>
+                  <span className="font-medium">${order.subtotal.toFixed(2)}</span>
+                </div>
+                {order.promised_date && (
                   <div className="flex justify-between items-center">
-                    <span className="text-sm text-muted-foreground">Deposit</span>
-                    <span className="font-medium">${order.deposit_amount?.toFixed(2) || '0.00'}</span>
+                    <span className="text-sm text-muted-foreground">Promised Date</span>
+                    <span className="font-medium">
+                      {new Date(order.promised_date).toLocaleDateString()}
+                    </span>
                   </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-muted-foreground">Deposit Status</span>
-                    <Badge variant={order.deposit_status === 'paid' ? 'default' : 'secondary'}>
-                      {formatStatus(order.deposit_status)}
-                    </Badge>
-                  </div>
-                </>
-              )}
-            </CardContent>
-          </Card>
+                )}
+              </CardContent>
+            </Card>
+          )}
         </div>
 
+        {/* Shipment Tracking */}
+        <ShipmentTracker shipment={shipment} />
+
+        {/* Documents */}
+        <OrderDocuments
+          orderId={order.id}
+          orderNumber={order.human_uid}
+          status={order.status}
+          hasQuote={order.status !== 'draft'}
+          hasInvoice={['awaiting_payment', 'shipped'].includes(order.status)}
+        />
+
+        {/* Order Items */}
         <Card>
           <CardHeader>
             <CardTitle>Order Items</CardTitle>
@@ -221,6 +269,9 @@ export default function CustomerOrderDetail() {
             </Table>
           </CardContent>
         </Card>
+
+        {/* Order Comments */}
+        <OrderComments orderId={order.id} />
       </div>
     </div>
   );

@@ -472,6 +472,44 @@ export type Database = {
         }
         Relationships: []
       }
+      order_comments: {
+        Row: {
+          comment: string
+          created_at: string
+          id: string
+          is_internal: boolean
+          so_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          comment: string
+          created_at?: string
+          id?: string
+          is_internal?: boolean
+          so_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          comment?: string
+          created_at?: string
+          id?: string
+          is_internal?: boolean
+          so_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_comments_so_id_fkey"
+            columns: ["so_id"]
+            isOneToOne: false
+            referencedRelation: "sales_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       production_batch_items: {
         Row: {
           batch_id: string
