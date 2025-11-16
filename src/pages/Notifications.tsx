@@ -116,15 +116,41 @@ const Notifications = () => {
 
     setSendingTest(true);
     try {
-      const { error } = await supabase.functions.invoke('generate-quote', {
-        body: {
-          testMode: true,
-          testEmail: user.email,
-          templateType: selectedTemplate.template_type,
-        },
-      });
+      // Handle order approval/rejection templates
+      if (selectedTemplate.template_type === 'order_approval' || selectedTemplate.template_type === 'order_rejection') {
+        // Get a real order ID from database for testing
+        const { data: orders } = await supabase
+          .from('sales_orders')
+          .select('id')
+          .limit(1);
+        
+        if (!orders || orders.length === 0) {
+          throw new Error('No orders found. Create an order first to test approval emails.');
+        }
 
-      if (error) throw error;
+        const { error } = await supabase.functions.invoke('send-order-approval', {
+          body: {
+            orderId: orders[0].id,
+            approved: selectedTemplate.template_type === 'order_approval',
+            rejectionReason: selectedTemplate.template_type === 'order_rejection' ? 'This is a test rejection' : undefined,
+            testMode: true,
+            testEmail: user.email,
+          },
+        });
+
+        if (error) throw error;
+      } else {
+        // Handle other templates (quote, etc.)
+        const { error } = await supabase.functions.invoke('generate-quote', {
+          body: {
+            testMode: true,
+            testEmail: user.email,
+            templateType: selectedTemplate.template_type,
+          },
+        });
+
+        if (error) throw error;
+      }
 
       toast({
         title: 'Success',
@@ -169,15 +195,18 @@ const Notifications = () => {
       '{{customer_name}}': 'John Doe',
       '{{quote_number}}': 'Q-2024-001',
       '{{order_number}}': 'O-2024-001',
+      '{{order_total}}': '$1,250.00',
       '{{date}}': new Date().toLocaleDateString(),
       '{{customer_email}}': 'customer@example.com',
       '{{tracking_no}}': 'TRK123456789',
       '{{carrier}}': 'FedEx',
       '{{estimated_delivery}}': new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toLocaleDateString(),
       '{{deposit_amount}}': '$500.00',
+      '{{deposit_required}}': 'Yes',
       '{{due_date}}': new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toLocaleDateString(),
       '{{status}}': 'In Production',
       '{{message}}': 'Your order is being processed',
+      '{{rejection_reason}}': 'This is a sample rejection reason for testing purposes',
       '{{line_items}}': '<tr><td>Sample Product</td><td>10</td><td>$50.00</td></tr>',
       '{{subtotal}}': '$500.00',
       '{{total}}': '$500.00',
@@ -286,7 +315,7 @@ const Notifications = () => {
               <Button 
                 variant="secondary" 
                 onClick={handleSendTestEmail}
-                disabled={sendingTest || selectedTemplate.template_type !== 'quote'}
+                disabled={sendingTest || !['quote', 'order_approval', 'order_rejection'].includes(selectedTemplate.template_type)}
               >
                 {sendingTest ? (
                   <>
