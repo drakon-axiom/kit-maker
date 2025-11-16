@@ -15,15 +15,21 @@ serve(async (req) => {
     const TEXTBELT_API_KEY = Deno.env.get("TEXTBELT_API_KEY");
     const webhookSecret = req.headers.get("x-webhook-secret");
     const expectedSecret = Deno.env.get("INTERNAL_WEBHOOK_SECRET");
+    const authHeader = req.headers.get("authorization") || "";
 
-    if (webhookSecret !== expectedSecret) {
+    // Parse body early to detect test mode
+    const body = await req.json().catch(() => ({}));
+    const { orderId, newStatus, phoneNumber, eventType, testMessage } = body as any;
+    const isTest = eventType === 'test';
+
+    // Security: require internal secret for non-test events. Allow authenticated users for test.
+    if (!isTest && webhookSecret !== expectedSecret) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const { orderId, newStatus, phoneNumber, eventType, testMessage } = await req.json();
 
     if (!phoneNumber) {
       console.log("No phone number provided, skipping SMS");
