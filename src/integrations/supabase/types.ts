@@ -1146,6 +1146,7 @@ export type Database = {
         | "in_packing"
         | "awaiting_invoice"
         | "awaiting_payment"
+        | "awaiting_approval"
       payment_method: "cash" | "check" | "ach" | "wire" | "other"
       sell_mode: "kit" | "piece"
       step_status: "pending" | "wip" | "done"
@@ -1302,6 +1303,7 @@ export const Constants = {
         "in_packing",
         "awaiting_invoice",
         "awaiting_payment",
+        "awaiting_approval",
       ],
       payment_method: ["cash", "check", "ach", "wire", "other"],
       sell_mode: ["kit", "piece"],

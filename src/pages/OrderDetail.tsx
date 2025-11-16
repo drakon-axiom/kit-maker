@@ -11,6 +11,7 @@ import { ArrowLeft, Loader2, DollarSign, Package, Pencil, Trash2, Plus, Factory,
 import { Separator } from '@/components/ui/separator';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { useRef } from 'react';
 import { useReactToPrint } from 'react-to-print';
@@ -92,6 +93,7 @@ interface Batch {
 
 const statusColors: Record<string, string> = {
   draft: 'bg-muted',
+  awaiting_approval: 'bg-orange-500',
   quoted: 'bg-blue-500',
   deposit_due: 'bg-warning',
   in_queue: 'bg-purple-500',
@@ -120,6 +122,10 @@ const OrderDetail = () => {
   const [deleteMode, setDeleteMode] = useState<'soft' | 'hard'>('soft');
   const [deleting, setDeleting] = useState(false);
   const [updatingStatus, setUpdatingStatus] = useState(false);
+  const [approvalDialogOpen, setApprovalDialogOpen] = useState(false);
+  const [rejectionDialogOpen, setRejectionDialogOpen] = useState(false);
+  const [rejectionReason, setRejectionReason] = useState('');
+  const [processingApproval, setProcessingApproval] = useState(false);
   const [batches, setBatches] = useState<Batch[]>([]);
   const [schedulerOpen, setSchedulerOpen] = useState(false);
   const [selectedBatch, setSelectedBatch] = useState<Batch | null>(null);
@@ -370,6 +376,72 @@ const OrderDetail = () => {
       });
     } finally {
       setUpdatingStatus(false);
+    }
+  };
+
+  const handleApproval = async (approved: boolean) => {
+    if (!order) return;
+    
+    setProcessingApproval(true);
+    try {
+      // Determine next status
+      let nextStatus = 'in_queue';
+      if (approved) {
+        nextStatus = order.deposit_required ? 'deposit_due' : 'in_queue';
+      } else {
+        nextStatus = 'cancelled';
+      }
+
+      // Update order status
+      const { error: updateError } = await supabase
+        .from('sales_orders')
+        .update({ status: nextStatus as any })
+        .eq('id', id);
+
+      if (updateError) throw updateError;
+
+      // Send notification email
+      const { error: emailError } = await supabase.functions.invoke('send-order-approval', {
+        body: {
+          orderId: order.id,
+          approved,
+          rejectionReason: approved ? undefined : rejectionReason,
+        },
+      });
+
+      if (emailError) {
+        console.error('Failed to send notification email:', emailError);
+      }
+
+      // Log the action
+      await supabase.from('audit_log').insert({
+        entity: 'sales_order',
+        entity_id: id,
+        action: approved ? 'order_approved' : 'order_rejected',
+        actor_id: (await supabase.auth.getUser()).data.user?.id,
+        before: { status: order.status },
+        after: { status: nextStatus, reason: approved ? undefined : rejectionReason },
+      });
+
+      toast({
+        title: approved ? 'Order Approved' : 'Order Rejected',
+        description: approved 
+          ? `Order ${order.human_uid} has been approved and customer notified`
+          : `Order ${order.human_uid} has been rejected and customer notified`,
+      });
+
+      setApprovalDialogOpen(false);
+      setRejectionDialogOpen(false);
+      setRejectionReason('');
+      fetchOrder();
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } finally {
+      setProcessingApproval(false);
     }
   };
 
@@ -728,6 +800,16 @@ const OrderDetail = () => {
           <p className="text-muted-foreground mt-1">{order.customer.name}</p>
         </div>
         <div className="flex items-center gap-2">
+          {userRole === 'admin' && order.status === 'awaiting_approval' && (
+            <>
+              <Button onClick={() => setApprovalDialogOpen(true)} className="bg-success hover:bg-success/90">
+                Approve Order
+              </Button>
+              <Button variant="destructive" onClick={() => setRejectionDialogOpen(true)}>
+                Reject Order
+              </Button>
+            </>
+          )}
           {userRole === 'admin' && (order.status === 'draft' || order.status === 'quoted') && (
             <Button variant="outline" onClick={() => navigate(`/orders/${id}/edit`)}>
               <Pencil className="h-4 w-4 mr-2" />
@@ -750,6 +832,7 @@ const OrderDetail = () => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="draft">Draft</SelectItem>
+                  <SelectItem value="awaiting_approval">Awaiting Approval</SelectItem>
                   <SelectItem value="quoted">Quoted</SelectItem>
                   <SelectItem value="deposit_due">Deposit Due</SelectItem>
                   <SelectItem value="in_queue">In Queue</SelectItem>
@@ -1214,6 +1297,70 @@ const OrderDetail = () => {
           batchUid={selectedBatch.human_uid}
         />
       )}
+
+      {/* Order Approval Dialog */}
+      <AlertDialog open={approvalDialogOpen} onOpenChange={setApprovalDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Approve Order</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to approve order {order?.human_uid}? The customer will be notified via email.
+              {order?.deposit_required && (
+                <div className="mt-2 p-2 bg-muted rounded text-sm">
+                  This order requires a deposit of ${order.deposit_amount?.toFixed(2)}. The order status will be set to "Deposit Due".
+                </div>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={processingApproval}>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={() => handleApproval(true)}
+              disabled={processingApproval}
+              className="bg-success hover:bg-success/90"
+            >
+              {processingApproval ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Approve Order'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Order Rejection Dialog */}
+      <Dialog open={rejectionDialogOpen} onOpenChange={setRejectionDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reject Order</DialogTitle>
+            <DialogDescription>
+              Please provide a reason for rejecting order {order?.human_uid}. The customer will be notified via email.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="rejection-reason">Rejection Reason</Label>
+              <Textarea
+                id="rejection-reason"
+                value={rejectionReason}
+                onChange={(e) => setRejectionReason(e.target.value)}
+                placeholder="e.g., Product unavailable, pricing needs revision..."
+                disabled={processingApproval}
+                rows={4}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRejectionDialogOpen(false)} disabled={processingApproval}>
+              Cancel
+            </Button>
+            <Button 
+              variant="destructive" 
+              onClick={() => handleApproval(false)}
+              disabled={processingApproval || !rejectionReason.trim()}
+            >
+              {processingApproval ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Reject Order'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Batch Split/Merge */}
       {selectedBatch && (

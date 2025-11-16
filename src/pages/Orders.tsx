@@ -74,6 +74,7 @@ interface LabelSettings {
 
 const statusColors: Record<string, string> = {
   draft: 'bg-muted',
+  awaiting_approval: 'bg-orange-500',
   quoted: 'bg-blue-500',
   deposit_due: 'bg-warning',
   in_queue: 'bg-purple-500',
