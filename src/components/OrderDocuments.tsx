@@ -47,6 +47,31 @@ const OrderDocuments = ({ orderId, orderNumber, status, hasQuote, hasInvoice }: 
     return data as any;
   };
 
+  const safeOpenOrSavePdf = (doc: any, filename: string) => {
+    try {
+      if (typeof (doc as any).save === 'function') {
+        (doc as any).save(filename);
+        return;
+      }
+    } catch (e) {}
+    try {
+      const blobUrl = typeof (doc as any).output === 'function' ? (doc as any).output('bloburl') : '';
+      if (blobUrl) {
+        const newWindow = window.open(blobUrl, '_blank');
+        if (!newWindow) {
+          const link = document.createElement('a');
+          link.href = blobUrl;
+          link.download = filename;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+        }
+        return;
+      }
+    } catch (e) {}
+    throw new Error('PDF download blocked');
+  };
+
   const generateQuotePdf = async () => {
     const order = await fetchOrderWithLines();
     const jsPDFModule = await import('jspdf');
@@ -85,7 +110,7 @@ const OrderDocuments = ({ orderId, orderNumber, status, hasQuote, hasInvoice }: 
       yPos += 8;
     }
 
-    doc.save(`quote-${order.human_uid}.pdf`);
+    safeOpenOrSavePdf(doc, `quote-${order.human_uid}.pdf`);
   };
 
   const generateConfirmationPdf = async () => {
@@ -116,7 +141,7 @@ const OrderDocuments = ({ orderId, orderNumber, status, hasQuote, hasInvoice }: 
     doc.setFontSize(12);
     doc.text(`Total: $${Number(order.subtotal).toFixed(2)}`, 20, yPos);
 
-    doc.save(`order-${order.human_uid}.pdf`);
+    safeOpenOrSavePdf(doc, `order-${order.human_uid}.pdf`);
   };
   const documents = [
     {
