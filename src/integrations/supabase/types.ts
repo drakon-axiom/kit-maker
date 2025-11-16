@@ -510,6 +510,56 @@ export type Database = {
           },
         ]
       }
+      payment_transactions: {
+        Row: {
+          amount: number
+          created_at: string
+          customer_email: string
+          id: string
+          metadata: Json | null
+          payment_method: string
+          payment_type: string
+          so_id: string
+          status: string
+          stripe_payment_intent: string | null
+          stripe_session_id: string | null
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          customer_email: string
+          id?: string
+          metadata?: Json | null
+          payment_method?: string
+          payment_type: string
+          so_id: string
+          status?: string
+          stripe_payment_intent?: string | null
+          stripe_session_id?: string | null
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          customer_email?: string
+          id?: string
+          metadata?: Json | null
+          payment_method?: string
+          payment_type?: string
+          so_id?: string
+          status?: string
+          stripe_payment_intent?: string | null
+          stripe_session_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_transactions_so_id_fkey"
+            columns: ["so_id"]
+            isOneToOne: false
+            referencedRelation: "sales_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       production_batch_items: {
         Row: {
           batch_id: string
