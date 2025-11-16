@@ -28,6 +28,7 @@ import CustomerNewOrder from "./pages/CustomerNewOrder";
 import CustomerOrderDetail from "./pages/CustomerOrderDetail";
 import CustomerAccess from "./pages/CustomerAccess";
 import UserManagement from "./pages/UserManagement";
+import EmailHistory from "./pages/EmailHistory";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Layout from "./components/Layout";
 import NotFound from "./pages/NotFound";
@@ -202,6 +203,16 @@ const App = () => (
                 <ProtectedRoute requiredRole="admin">
                   <Layout>
                     <Notifications />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/email-history"
+              element={
+                <ProtectedRoute requiredRole="admin">
+                  <Layout>
+                    <EmailHistory />
                   </Layout>
                 </ProtectedRoute>
               }

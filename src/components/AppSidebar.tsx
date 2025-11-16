@@ -17,6 +17,7 @@ import {
   Monitor,
   ShieldCheck,
   UserCog,
+  History,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -55,6 +56,7 @@ export function AppSidebar() {
     { title: 'Products (SKUs)', url: '/skus', icon: Package },
     { title: 'Wholesale Applications', url: '/wholesale-applications', icon: UserPlus },
     { title: 'Notifications', url: '/notifications', icon: Mail },
+    { title: 'Email History', url: '/email-history', icon: History },
     { title: 'Label Settings', url: '/label-settings', icon: Tags },
     { title: 'Settings', url: '/settings', icon: Settings },
   ];
