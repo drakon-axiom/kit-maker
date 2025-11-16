@@ -472,6 +472,53 @@ export type Database = {
         }
         Relationships: []
       }
+      notification_preferences: {
+        Row: {
+          created_at: string
+          customer_id: string
+          email_marketing: boolean
+          email_order_status: boolean
+          email_payment_received: boolean
+          email_quote_approved: boolean
+          email_quote_expiring: boolean
+          email_shipment_updates: boolean
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          customer_id: string
+          email_marketing?: boolean
+          email_order_status?: boolean
+          email_payment_received?: boolean
+          email_quote_approved?: boolean
+          email_quote_expiring?: boolean
+          email_shipment_updates?: boolean
+          id?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          customer_id?: string
+          email_marketing?: boolean
+          email_order_status?: boolean
+          email_payment_received?: boolean
+          email_quote_approved?: boolean
+          email_quote_expiring?: boolean
+          email_shipment_updates?: boolean
+          id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notification_preferences_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: true
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       order_comments: {
         Row: {
           comment: string
@@ -685,6 +732,41 @@ export type Database = {
         }
         Relationships: []
       }
+      quote_actions: {
+        Row: {
+          action: string
+          action_by: string
+          created_at: string
+          id: string
+          notes: string | null
+          so_id: string
+        }
+        Insert: {
+          action: string
+          action_by: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          so_id: string
+        }
+        Update: {
+          action?: string
+          action_by?: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          so_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quote_actions_so_id_fkey"
+            columns: ["so_id"]
+            isOneToOne: false
+            referencedRelation: "sales_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sales_order_lines: {
         Row: {
           bottle_qty: number
@@ -803,6 +885,62 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "sales_orders_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      saved_addresses: {
+        Row: {
+          address_line1: string
+          address_line2: string | null
+          address_type: string
+          city: string
+          country: string
+          created_at: string
+          customer_id: string
+          id: string
+          is_default: boolean
+          label: string
+          state: string
+          updated_at: string
+          zip: string
+        }
+        Insert: {
+          address_line1: string
+          address_line2?: string | null
+          address_type: string
+          city: string
+          country?: string
+          created_at?: string
+          customer_id: string
+          id?: string
+          is_default?: boolean
+          label: string
+          state: string
+          updated_at?: string
+          zip: string
+        }
+        Update: {
+          address_line1?: string
+          address_line2?: string | null
+          address_type?: string
+          city?: string
+          country?: string
+          created_at?: string
+          customer_id?: string
+          id?: string
+          is_default?: boolean
+          label?: string
+          state?: string
+          updated_at?: string
+          zip?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "saved_addresses_customer_id_fkey"
             columns: ["customer_id"]
             isOneToOne: false
             referencedRelation: "customers"

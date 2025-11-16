@@ -6,7 +6,9 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Plus, Package, Loader2, Eye, User, RefreshCw } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Plus, Package, Loader2, Eye, User, RefreshCw, Search, Filter } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface Order {
@@ -22,16 +24,57 @@ export default function CustomerPortal() {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const [orders, setOrders] = useState<Order[]>([]);
+  const [filteredOrders, setFilteredOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [customerName, setCustomerName] = useState('');
   const [customerId, setCustomerId] = useState('');
   const [reorderingId, setReorderingId] = useState<string | null>(null);
+  
+  // Search and filter states
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [sortBy, setSortBy] = useState<string>('newest');
 
   useEffect(() => {
     if (user) {
       fetchCustomerData();
     }
   }, [user]);
+
+  useEffect(() => {
+    // Apply search and filters
+    let filtered = [...orders];
+
+    // Search filter
+    if (searchTerm) {
+      filtered = filtered.filter(order =>
+        order.human_uid.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+
+    // Status filter
+    if (statusFilter !== 'all') {
+      filtered = filtered.filter(order => order.status === statusFilter);
+    }
+
+    // Sort
+    filtered.sort((a, b) => {
+      switch (sortBy) {
+        case 'newest':
+          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        case 'oldest':
+          return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+        case 'highest':
+          return b.subtotal - a.subtotal;
+        case 'lowest':
+          return a.subtotal - b.subtotal;
+        default:
+          return 0;
+      }
+    });
+
+    setFilteredOrders(filtered);
+  }, [orders, searchTerm, statusFilter, sortBy]);
 
   const fetchCustomerData = async () => {
     try {
@@ -173,11 +216,17 @@ export default function CustomerPortal() {
             <p className="text-muted-foreground mt-1">Manage your orders and place new ones</p>
           </div>
           <div className="flex gap-2">
+            <Button variant="outline" onClick={() => navigate('/customer/quotes')}>
+              Quotes
+            </Button>
             <Button variant="outline" onClick={() => navigate('/customer/payments')}>
-              Payment History
+              Payments
+            </Button>
+            <Button variant="outline" onClick={() => navigate('/customer/settings')}>
+              <User className="h-4 w-4 mr-2" />
+              Settings
             </Button>
             <Button variant="outline" onClick={() => navigate('/customer/profile')}>
-              <User className="h-4 w-4 mr-2" />
               Profile
             </Button>
             <Button onClick={() => navigate('/customer/new-order')}>
@@ -196,15 +245,75 @@ export default function CustomerPortal() {
             <CardDescription>View and track all your orders</CardDescription>
           </CardHeader>
           <CardContent>
-            {orders.length === 0 ? (
+            {/* Search and Filter Controls */}
+            <div className="flex flex-col md:flex-row gap-4 mb-6">
+              <div className="flex-1 relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search by order number..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-full md:w-[180px]">
+                  <Filter className="h-4 w-4 mr-2" />
+                  <SelectValue placeholder="Filter by status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Statuses</SelectItem>
+                  <SelectItem value="draft">Draft</SelectItem>
+                  <SelectItem value="quoted">Quoted</SelectItem>
+                  <SelectItem value="awaiting_approval">Awaiting Approval</SelectItem>
+                  <SelectItem value="deposit_due">Deposit Due</SelectItem>
+                  <SelectItem value="in_queue">In Queue</SelectItem>
+                  <SelectItem value="in_production">In Production</SelectItem>
+                  <SelectItem value="packed">Packed</SelectItem>
+                  <SelectItem value="shipped">Shipped</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={sortBy} onValueChange={setSortBy}>
+                <SelectTrigger className="w-full md:w-[180px]">
+                  <SelectValue placeholder="Sort by" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="newest">Newest First</SelectItem>
+                  <SelectItem value="oldest">Oldest First</SelectItem>
+                  <SelectItem value="highest">Highest Value</SelectItem>
+                  <SelectItem value="lowest">Lowest Value</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {filteredOrders.length === 0 ? (
               <div className="text-center py-12">
-                <Package className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                <h3 className="text-lg font-semibold mb-2">No orders yet</h3>
-                <p className="text-muted-foreground mb-4">Get started by placing your first order</p>
-                <Button onClick={() => navigate('/customer/new-order')}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Place Order
-                </Button>
+                {orders.length === 0 ? (
+                  <>
+                    <Package className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                    <h3 className="text-lg font-semibold mb-2">No orders yet</h3>
+                    <p className="text-muted-foreground mb-4">Get started by placing your first order</p>
+                    <Button onClick={() => navigate('/customer/new-order')}>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Place Order
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Search className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                    <h3 className="text-lg font-semibold mb-2">No orders found</h3>
+                    <p className="text-muted-foreground mb-4">Try adjusting your search or filters</p>
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setSearchTerm('');
+                        setStatusFilter('all');
+                      }}
+                    >
+                      Clear Filters
+                    </Button>
+                  </>
+                )}
               </div>
             ) : (
               <Table>
@@ -219,7 +328,7 @@ export default function CustomerPortal() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {orders.map((order) => (
+                  {filteredOrders.map((order) => (
                     <TableRow key={order.id}>
                       <TableCell className="font-medium">{order.human_uid}</TableCell>
                       <TableCell>
