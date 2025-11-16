@@ -172,9 +172,12 @@ export default function CustomerOrderDetail() {
   };
 
   const handleDownloadPdf = async () => {
+    console.log('Download PDF clicked', { order, lines });
     setDownloadingPdf(true);
     try {
+      console.log('Importing jsPDF...');
       const jsPDF = (await import('jspdf')).default;
+      console.log('jsPDF imported successfully');
       const doc = new jsPDF();
       
       // Header
@@ -204,7 +207,9 @@ export default function CustomerOrderDetail() {
       doc.setFontSize(12);
       doc.text(`Total: $${order?.subtotal.toFixed(2)}`, 20, yPos);
       
+      console.log('Saving PDF...');
       doc.save(`order-${order?.human_uid}.pdf`);
+      console.log('PDF saved successfully');
       toast.success('PDF downloaded successfully');
     } catch (error) {
       console.error('PDF generation error:', error);
