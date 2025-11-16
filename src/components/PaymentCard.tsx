@@ -1,7 +1,8 @@
+import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { DollarSign, CreditCard, AlertCircle } from 'lucide-react';
+import { DollarSign, CreditCard, AlertCircle, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface PaymentCardProps {
@@ -13,9 +14,35 @@ interface PaymentCardProps {
 }
 
 const PaymentCard = ({ type, amount, status, orderId, orderNumber }: PaymentCardProps) => {
+  const [isProcessing, setIsProcessing] = useState(false);
+
   const handlePayment = async () => {
-    // TODO: Implement Stripe payment integration
-    toast.info('Payment integration coming soon! Contact us to arrange payment.');
+    setIsProcessing(true);
+    try {
+      const { supabase } = await import('@/integrations/supabase/client');
+      
+      const { data, error } = await supabase.functions.invoke('create-payment-checkout', {
+        body: {
+          orderId,
+          orderNumber,
+          type,
+          amount,
+        },
+      });
+
+      if (error) throw error;
+
+      if (data?.url) {
+        // Open Stripe checkout in new tab
+        window.open(data.url, '_blank');
+        toast.success('Opening payment checkout...');
+      }
+    } catch (error: any) {
+      console.error('Payment error:', error);
+      toast.error('Failed to initiate payment. Please try again.');
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const isPaid = status === 'paid';
@@ -60,9 +87,19 @@ const PaymentCard = ({ type, amount, status, orderId, orderNumber }: PaymentCard
               onClick={handlePayment} 
               className="w-full"
               size="lg"
+              disabled={isProcessing}
             >
-              <CreditCard className="mr-2 h-4 w-4" />
-              Pay ${amount.toFixed(2)}
+              {isProcessing ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Processing...
+                </>
+              ) : (
+                <>
+                  <CreditCard className="mr-2 h-4 w-4" />
+                  Pay ${amount.toFixed(2)}
+                </>
+              )}
             </Button>
 
             <p className="text-xs text-center text-muted-foreground">
