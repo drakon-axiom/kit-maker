@@ -8,8 +8,10 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Package, Loader2, Eye, User, RefreshCw, Search, Filter } from 'lucide-react';
+import { Plus, Package, Loader2, Eye, RefreshCw, Search, Filter, Download, XCircle, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
+import { CustomerLayout } from '@/components/CustomerLayout';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 
 interface Order {
   id: string;
@@ -34,6 +36,8 @@ export default function CustomerPortal() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [sortBy, setSortBy] = useState<string>('newest');
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+  const [orderToCancel, setOrderToCancel] = useState<string | null>(null);
 
   useEffect(() => {
     if (user) {
@@ -199,6 +203,62 @@ export default function CustomerPortal() {
     ).join(' ');
   };
 
+  const handleExportOrders = () => {
+    try {
+      const csvContent = [
+        ['Order #', 'Status', 'Subtotal', 'Order Date', 'Promised Date'].join(','),
+        ...filteredOrders.map(order => [
+          order.human_uid,
+          formatStatus(order.status),
+          order.subtotal.toFixed(2),
+          new Date(order.created_at).toLocaleDateString(),
+          order.promised_date ? new Date(order.promised_date).toLocaleDateString() : '-'
+        ].join(','))
+      ].join('\n');
+
+      const blob = new Blob([csvContent], { type: 'text/csv' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `orders-${new Date().toISOString().split('T')[0]}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+      toast.success('Orders exported successfully');
+    } catch (error) {
+      toast.error('Failed to export orders');
+    }
+  };
+
+  const handleCancelRequest = async () => {
+    if (!orderToCancel) return;
+
+    try {
+      const { error } = await supabase
+        .from('order_comments')
+        .insert({
+          so_id: orderToCancel,
+          comment: 'Customer requested order cancellation',
+          is_internal: false,
+          user_id: user?.id || '',
+        });
+
+      if (error) throw error;
+
+      toast.success('Cancellation request submitted. Our team will review it shortly.');
+      setCancelDialogOpen(false);
+      setOrderToCancel(null);
+    } catch (error) {
+      console.error('Error requesting cancellation:', error);
+      toast.error('Failed to submit cancellation request');
+    }
+  };
+
+  const canRequestCancellation = (status: string) => {
+    return ['draft', 'quoted', 'deposit_due', 'awaiting_approval'].includes(status);
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -208,41 +268,38 @@ export default function CustomerPortal() {
   }
 
   return (
-    <div className="min-h-screen bg-background p-6">
-      <div className="max-w-7xl mx-auto space-y-6">
+    <CustomerLayout>
+      <div className="p-6 space-y-6">
         <div className="flex justify-between items-start">
           <div>
             <h1 className="text-3xl font-bold">Welcome, {customerName}</h1>
             <p className="text-muted-foreground mt-1">Manage your orders and place new ones</p>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" onClick={() => navigate('/customer/quotes')}>
-              Quotes
-            </Button>
-            <Button variant="outline" onClick={() => navigate('/customer/payments')}>
-              Payments
-            </Button>
-            <Button variant="outline" onClick={() => navigate('/customer/settings')}>
-              <User className="h-4 w-4 mr-2" />
-              Settings
-            </Button>
-            <Button variant="outline" onClick={() => navigate('/customer/profile')}>
-              Profile
-            </Button>
             <Button onClick={() => navigate('/customer/new-order')}>
               <Plus className="h-4 w-4 mr-2" />
               New Order
-            </Button>
-            <Button variant="outline" onClick={signOut}>
-              Sign Out
             </Button>
           </div>
         </div>
 
         <Card>
           <CardHeader>
-            <CardTitle>Your Orders</CardTitle>
-            <CardDescription>View and track all your orders</CardDescription>
+            <div className="flex justify-between items-start">
+              <div>
+                <CardTitle>Your Orders</CardTitle>
+                <CardDescription>View and track all your orders</CardDescription>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleExportOrders}
+                disabled={filteredOrders.length === 0}
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Export
+              </Button>
+            </div>
           </CardHeader>
           <CardContent>
             {/* Search and Filter Controls */}
@@ -343,6 +400,20 @@ export default function CustomerPortal() {
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex gap-2 justify-end">
+                          {canRequestCancellation(order.status) && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => {
+                                setOrderToCancel(order.id);
+                                setCancelDialogOpen(true);
+                              }}
+                              title="Request order cancellation"
+                            >
+                              <XCircle className="h-4 w-4 mr-2" />
+                              Cancel
+                            </Button>
+                          )}
                           <Button
                             size="sm"
                             variant="outline"
@@ -375,7 +446,34 @@ export default function CustomerPortal() {
             )}
           </CardContent>
         </Card>
+
+        <AlertDialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Request Order Cancellation</AlertDialogTitle>
+              <AlertDialogDescription className="space-y-2">
+                <div className="flex items-start gap-2">
+                  <AlertCircle className="h-5 w-5 text-yellow-500 mt-0.5 flex-shrink-0" />
+                  <p>
+                    Are you sure you want to request cancellation for this order? Our team will review your request and contact you shortly.
+                  </p>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Note: Orders in later stages of production may not be eligible for cancellation.
+                </p>
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => setOrderToCancel(null)}>
+                Keep Order
+              </AlertDialogCancel>
+              <AlertDialogAction onClick={handleCancelRequest}>
+                Request Cancellation
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
-    </div>
+    </CustomerLayout>
   );
 }
