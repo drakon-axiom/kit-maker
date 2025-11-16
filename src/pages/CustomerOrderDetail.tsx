@@ -176,8 +176,9 @@ export default function CustomerOrderDetail() {
   const handleDownloadPdf = async () => {
     setDownloadingPdf(true);
     try {
-      const { jsPDF } = await import('jspdf');
-      const doc = new jsPDF();
+      const jsPDFModule = await import('jspdf');
+      const JsPDFCtor = (jsPDFModule as any).default || (jsPDFModule as any).jsPDF;
+      const doc = new JsPDFCtor();
       
       // Header
       doc.setFontSize(20);

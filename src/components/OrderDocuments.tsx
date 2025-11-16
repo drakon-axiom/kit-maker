@@ -49,8 +49,9 @@ const OrderDocuments = ({ orderId, orderNumber, status, hasQuote, hasInvoice }: 
 
   const generateQuotePdf = async () => {
     const order = await fetchOrderWithLines();
-    const { jsPDF } = await import('jspdf');
-    const doc = new jsPDF();
+    const jsPDFModule = await import('jspdf');
+    const JsPDFCtor = (jsPDFModule as any).default || (jsPDFModule as any).jsPDF;
+    const doc = new JsPDFCtor();
 
     // Header
     doc.setFontSize(20);
@@ -89,8 +90,9 @@ const OrderDocuments = ({ orderId, orderNumber, status, hasQuote, hasInvoice }: 
 
   const generateConfirmationPdf = async () => {
     const order = await fetchOrderWithLines();
-    const { jsPDF } = await import('jspdf');
-    const doc = new jsPDF();
+    const jsPDFModule = await import('jspdf');
+    const JsPDFCtor = (jsPDFModule as any).default || (jsPDFModule as any).jsPDF;
+    const doc = new JsPDFCtor();
 
     doc.setFontSize(20);
     doc.text('Order Confirmation', 20, 20);
