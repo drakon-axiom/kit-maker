@@ -156,17 +156,11 @@ export default function CustomerProfile() {
   }
 
   return (
-    <div className="min-h-screen bg-background p-6">
-      <div className="max-w-4xl mx-auto space-y-6">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate('/customer')}>
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <div>
-            <h1 className="text-3xl font-bold">Profile Settings</h1>
-            <p className="text-muted-foreground mt-1">Manage your account and addresses</p>
-          </div>
-        </div>
+    <div className="p-6 space-y-6">
+      <div>
+        <h1 className="text-3xl font-bold">Profile Settings</h1>
+        <p className="text-muted-foreground mt-1">Manage your account and addresses</p>
+      </div>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
           <Card>
@@ -297,7 +291,6 @@ export default function CustomerProfile() {
             </Button>
           </div>
         </form>
-      </div>
     </div>
   );
 }

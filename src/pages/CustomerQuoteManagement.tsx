@@ -11,7 +11,6 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Loader2, Clock, CheckCircle, XCircle, Eye } from 'lucide-react';
 import { toast } from 'sonner';
 import { differenceInHours, differenceInDays, formatDistanceToNow } from 'date-fns';
-import { CustomerLayout } from '@/components/CustomerLayout';
 
 interface Quote {
   id: string;
@@ -160,14 +159,13 @@ export default function CustomerQuoteManagement() {
   }
 
   return (
-    <CustomerLayout>
-      <div className="p-6 space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold">Quote Management</h1>
-          <p className="text-muted-foreground mt-1">
-            Review and respond to your pending quotes
-          </p>
-        </div>
+    <div className="p-6 space-y-6">
+      <div>
+        <h1 className="text-3xl font-bold">Quote Management</h1>
+        <p className="text-muted-foreground mt-1">
+          Review and respond to your pending quotes
+        </p>
+      </div>
 
         {quotes.length === 0 ? (
           <Card>
@@ -359,7 +357,6 @@ export default function CustomerQuoteManagement() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
-      </div>
-    </CustomerLayout>
+    </div>
   );
 }

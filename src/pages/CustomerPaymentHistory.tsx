@@ -145,20 +145,14 @@ export default function CustomerPaymentHistory() {
   }
 
   return (
-    <div className="min-h-screen bg-background p-6">
-      <div className="max-w-7xl mx-auto space-y-6">
-        {/* Header */}
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" onClick={() => navigate('/customer')}>
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-          <div>
-            <h1 className="text-3xl font-bold">Payment History</h1>
-            <p className="text-muted-foreground mt-1">
-              View all your payment transactions and receipts
-            </p>
-          </div>
-        </div>
+    <div className="p-6 space-y-6">
+      {/* Header */}
+      <div>
+        <h1 className="text-3xl font-bold">Payment History</h1>
+        <p className="text-muted-foreground mt-1">
+          View all your payment transactions and receipts
+        </p>
+      </div>
 
         {/* Summary Cards */}
         <div className="grid gap-6 md:grid-cols-3">
@@ -310,7 +304,6 @@ export default function CustomerPaymentHistory() {
             )}
           </CardContent>
         </Card>
-      </div>
     </div>
   );
 }
