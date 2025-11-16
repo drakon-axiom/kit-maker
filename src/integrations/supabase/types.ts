@@ -483,6 +483,12 @@ export type Database = {
           email_quote_expiring: boolean
           email_shipment_updates: boolean
           id: string
+          sms_enabled: boolean
+          sms_order_status: boolean
+          sms_payment_received: boolean
+          sms_phone_number: string | null
+          sms_quote_approved: boolean
+          sms_shipment_updates: boolean
           updated_at: string
         }
         Insert: {
@@ -495,6 +501,12 @@ export type Database = {
           email_quote_expiring?: boolean
           email_shipment_updates?: boolean
           id?: string
+          sms_enabled?: boolean
+          sms_order_status?: boolean
+          sms_payment_received?: boolean
+          sms_phone_number?: string | null
+          sms_quote_approved?: boolean
+          sms_shipment_updates?: boolean
           updated_at?: string
         }
         Update: {
@@ -507,6 +519,12 @@ export type Database = {
           email_quote_expiring?: boolean
           email_shipment_updates?: boolean
           id?: string
+          sms_enabled?: boolean
+          sms_order_status?: boolean
+          sms_payment_received?: boolean
+          sms_phone_number?: string | null
+          sms_quote_approved?: boolean
+          sms_shipment_updates?: boolean
           updated_at?: string
         }
         Relationships: [
@@ -719,6 +737,54 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "production_batches_so_id_fkey"
+            columns: ["so_id"]
+            isOneToOne: false
+            referencedRelation: "sales_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      production_photos: {
+        Row: {
+          batch_id: string | null
+          caption: string | null
+          file_size_bytes: number | null
+          id: string
+          photo_url: string
+          so_id: string | null
+          uploaded_at: string
+          uploaded_by: string
+        }
+        Insert: {
+          batch_id?: string | null
+          caption?: string | null
+          file_size_bytes?: number | null
+          id?: string
+          photo_url: string
+          so_id?: string | null
+          uploaded_at?: string
+          uploaded_by: string
+        }
+        Update: {
+          batch_id?: string | null
+          caption?: string | null
+          file_size_bytes?: number | null
+          id?: string
+          photo_url?: string
+          so_id?: string | null
+          uploaded_at?: string
+          uploaded_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "production_photos_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "production_batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "production_photos_so_id_fkey"
             columns: ["so_id"]
             isOneToOne: false
             referencedRelation: "sales_orders"
