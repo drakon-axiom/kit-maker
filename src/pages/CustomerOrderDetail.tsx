@@ -207,7 +207,26 @@ export default function CustomerOrderDetail() {
       doc.setFontSize(12);
       doc.text(`Total: $${order?.subtotal.toFixed(2)}`, 20, yPos);
       
-      doc.save(`order-${order?.human_uid}.pdf`);
+      try {
+        const blobUrl = (doc as any).output?.('bloburl');
+        if (blobUrl) {
+          const newWin = window.open(blobUrl, '_blank');
+          if (!newWin) {
+            const a = document.createElement('a');
+            a.href = blobUrl;
+            a.download = `order-${order?.human_uid}.pdf`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+          }
+        } else if (typeof (doc as any).save === 'function') {
+          (doc as any).save(`order-${order?.human_uid}.pdf`);
+        } else {
+          throw new Error('No PDF save method available');
+        }
+      } catch (e) {
+        throw e;
+      }
       toast.success('PDF downloaded successfully');
     } catch (error) {
       console.error('PDF generation error:', error);
