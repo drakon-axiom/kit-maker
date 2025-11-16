@@ -175,6 +175,8 @@ export default function CustomerAccountSettings() {
         .upsert({
           customer_id: customerId,
           ...newPrefs,
+        }, {
+          onConflict: 'customer_id'
         });
 
       if (error) throw error;
