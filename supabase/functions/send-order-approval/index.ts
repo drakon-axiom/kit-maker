@@ -1,0 +1,238 @@
+import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
+import { SMTPClient } from "https://deno.land/x/denomailer@1.6.0/mod.ts";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
+
+const RequestSchema = z.object({
+  orderId: z.string().uuid(),
+  approved: z.boolean(),
+  rejectionReason: z.string().optional(),
+});
+
+serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  try {
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabase = createClient(supabaseUrl, serviceRoleKey);
+
+    const body = await req.json();
+    const { orderId, approved, rejectionReason } = RequestSchema.parse(body);
+
+    // Fetch order details
+    const { data: order, error: orderError } = await supabase
+      .from('sales_orders')
+      .select(`
+        id,
+        human_uid,
+        subtotal,
+        deposit_required,
+        deposit_amount,
+        customers!inner(name, email)
+      `)
+      .eq('id', orderId)
+      .single();
+
+    if (orderError || !order) {
+      throw new Error('Order not found');
+    }
+
+    // Fetch company name
+    const { data: settings } = await supabase
+      .from('settings')
+      .select('value')
+      .eq('key', 'company_name')
+      .single();
+
+    const companyName = settings?.value || 'Our Company';
+
+    // Fetch email template
+    const templateType = approved ? 'order_approval' : 'order_rejection';
+    const { data: template } = await supabase
+      .from('email_templates')
+      .select('*')
+      .eq('template_type', templateType)
+      .single();
+
+    if (!template) {
+      throw new Error(`Email template ${templateType} not found`);
+    }
+
+    // Prepare email content
+    let subject = template.subject;
+    let htmlContent = template.custom_html || getDefaultTemplate(approved);
+
+    const customer = Array.isArray(order.customers) ? order.customers[0] : order.customers;
+
+    // Replace variables
+    const variables: Record<string, string> = {
+      '{{customer_name}}': customer.name,
+      '{{order_number}}': order.human_uid,
+      '{{order_total}}': `$${order.subtotal.toFixed(2)}`,
+      '{{company_name}}': companyName,
+      '{{deposit_required}}': order.deposit_required ? 'Yes' : 'No',
+      '{{deposit_amount}}': order.deposit_amount ? `$${order.deposit_amount.toFixed(2)}` : '$0.00',
+      '{{rejection_reason}}': rejectionReason || 'No reason provided',
+    };
+
+    Object.entries(variables).forEach(([key, value]) => {
+      subject = subject.replace(new RegExp(key, 'g'), value);
+      htmlContent = htmlContent.replace(new RegExp(key, 'g'), value);
+    });
+
+    // Send email
+    const smtpClient = new SMTPClient({
+      connection: {
+        hostname: Deno.env.get("SMTP_HOST")!,
+        port: parseInt(Deno.env.get("SMTP_PORT") || "587"),
+        tls: true,
+        auth: {
+          username: Deno.env.get("SMTP_USER")!,
+          password: Deno.env.get("SMTP_PASSWORD")!,
+        },
+      },
+    });
+
+    await smtpClient.send({
+      from: Deno.env.get("SMTP_USER")!,
+      to: customer.email,
+      subject: subject,
+      html: htmlContent,
+    });
+
+    await smtpClient.close();
+
+    console.log(`${approved ? 'Approval' : 'Rejection'} email sent for order ${order.human_uid}`);
+
+    return new Response(
+      JSON.stringify({ success: true }),
+      { 
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      }
+    );
+
+  } catch (error: any) {
+    console.error('Error sending approval email:', error);
+    return new Response(
+      JSON.stringify({ error: error.message }),
+      { 
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      }
+    );
+  }
+});
+
+function getDefaultTemplate(approved: boolean): string {
+  if (approved) {
+    return `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Order Approved</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f4f4f4;">
+<table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #f4f4f4; padding: 20px;">
+<tr>
+<td align="center">
+<table width="600" cellpadding="0" cellspacing="0" border="0" style="background-color: #ffffff; border-radius: 8px; overflow: hidden;">
+<tr>
+<td style="padding: 40px 30px; text-align: center; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+<h1 style="margin: 0; color: #ffffff; font-size: 28px;">Order Approved!</h1>
+</td>
+</tr>
+<tr>
+<td style="padding: 40px 30px;">
+<p style="margin: 0 0 20px 0; color: #333333; font-size: 16px; line-height: 1.6;">
+Dear {{customer_name}},
+</p>
+<p style="margin: 0 0 20px 0; color: #333333; font-size: 16px; line-height: 1.6;">
+Great news! Your order <strong>{{order_number}}</strong> has been approved and is now being processed.
+</p>
+<table width="100%" cellpadding="10" cellspacing="0" border="0" style="background-color: #f8f9fa; border-radius: 4px; margin: 20px 0;">
+<tr>
+<td style="color: #666666; font-size: 14px;">Order Total:</td>
+<td style="color: #333333; font-size: 16px; font-weight: bold; text-align: right;">{{order_total}}</td>
+</tr>
+<tr>
+<td style="color: #666666; font-size: 14px;">Deposit Required:</td>
+<td style="color: #333333; font-size: 14px; text-align: right;">{{deposit_required}}</td>
+</tr>
+<tr>
+<td style="color: #666666; font-size: 14px;">Deposit Amount:</td>
+<td style="color: #333333; font-size: 14px; text-align: right;">{{deposit_amount}}</td>
+</tr>
+</table>
+<p style="margin: 0 0 20px 0; color: #333333; font-size: 16px; line-height: 1.6;">
+We will keep you updated on your order progress. Thank you for your business!
+</p>
+<p style="margin: 0; color: #666666; font-size: 14px;">
+Best regards,<br>
+{{company_name}}
+</p>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+</table>
+</body>
+</html>`;
+  } else {
+    return `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Order Update</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f4f4f4;">
+<table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #f4f4f4; padding: 20px;">
+<tr>
+<td align="center">
+<table width="600" cellpadding="0" cellspacing="0" border="0" style="background-color: #ffffff; border-radius: 8px; overflow: hidden;">
+<tr>
+<td style="padding: 40px 30px; text-align: center; background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+<h1 style="margin: 0; color: #ffffff; font-size: 28px;">Order Status Update</h1>
+</td>
+</tr>
+<tr>
+<td style="padding: 40px 30px;">
+<p style="margin: 0 0 20px 0; color: #333333; font-size: 16px; line-height: 1.6;">
+Dear {{customer_name}},
+</p>
+<p style="margin: 0 0 20px 0; color: #333333; font-size: 16px; line-height: 1.6;">
+We regret to inform you that your order <strong>{{order_number}}</strong> could not be approved at this time.
+</p>
+<div style="background-color: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin: 20px 0; border-radius: 4px;">
+<p style="margin: 0; color: #856404; font-size: 14px;">
+<strong>Reason:</strong> {{rejection_reason}}
+</p>
+</div>
+<p style="margin: 0 0 20px 0; color: #333333; font-size: 16px; line-height: 1.6;">
+If you have any questions or would like to discuss this further, please don't hesitate to contact us.
+</p>
+<p style="margin: 0; color: #666666; font-size: 14px;">
+Best regards,<br>
+{{company_name}}
+</p>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+</table>
+</body>
+</html>`;
+  }
+}

@@ -184,7 +184,7 @@ export default function CustomerNewOrder() {
         customer_id: customerId,
         uid: orderUID,
         human_uid: `SO-${orderUID}`,
-        status: 'draft',
+        status: 'awaiting_approval',
         subtotal,
         source_channel: 'customer_portal'
       }).select().single();
