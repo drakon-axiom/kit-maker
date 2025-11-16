@@ -19,6 +19,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { format } from 'date-fns';
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from '@/components/ui/breadcrumb';
 import { Link } from 'react-router-dom';
+import { ProductionPhotosGallery } from '@/components/ProductionPhotosGallery';
 
 interface Order {
   id: string;
@@ -501,6 +502,17 @@ export default function CustomerOrderDetail() {
                 ))}
               </TableBody>
             </Table>
+          </CardContent>
+        </Card>
+
+        {/* Production Photos */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Production Photos</CardTitle>
+            <CardDescription>Photos from the production process</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ProductionPhotosGallery orderId={order.id} />
           </CardContent>
         </Card>
 

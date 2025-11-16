@@ -14,6 +14,7 @@ import { Loader2, Plus, Trash2, Edit2, Check } from 'lucide-react';
 import { toast } from 'sonner';
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from '@/components/ui/breadcrumb';
 import { Link } from 'react-router-dom';
+import { SMSNotificationSettings } from '@/components/SMSNotificationSettings';
 
 interface SavedAddress {
   id: string;
@@ -380,6 +381,9 @@ export default function CustomerAccountSettings() {
             ))}
           </CardContent>
         </Card>
+
+        {/* SMS Notifications */}
+        {customerId && <SMSNotificationSettings customerId={customerId} />}
 
         {/* Security */}
         <Card>

@@ -21,6 +21,8 @@ import BatchSplitMerge from '@/components/BatchSplitMerge';
 import QuotePreview from '@/components/QuotePreview';
 import BatchPlanner from '@/components/BatchPlanner';
 import QuoteCountdown from '@/components/QuoteCountdown';
+import { ProductionPhotoUpload } from '@/components/ProductionPhotoUpload';
+import { ProductionPhotosGallery } from '@/components/ProductionPhotosGallery';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -1201,6 +1203,28 @@ const OrderDetail = () => {
               <Eye className="mr-2 h-4 w-4" />
               Preview & Send Quote
             </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Production Photos */}
+      {order && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Production Photos</CardTitle>
+            <CardDescription>Upload and view production photos</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {userRole === 'admin' && (
+              <ProductionPhotoUpload 
+                orderId={order.id}
+                onUploadComplete={() => {
+                  // Trigger refresh of gallery
+                  window.location.reload();
+                }}
+              />
+            )}
+            <ProductionPhotosGallery orderId={order.id} />
           </CardContent>
         </Card>
       )}
