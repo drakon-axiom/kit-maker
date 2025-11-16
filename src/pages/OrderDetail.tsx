@@ -23,6 +23,7 @@ import BatchPlanner from '@/components/BatchPlanner';
 import QuoteCountdown from '@/components/QuoteCountdown';
 import { ProductionPhotoUpload } from '@/components/ProductionPhotoUpload';
 import { ProductionPhotosGallery } from '@/components/ProductionPhotosGallery';
+import { SendCustomSMS } from '@/components/SendCustomSMS';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -68,6 +69,7 @@ interface OrderDetail {
     email: string | null;
     phone: string | null;
   };
+  customer_id: string;
   sales_order_lines: Array<{
     id: string;
     sell_mode: string;
@@ -878,7 +880,17 @@ const OrderDetail = () => {
       <div className="grid gap-6 md:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>Customer Information</CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle>Customer Information</CardTitle>
+              {userRole === 'admin' && (
+                <SendCustomSMS
+                  orderId={order.id}
+                  orderNumber={order.human_uid}
+                  customerName={order.customer.name}
+                  customerId={order.customer_id}
+                />
+              )}
+            </div>
           </CardHeader>
           <CardContent className="space-y-2">
             <div>
