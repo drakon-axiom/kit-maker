@@ -13,6 +13,7 @@ import OrderComments from '@/components/OrderComments';
 import ShipmentTracker from '@/components/ShipmentTracker';
 import PaymentCard from '@/components/PaymentCard';
 import OrderDocuments from '@/components/OrderDocuments';
+import OrderRequestHistory from '@/components/OrderRequestHistory';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 
@@ -64,6 +65,7 @@ export default function CustomerOrderDetail() {
   const [modificationRequest, setModificationRequest] = useState('');
   const [modificationDialogOpen, setModificationDialogOpen] = useState(false);
   const [submittingModification, setSubmittingModification] = useState(false);
+  const [requestHistoryKey, setRequestHistoryKey] = useState(0);
 
   useEffect(() => {
     if (user && id) {
@@ -155,6 +157,7 @@ export default function CustomerOrderDetail() {
       toast.success('Modification request submitted successfully');
       setModificationRequest('');
       setModificationDialogOpen(false);
+      setRequestHistoryKey(prev => prev + 1); // Refresh request history
     } catch (error: any) {
       toast.error('Failed to submit modification request');
       console.error(error);
@@ -340,6 +343,13 @@ export default function CustomerOrderDetail() {
 
         {/* Shipment Tracking */}
         <ShipmentTracker shipment={shipment} />
+
+        {/* Request History Timeline */}
+        <OrderRequestHistory 
+          key={requestHistoryKey}
+          orderId={order.id} 
+          onRequestChange={() => setRequestHistoryKey(prev => prev + 1)}
+        />
 
         {/* Documents */}
         <OrderDocuments
