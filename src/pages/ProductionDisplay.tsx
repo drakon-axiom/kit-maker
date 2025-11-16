@@ -2,10 +2,11 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Database } from "@/integrations/supabase/types";
 import { Button } from "@/components/ui/button";
-import { Maximize, Minimize, Home } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Maximize, Minimize, Home, AlertTriangle, AlertCircle } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { format, formatDistanceToNow } from "date-fns";
+import { format, formatDistanceToNow, differenceInHours } from "date-fns";
 
 type Batch = Database["public"]["Tables"]["production_batches"]["Row"] & {
   sales_orders?: {
@@ -113,12 +114,44 @@ const ProductionDisplay = () => {
                 const sku = batch.production_batch_items?.[0]?.sales_order_lines?.skus;
                 const startTime = batch.actual_start ? new Date(batch.actual_start) : null;
                 const elapsedTime = startTime ? formatDistanceToNow(startTime, { includeSeconds: true }) : null;
+                const elapsedHours = startTime ? differenceInHours(currentTime, startTime) : 0;
+                
+                // Determine alert level based on elapsed time
+                const isWarning = elapsedHours >= 2 && elapsedHours < 4;
+                const isCritical = elapsedHours >= 4;
+                
+                const borderColor = isCritical 
+                  ? "border-red-500" 
+                  : isWarning 
+                  ? "border-yellow-500" 
+                  : "border-blue-500";
+                  
+                const bgColor = isCritical 
+                  ? "bg-red-500/10" 
+                  : isWarning 
+                  ? "bg-yellow-500/10" 
+                  : "bg-blue-500/10";
                 
                 return (
                   <div
                     key={batch.id}
-                    className="bg-blue-500/10 border-2 border-blue-500 rounded-lg p-6"
+                    className={`${bgColor} border-2 ${borderColor} rounded-lg p-6 space-y-4`}
                   >
+                    {(isWarning || isCritical) && (
+                      <Alert variant={isCritical ? "destructive" : "default"} className="mb-4">
+                        {isCritical ? (
+                          <AlertCircle className="h-4 w-4" />
+                        ) : (
+                          <AlertTriangle className="h-4 w-4" />
+                        )}
+                        <AlertDescription>
+                          {isCritical 
+                            ? `CRITICAL: Batch has been running for ${elapsedHours} hours - significantly over expected time!`
+                            : `WARNING: Batch has been running for ${elapsedHours} hours - approaching time limit.`
+                          }
+                        </AlertDescription>
+                      </Alert>
+                    )}
                     <div className="grid grid-cols-5 gap-6">
                       <div>
                         <div className="text-sm text-muted-foreground mb-1">Batch Number</div>
@@ -148,7 +181,9 @@ const ProductionDisplay = () => {
                       </div>
                       <div>
                         <div className="text-sm text-muted-foreground mb-1">Elapsed Time</div>
-                        <div className="text-2xl font-bold text-blue-500">
+                        <div className={`text-2xl font-bold ${
+                          isCritical ? "text-red-500" : isWarning ? "text-yellow-500" : "text-blue-500"
+                        }`}>
                           {elapsedTime || "N/A"}
                         </div>
                       </div>
