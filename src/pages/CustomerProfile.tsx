@@ -60,7 +60,7 @@ export default function CustomerProfile() {
         .from('customers')
         .select('*')
         .eq('user_id', user?.id)
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
 
@@ -86,7 +86,6 @@ export default function CustomerProfile() {
         });
       }
     } catch (error: any) {
-      toast.error('Failed to load profile data');
       console.error(error);
     } finally {
       setLoading(false);
@@ -94,37 +93,54 @@ export default function CustomerProfile() {
   };
 
   const onSubmit = async (data: CustomerFormData) => {
-    if (!customerId) return;
-
     setSaving(true);
     try {
-      const { error } = await supabase
-        .from('customers')
-        .update({
-          name: data.name,
-          email: data.email,
-          phone: data.phone,
-          shipping_address_line1: data.shipping_address_line1,
-          shipping_address_line2: data.shipping_address_line2,
-          shipping_city: data.shipping_city,
-          shipping_state: data.shipping_state,
-          shipping_zip: data.shipping_zip,
-          shipping_country: data.shipping_country,
-          billing_same_as_shipping: data.billing_same_as_shipping,
-          billing_address_line1: data.billing_same_as_shipping ? data.shipping_address_line1 : data.billing_address_line1,
-          billing_address_line2: data.billing_same_as_shipping ? data.shipping_address_line2 : data.billing_address_line2,
-          billing_city: data.billing_same_as_shipping ? data.shipping_city : data.billing_city,
-          billing_state: data.billing_same_as_shipping ? data.shipping_state : data.billing_state,
-          billing_zip: data.billing_same_as_shipping ? data.shipping_zip : data.billing_zip,
-          billing_country: data.billing_same_as_shipping ? data.shipping_country : data.billing_country,
-        })
-        .eq('id', customerId);
+      const customerData = {
+        name: data.name,
+        email: data.email,
+        phone: data.phone,
+        shipping_address_line1: data.shipping_address_line1,
+        shipping_address_line2: data.shipping_address_line2,
+        shipping_city: data.shipping_city,
+        shipping_state: data.shipping_state,
+        shipping_zip: data.shipping_zip,
+        shipping_country: data.shipping_country,
+        billing_same_as_shipping: data.billing_same_as_shipping,
+        billing_address_line1: data.billing_same_as_shipping ? data.shipping_address_line1 : data.billing_address_line1,
+        billing_address_line2: data.billing_same_as_shipping ? data.shipping_address_line2 : data.billing_address_line2,
+        billing_city: data.billing_same_as_shipping ? data.shipping_city : data.billing_city,
+        billing_state: data.billing_same_as_shipping ? data.shipping_state : data.billing_state,
+        billing_zip: data.billing_same_as_shipping ? data.shipping_zip : data.billing_zip,
+        billing_country: data.billing_same_as_shipping ? data.shipping_country : data.billing_country,
+        user_id: user?.id
+      };
 
-      if (error) throw error;
+      if (customerId) {
+        // Update existing customer
+        const { error } = await supabase
+          .from('customers')
+          .update(customerData)
+          .eq('id', customerId);
 
-      toast.success('Profile updated successfully');
+        if (error) throw error;
+      } else {
+        // Create new customer
+        const { data: newCustomer, error } = await supabase
+          .from('customers')
+          .insert(customerData)
+          .select()
+          .single();
+
+        if (error) throw error;
+        if (newCustomer) {
+          setCustomerId(newCustomer.id);
+        }
+      }
+
+      toast.success('Profile saved successfully');
+      navigate('/customer/orders/new');
     } catch (error: any) {
-      toast.error('Failed to update profile');
+      toast.error('Failed to save profile');
       console.error(error);
     } finally {
       setSaving(false);
