@@ -12,6 +12,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { useSMSQuotaMonitor } from '@/hooks/useSMSQuotaMonitor';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -19,7 +20,9 @@ interface LayoutProps {
 
 const Layout = ({ children }: LayoutProps) => {
   const { user, userRole, signOut } = useAuth();
-
+  
+  // Monitor SMS quota for admins and show browser notifications
+  useSMSQuotaMonitor();
 
   return (
     <SidebarProvider>

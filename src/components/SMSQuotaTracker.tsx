@@ -2,8 +2,9 @@ import { useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Progress } from "@/components/ui/progress";
+import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
-import { AlertTriangle, MessageSquare, TrendingUp } from "lucide-react";
+import { AlertTriangle, MessageSquare, TrendingUp, Bell, BellOff } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface QuotaData {
@@ -23,10 +24,16 @@ export const SMSQuotaTracker = () => {
   const [quota, setQuota] = useState<QuotaData | null>(null);
   const [usage, setUsage] = useState<UsageStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>("default");
   const { toast } = useToast();
 
   useEffect(() => {
     fetchQuotaAndUsage();
+    
+    // Check notification permission
+    if ("Notification" in window) {
+      setNotificationPermission(Notification.permission);
+    }
   }, []);
 
   const fetchQuotaAndUsage = async () => {
@@ -97,6 +104,26 @@ export const SMSQuotaTracker = () => {
   const isLowBalance = quota && quota.quotaRemaining < 100;
   const isCriticalBalance = quota && quota.quotaRemaining < 50;
 
+  const requestNotificationPermission = async () => {
+    if ("Notification" in window) {
+      const permission = await Notification.requestPermission();
+      setNotificationPermission(permission);
+      
+      if (permission === "granted") {
+        toast({
+          title: "Notifications Enabled",
+          description: "You'll receive browser notifications when SMS quota is low.",
+        });
+      } else {
+        toast({
+          title: "Notifications Blocked",
+          description: "Please enable notifications in your browser settings.",
+          variant: "destructive",
+        });
+      }
+    }
+  };
+
   return (
     <div className="space-y-6">
       <Card>
@@ -114,6 +141,44 @@ export const SMSQuotaTracker = () => {
             <div className="text-center py-8 text-muted-foreground">Loading...</div>
           ) : (
             <>
+              {/* Notification Permission Banner */}
+              {notificationPermission === "default" && (
+                <Alert>
+                  <Bell className="h-4 w-4" />
+                  <AlertTitle>Enable Low Quota Alerts</AlertTitle>
+                  <AlertDescription className="flex items-center justify-between">
+                    <span>Get browser notifications when SMS credits run low</span>
+                    <Button 
+                      size="sm" 
+                      variant="outline"
+                      onClick={requestNotificationPermission}
+                    >
+                      Enable Notifications
+                    </Button>
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              {notificationPermission === "denied" && (
+                <Alert variant="destructive">
+                  <BellOff className="h-4 w-4" />
+                  <AlertTitle>Notifications Blocked</AlertTitle>
+                  <AlertDescription>
+                    Browser notifications are blocked. Enable them in your browser settings to receive low quota alerts.
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              {notificationPermission === "granted" && (
+                <Alert>
+                  <Bell className="h-4 w-4" />
+                  <AlertTitle>Real-time Alerts Enabled</AlertTitle>
+                  <AlertDescription>
+                    You'll receive browser notifications when quota drops below 100 credits (warning) or 50 credits (critical).
+                  </AlertDescription>
+                </Alert>
+              )}
+
               {/* Quota Alert */}
               {isCriticalBalance && (
                 <Alert variant="destructive">
