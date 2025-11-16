@@ -8,9 +8,10 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { ArrowLeft, Loader2, Clock, CheckCircle, XCircle, Eye } from 'lucide-react';
+import { Loader2, Clock, CheckCircle, XCircle, Eye } from 'lucide-react';
 import { toast } from 'sonner';
 import { differenceInHours, differenceInDays, formatDistanceToNow } from 'date-fns';
+import { CustomerLayout } from '@/components/CustomerLayout';
 
 interface Quote {
   id: string;
@@ -159,18 +160,13 @@ export default function CustomerQuoteManagement() {
   }
 
   return (
-    <div className="min-h-screen bg-background p-6">
-      <div className="max-w-7xl mx-auto space-y-6">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" onClick={() => navigate('/customer')}>
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-          <div>
-            <h1 className="text-3xl font-bold">Quote Management</h1>
-            <p className="text-muted-foreground mt-1">
-              Review and respond to your pending quotes
-            </p>
-          </div>
+    <CustomerLayout>
+      <div className="p-6 space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold">Quote Management</h1>
+          <p className="text-muted-foreground mt-1">
+            Review and respond to your pending quotes
+          </p>
         </div>
 
         {quotes.length === 0 ? (
@@ -364,6 +360,6 @@ export default function CustomerQuoteManagement() {
           </DialogContent>
         </Dialog>
       </div>
-    </div>
+    </CustomerLayout>
   );
 }
