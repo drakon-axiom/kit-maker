@@ -3,9 +3,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { AlertTriangle, MessageSquare, TrendingUp, Bell, BellOff } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from "recharts";
 
 interface QuotaData {
   quotaRemaining: number;
@@ -20,11 +23,18 @@ interface UsageStats {
   failedCount: number;
 }
 
+interface ChartDataPoint {
+  date: string;
+  count: number;
+}
+
 export const SMSQuotaTracker = () => {
   const [quota, setQuota] = useState<QuotaData | null>(null);
   const [usage, setUsage] = useState<UsageStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>("default");
+  const [chartData, setChartData] = useState<ChartDataPoint[]>([]);
+  const [chartView, setChartView] = useState<"daily" | "weekly" | "monthly">("daily");
   const { toast } = useToast();
 
   useEffect(() => {
@@ -81,6 +91,9 @@ export const SMSQuotaTracker = () => {
 
       setUsage(stats);
 
+      // Prepare chart data based on view
+      prepareChartData(allLogs || [], chartView);
+
       // Show alert if quota is low
       if (quotaData.quotaRemaining < 100) {
         toast({
@@ -100,6 +113,81 @@ export const SMSQuotaTracker = () => {
       setLoading(false);
     }
   };
+
+  const prepareChartData = (logs: any[], view: "daily" | "weekly" | "monthly") => {
+    const now = new Date();
+    const dataMap = new Map<string, number>();
+
+    let daysBack = 30;
+    let formatString = "MMM dd";
+    
+    if (view === "daily") {
+      daysBack = 30;
+      formatString = "MMM dd";
+    } else if (view === "weekly") {
+      daysBack = 84; // ~12 weeks
+      formatString = "MMM dd";
+    } else {
+      daysBack = 365; // 12 months
+      formatString = "MMM yyyy";
+    }
+
+    // Initialize data points
+    for (let i = daysBack; i >= 0; i--) {
+      const date = new Date(now);
+      date.setDate(date.getDate() - i);
+      
+      let key: string;
+      if (view === "daily") {
+        key = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      } else if (view === "weekly") {
+        // Group by week
+        const weekStart = new Date(date);
+        weekStart.setDate(date.getDate() - date.getDay());
+        key = weekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      } else {
+        // Group by month
+        key = date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+      }
+      
+      if (!dataMap.has(key)) {
+        dataMap.set(key, 0);
+      }
+    }
+
+    // Count messages
+    logs.forEach(log => {
+      if (log.status !== "sent") return;
+      
+      const logDate = new Date(log.created_at);
+      const daysDiff = Math.floor((now.getTime() - logDate.getTime()) / (1000 * 60 * 60 * 24));
+      
+      if (daysDiff > daysBack) return;
+
+      let key: string;
+      if (view === "daily") {
+        key = logDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      } else if (view === "weekly") {
+        const weekStart = new Date(logDate);
+        weekStart.setDate(logDate.getDate() - logDate.getDay());
+        key = weekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      } else {
+        key = logDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+      }
+
+      dataMap.set(key, (dataMap.get(key) || 0) + 1);
+    });
+
+    const chartData = Array.from(dataMap.entries())
+      .map(([date, count]) => ({ date, count }))
+      .slice(view === "daily" ? -30 : view === "weekly" ? -12 : -12);
+
+    setChartData(chartData);
+  };
+
+  useEffect(() => {
+    fetchQuotaAndUsage();
+  }, [chartView]);
 
   const isLowBalance = quota && quota.quotaRemaining < 100;
   const isCriticalBalance = quota && quota.quotaRemaining < 50;
@@ -258,6 +346,57 @@ export const SMSQuotaTracker = () => {
                   </AlertDescription>
                 </Alert>
               )}
+
+              {/* Usage History Chart */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Usage History</CardTitle>
+                  <CardDescription>SMS messages sent over time</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Tabs value={chartView} onValueChange={(v) => setChartView(v as any)}>
+                    <TabsList className="grid w-full grid-cols-3">
+                      <TabsTrigger value="daily">Daily</TabsTrigger>
+                      <TabsTrigger value="weekly">Weekly</TabsTrigger>
+                      <TabsTrigger value="monthly">Monthly</TabsTrigger>
+                    </TabsList>
+                    <TabsContent value={chartView} className="pt-4">
+                      <ChartContainer
+                        config={{
+                          count: {
+                            label: "Messages Sent",
+                            color: "hsl(var(--primary))",
+                          },
+                        }}
+                        className="h-[300px]"
+                      >
+                        <ResponsiveContainer width="100%" height="100%">
+                          <LineChart data={chartData}>
+                            <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                            <XAxis 
+                              dataKey="date" 
+                              className="text-xs"
+                              tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                            />
+                            <YAxis 
+                              className="text-xs"
+                              tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                            />
+                            <ChartTooltip content={<ChartTooltipContent />} />
+                            <Line 
+                              type="monotone" 
+                              dataKey="count" 
+                              stroke="hsl(var(--primary))" 
+                              strokeWidth={2}
+                              dot={{ fill: 'hsl(var(--primary))' }}
+                            />
+                          </LineChart>
+                        </ResponsiveContainer>
+                      </ChartContainer>
+                    </TabsContent>
+                  </Tabs>
+                </CardContent>
+              </Card>
             </>
           )}
         </CardContent>
