@@ -26,9 +26,9 @@ const Layout = ({ children }: LayoutProps) => {
       <div className="min-h-screen flex w-full bg-background">
         <AppSidebar />
         <div className="flex-1 flex flex-col">
-          <header className="h-14 border-b bg-card flex items-center justify-between px-4">
+          <header className="h-14 border-b bg-card flex items-center justify-between px-4 sticky top-0 z-10">
             <div className="flex items-center gap-2">
-              <SidebarTrigger />
+              <SidebarTrigger className="h-9 w-9" />
               <h1 className="text-lg font-semibold">Production Manager</h1>
             </div>
             <DropdownMenu>
