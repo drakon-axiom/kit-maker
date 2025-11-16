@@ -179,7 +179,10 @@ export default function CustomerOrderDetail() {
 
         {/* Payment Cards */}
         <div className="grid gap-6 md:grid-cols-2">
-          {order.deposit_required && order.status !== 'shipped' && (
+          {order.deposit_required && 
+           order.status !== 'shipped' && 
+           order.status !== 'awaiting_approval' && 
+           order.status !== 'draft' && (
             <PaymentCard
               type="deposit"
               amount={order.deposit_amount || 0}
