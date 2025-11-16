@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Plus, Package, Loader2, Eye, User } from 'lucide-react';
+import { Plus, Package, Loader2, Eye, User, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface Order {
@@ -24,6 +24,8 @@ export default function CustomerPortal() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [customerName, setCustomerName] = useState('');
+  const [customerId, setCustomerId] = useState('');
+  const [reorderingId, setReorderingId] = useState<string | null>(null);
 
   useEffect(() => {
     if (user) {
@@ -41,6 +43,7 @@ export default function CustomerPortal() {
 
       if (customer) {
         setCustomerName(customer.name);
+        setCustomerId(customer.id);
         
         const { data: ordersData, error } = await supabase
           .from('sales_orders')
@@ -56,6 +59,80 @@ export default function CustomerPortal() {
       console.error(error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleReorder = async (orderId: string) => {
+    setReorderingId(orderId);
+    try {
+      // Fetch the order lines from the original order
+      const { data: orderLines, error: linesError } = await supabase
+        .from('sales_order_lines')
+        .select(`
+          sku_id,
+          sell_mode,
+          qty_entered,
+          unit_price,
+          bottle_qty,
+          line_subtotal
+        `)
+        .eq('so_id', orderId);
+
+      if (linesError) throw linesError;
+
+      if (!orderLines || orderLines.length === 0) {
+        toast.error('No items found in the original order');
+        return;
+      }
+
+      // Create a new order
+      const newOrderUid = `ORD-${Date.now()}`;
+      const { data: newOrder, error: orderError } = await supabase
+        .from('sales_orders')
+        .insert({
+          customer_id: customerId,
+          uid: newOrderUid,
+          human_uid: newOrderUid,
+          status: 'draft',
+          source_channel: 'customer_portal',
+          subtotal: orderLines.reduce((sum, line) => sum + Number(line.line_subtotal), 0),
+        })
+        .select()
+        .single();
+
+      if (orderError) throw orderError;
+
+      // Insert the order lines
+      const newOrderLines = orderLines.map(line => ({
+        so_id: newOrder.id,
+        sku_id: line.sku_id,
+        sell_mode: line.sell_mode,
+        qty_entered: line.qty_entered,
+        unit_price: line.unit_price,
+        bottle_qty: line.bottle_qty,
+        line_subtotal: line.line_subtotal,
+      }));
+
+      const { error: insertError } = await supabase
+        .from('sales_order_lines')
+        .insert(newOrderLines);
+
+      if (insertError) throw insertError;
+
+      toast.success('Order duplicated successfully! Redirecting...');
+      
+      // Refresh orders list
+      await fetchCustomerData();
+      
+      // Navigate to the new order
+      setTimeout(() => {
+        navigate(`/customer/orders/${newOrder.id}`);
+      }, 1000);
+    } catch (error: any) {
+      console.error('Error reordering:', error);
+      toast.error('Failed to create reorder');
+    } finally {
+      setReorderingId(null);
     }
   };
 
@@ -156,13 +233,31 @@ export default function CustomerPortal() {
                         {order.promised_date ? new Date(order.promised_date).toLocaleDateString() : '-'}
                       </TableCell>
                       <TableCell className="text-right">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => navigate(`/customer/orders/${order.id}`)}
-                        >
-                          <Eye className="h-4 w-4" />
-                        </Button>
+                        <div className="flex gap-2 justify-end">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleReorder(order.id)}
+                            disabled={reorderingId === order.id}
+                            title="Create a new order with the same items"
+                          >
+                            {reorderingId === order.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <>
+                                <RefreshCw className="h-4 w-4 mr-2" />
+                                Reorder
+                              </>
+                            )}
+                          </Button>
+                          <Button
+                            size="sm"
+                            onClick={() => navigate(`/customer/orders/${order.id}`)}
+                          >
+                            <Eye className="h-4 w-4 mr-2" />
+                            View
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
