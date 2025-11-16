@@ -96,6 +96,9 @@ export default function CustomerPortal() {
             <p className="text-muted-foreground mt-1">Manage your orders and place new ones</p>
           </div>
           <div className="flex gap-2">
+            <Button variant="outline" onClick={() => navigate('/customer/payments')}>
+              Payment History
+            </Button>
             <Button variant="outline" onClick={() => navigate('/customer/profile')}>
               <User className="h-4 w-4 mr-2" />
               Profile

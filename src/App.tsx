@@ -26,6 +26,7 @@ import CustomerPortal from "./pages/CustomerPortal";
 import CustomerProfile from "./pages/CustomerProfile";
 import CustomerNewOrder from "./pages/CustomerNewOrder";
 import CustomerOrderDetail from "./pages/CustomerOrderDetail";
+import CustomerPaymentHistory from "./pages/CustomerPaymentHistory";
 import CustomerAccess from "./pages/CustomerAccess";
 import UserManagement from "./pages/UserManagement";
 import EmailHistory from "./pages/EmailHistory";
@@ -66,6 +67,11 @@ const App = () => (
             <Route path="/customer/orders/:id" element={
               <ProtectedRoute requiredRole="customer">
                 <CustomerOrderDetail />
+              </ProtectedRoute>
+            } />
+            <Route path="/customer/payments" element={
+              <ProtectedRoute requiredRole="customer">
+                <CustomerPaymentHistory />
               </ProtectedRoute>
             } />
             

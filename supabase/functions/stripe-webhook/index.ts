@@ -45,6 +45,39 @@ serve(async (req) => {
 
       console.log(`Processing ${paymentType} payment for order ${orderId}`);
 
+      // Get order details for email
+      const { data: orderData } = await supabaseClient
+        .from("sales_orders")
+        .select(`
+          human_uid,
+          customer_id,
+          customers!inner (
+            email
+          )
+        `)
+        .eq("id", orderId)
+        .single();
+
+      const customers = orderData?.customers as any;
+      const customerEmail = Array.isArray(customers) ? customers[0]?.email : customers?.email;
+      const orderNumber = orderData?.human_uid;
+      const amountPaid = session.amount_total ? session.amount_total / 100 : 0;
+
+      // Save payment transaction
+      await supabaseClient.from("payment_transactions").insert({
+        so_id: orderId,
+        payment_type: paymentType,
+        amount: amountPaid,
+        payment_method: "stripe",
+        stripe_payment_intent: session.payment_intent as string,
+        stripe_session_id: session.id,
+        customer_email: customerEmail,
+        metadata: {
+          session_id: session.id,
+          customer_details: session.customer_details,
+        },
+      });
+
       if (paymentType === "deposit") {
         // Update deposit status
         const { error } = await supabaseClient
@@ -112,6 +145,26 @@ serve(async (req) => {
             amount: session.amount_total ? session.amount_total / 100 : 0,
           },
         });
+      }
+
+      // Send payment confirmation email
+      if (customerEmail && orderNumber) {
+        try {
+          await supabaseClient.functions.invoke("send-payment-confirmation", {
+            body: {
+              orderId,
+              orderNumber,
+              paymentType,
+              amount: amountPaid,
+              customerEmail,
+              paymentIntent: session.payment_intent,
+            },
+          });
+          console.log(`Payment confirmation email queued for ${customerEmail}`);
+        } catch (emailError) {
+          console.error("Error sending payment confirmation email:", emailError);
+          // Don't fail the webhook if email fails
+        }
       }
     }
 
