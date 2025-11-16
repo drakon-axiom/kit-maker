@@ -521,28 +521,46 @@ export type Database = {
       }
       order_comments: {
         Row: {
+          admin_response: string | null
           comment: string
+          comment_type: string | null
           created_at: string
           id: string
           is_internal: boolean
+          modification_details: Json | null
+          request_status: string | null
+          resolved_at: string | null
+          resolved_by: string | null
           so_id: string
           updated_at: string
           user_id: string
         }
         Insert: {
+          admin_response?: string | null
           comment: string
+          comment_type?: string | null
           created_at?: string
           id?: string
           is_internal?: boolean
+          modification_details?: Json | null
+          request_status?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
           so_id: string
           updated_at?: string
           user_id: string
         }
         Update: {
+          admin_response?: string | null
           comment?: string
+          comment_type?: string | null
           created_at?: string
           id?: string
           is_internal?: boolean
+          modification_details?: Json | null
+          request_status?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
           so_id?: string
           updated_at?: string
           user_id?: string

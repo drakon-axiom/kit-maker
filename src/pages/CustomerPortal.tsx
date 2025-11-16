@@ -239,6 +239,8 @@ export default function CustomerPortal() {
         .insert({
           so_id: orderToCancel,
           comment: 'Customer requested order cancellation',
+          comment_type: 'cancellation_request',
+          request_status: 'pending',
           is_internal: false,
           user_id: user?.id || '',
         });
