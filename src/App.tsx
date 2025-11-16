@@ -27,6 +27,8 @@ import CustomerProfile from "./pages/CustomerProfile";
 import CustomerNewOrder from "./pages/CustomerNewOrder";
 import CustomerOrderDetail from "./pages/CustomerOrderDetail";
 import CustomerPaymentHistory from "./pages/CustomerPaymentHistory";
+import CustomerQuoteManagement from "./pages/CustomerQuoteManagement";
+import CustomerAccountSettings from "./pages/CustomerAccountSettings";
 import CustomerAccess from "./pages/CustomerAccess";
 import UserManagement from "./pages/UserManagement";
 import EmailHistory from "./pages/EmailHistory";
@@ -72,6 +74,16 @@ const App = () => (
             <Route path="/customer/payments" element={
               <ProtectedRoute requiredRole="customer">
                 <CustomerPaymentHistory />
+              </ProtectedRoute>
+            } />
+            <Route path="/customer/quotes" element={
+              <ProtectedRoute requiredRole="customer">
+                <CustomerQuoteManagement />
+              </ProtectedRoute>
+            } />
+            <Route path="/customer/settings" element={
+              <ProtectedRoute requiredRole="customer">
+                <CustomerAccountSettings />
               </ProtectedRoute>
             } />
             
