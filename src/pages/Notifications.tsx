@@ -9,6 +9,8 @@ import { Loader2, Save, Mail, ArrowLeft } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/contexts/AuthContext';
+import { SMSQuotaTracker } from '@/components/SMSQuotaTracker';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 interface EmailTemplate {
   id: string;
@@ -339,39 +341,52 @@ const Notifications = () => {
   return (
     <div className="p-6 space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">Email Notifications</h1>
+        <h1 className="text-3xl font-bold">Notifications</h1>
         <p className="text-muted-foreground mt-2">
-          Manage automated email templates for customer notifications
+          Manage email templates and SMS quota
         </p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {templates.map((template) => (
-          <Card 
-            key={template.id} 
-            className="cursor-pointer hover:border-primary transition-colors"
-            onClick={() => setSelectedTemplate(template)}
-          >
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Mail className="h-5 w-5 text-primary" />
-                {template.name}
-              </CardTitle>
-              <CardDescription>{template.description}</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                <div className="text-sm">
-                  <span className="font-medium">Subject:</span> {template.subject}
-                </div>
-                <div className="text-sm text-muted-foreground">
-                  {template.custom_html ? 'Custom template' : 'Using default template'}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+      <Tabs defaultValue="email" className="w-full">
+        <TabsList>
+          <TabsTrigger value="email">Email Templates</TabsTrigger>
+          <TabsTrigger value="sms">SMS Quota</TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="email" className="space-y-4 mt-6">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {templates.map((template) => (
+              <Card 
+                key={template.id} 
+                className="cursor-pointer hover:border-primary transition-colors"
+                onClick={() => setSelectedTemplate(template)}
+              >
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Mail className="h-5 w-5 text-primary" />
+                    {template.name}
+                  </CardTitle>
+                  <CardDescription>{template.description}</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    <div className="text-sm">
+                      <span className="font-medium">Subject:</span> {template.subject}
+                    </div>
+                    <div className="text-sm text-muted-foreground">
+                      {template.custom_html ? 'Custom template' : 'Using default template'}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="sms" className="mt-6">
+          <SMSQuotaTracker />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };
