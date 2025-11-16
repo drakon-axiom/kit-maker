@@ -28,6 +28,7 @@ export default function CustomerPaymentHistory() {
   const navigate = useNavigate();
   const [transactions, setTransactions] = useState<PaymentTransaction[]>([]);
   const [loading, setLoading] = useState(true);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [stats, setStats] = useState({
     totalPaid: 0,
     depositCount: 0,
@@ -104,6 +105,35 @@ export default function CustomerPaymentHistory() {
 
   const getPaymentTypeBadge = (type: string) => {
     return type === 'deposit' ? 'bg-blue-500' : 'bg-green-500';
+  };
+
+  const handleDownloadReceipt = async (transactionId: string, orderNumber: string, paymentType: string) => {
+    setDownloadingId(transactionId);
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-payment-receipt', {
+        body: { transactionId },
+      });
+
+      if (error) throw error;
+
+      // Create blob and download
+      const blob = new Blob([data], { type: 'text/html' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `receipt-${orderNumber}-${paymentType}.html`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+      toast.success('Receipt downloaded successfully');
+    } catch (error: any) {
+      console.error('Error downloading receipt:', error);
+      toast.error('Failed to download receipt');
+    } finally {
+      setDownloadingId(null);
+    }
   };
 
   if (loading) {
@@ -207,9 +237,10 @@ export default function CustomerPaymentHistory() {
                     <TableHead>Type</TableHead>
                     <TableHead>Method</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Amount</TableHead>
-                    <TableHead>Transaction ID</TableHead>
-                  </TableRow>
+                  <TableHead className="text-right">Amount</TableHead>
+                  <TableHead>Transaction ID</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
                 </TableHeader>
                 <TableBody>
                   {transactions.map((transaction) => (
@@ -250,6 +281,27 @@ export default function CustomerPaymentHistory() {
                       </TableCell>
                       <TableCell className="font-mono text-xs text-muted-foreground">
                         {transaction.stripe_payment_intent?.substring(0, 20)}...
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDownloadReceipt(
+                            transaction.id,
+                            transaction.sales_orders.human_uid,
+                            transaction.payment_type
+                          )}
+                          disabled={downloadingId === transaction.id}
+                        >
+                          {downloadingId === transaction.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <>
+                              <Download className="h-4 w-4 mr-2" />
+                              Receipt
+                            </>
+                          )}
+                        </Button>
                       </TableCell>
                     </TableRow>
                   ))}
