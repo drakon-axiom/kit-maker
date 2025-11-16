@@ -49,7 +49,7 @@ const OrderDocuments = ({ orderId, orderNumber, status, hasQuote, hasInvoice }: 
 
   const generateQuotePdf = async () => {
     const order = await fetchOrderWithLines();
-    const jsPDF = (await import('jspdf')).default;
+    const { jsPDF } = await import('jspdf');
     const doc = new jsPDF();
 
     // Header
@@ -89,7 +89,7 @@ const OrderDocuments = ({ orderId, orderNumber, status, hasQuote, hasInvoice }: 
 
   const generateConfirmationPdf = async () => {
     const order = await fetchOrderWithLines();
-    const jsPDF = (await import('jspdf')).default;
+    const { jsPDF } = await import('jspdf');
     const doc = new jsPDF();
 
     doc.setFontSize(20);
