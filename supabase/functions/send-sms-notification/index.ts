@@ -23,7 +23,7 @@ serve(async (req) => {
       });
     }
 
-    const { orderId, newStatus, phoneNumber, eventType } = await req.json();
+    const { orderId, newStatus, phoneNumber, eventType, testMessage } = await req.json();
 
     if (!phoneNumber) {
       console.log("No phone number provided, skipping SMS");
@@ -33,40 +33,48 @@ serve(async (req) => {
       });
     }
 
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
-
-    // Fetch order details
-    const { data: order } = await supabase
-      .from("sales_orders")
-      .select("human_uid, customers!inner(name)")
-      .eq("id", orderId)
-      .single();
-
-    if (!order) {
-      throw new Error("Order not found");
-    }
-
-    const customerName = (order.customers as any)?.name || "Customer";
-
-    // Build message based on event type
     let message = "";
-    switch (eventType) {
-      case "order_status":
-        message = `Hi ${customerName}, your order ${order.human_uid} status is now: ${newStatus}`;
-        break;
-      case "quote_approved":
-        message = `Hi ${customerName}, your quote ${order.human_uid} has been approved!`;
-        break;
-      case "shipment_update":
-        message = `Hi ${customerName}, your order ${order.human_uid} has shipped!`;
-        break;
-      case "payment_received":
-        message = `Hi ${customerName}, payment received for order ${order.human_uid}. Thank you!`;
-        break;
-      default:
-        message = `Update for order ${order.human_uid}: ${newStatus}`;
+
+    // Handle test message
+    if (eventType === 'test' && testMessage) {
+      message = testMessage;
+    } else if (!orderId) {
+      throw new Error("Order ID required for non-test messages");
+    } else {
+      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+      const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+      const supabase = createClient(supabaseUrl, supabaseKey);
+
+      // Fetch order details
+      const { data: order } = await supabase
+        .from("sales_orders")
+        .select("human_uid, customers!inner(name)")
+        .eq("id", orderId)
+        .single();
+
+      if (!order) {
+        throw new Error("Order not found");
+      }
+
+      const customerName = (order.customers as any)?.name || "Customer";
+
+      // Build message based on event type
+      switch (eventType) {
+        case "order_status":
+          message = `Hi ${customerName}, your order ${order.human_uid} status is now: ${newStatus}`;
+          break;
+        case "quote_approved":
+          message = `Hi ${customerName}, your quote ${order.human_uid} has been approved!`;
+          break;
+        case "shipment_update":
+          message = `Hi ${customerName}, your order ${order.human_uid} has shipped!`;
+          break;
+        case "payment_received":
+          message = `Hi ${customerName}, payment received for order ${order.human_uid}. Thank you!`;
+          break;
+        default:
+          message = `Update for order ${order.human_uid}: ${newStatus}`;
+      }
     }
 
     // Send SMS via Textbelt

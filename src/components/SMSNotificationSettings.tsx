@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Smartphone } from "lucide-react";
+import { Smartphone, Send } from "lucide-react";
 
 interface SMSNotificationSettingsProps {
   customerId: string;
@@ -15,6 +15,7 @@ interface SMSNotificationSettingsProps {
 export const SMSNotificationSettings = ({ customerId }: SMSNotificationSettingsProps) => {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [sendingTest, setSendingTest] = useState(false);
   const [settings, setSettings] = useState({
     sms_enabled: false,
     sms_phone_number: "",
@@ -85,6 +86,46 @@ export const SMSNotificationSettings = ({ customerId }: SMSNotificationSettingsP
     }
   };
 
+  const handleTestSMS = async () => {
+    if (!settings.sms_phone_number) {
+      toast({
+        title: "Phone number required",
+        description: "Please enter a phone number first",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setSendingTest(true);
+    try {
+      const { error } = await supabase.functions.invoke('send-sms-notification', {
+        body: {
+          orderId: null,
+          newStatus: 'test',
+          phoneNumber: settings.sms_phone_number,
+          eventType: 'test',
+          testMessage: 'This is a test SMS from your order management system. If you received this, SMS notifications are working correctly!',
+        },
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Test SMS sent",
+        description: "Check your phone for the test message",
+      });
+    } catch (error) {
+      console.error("Error sending test SMS:", error);
+      toast({
+        title: "Error",
+        description: "Failed to send test SMS. Please check your phone number and try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setSendingTest(false);
+    }
+  };
+
   if (loading) {
     return <div>Loading...</div>;
   }
@@ -120,15 +161,27 @@ export const SMSNotificationSettings = ({ customerId }: SMSNotificationSettingsP
           <>
             <div className="space-y-2">
               <Label htmlFor="phone">Phone Number</Label>
-              <Input
-                id="phone"
-                type="tel"
-                placeholder="+1234567890"
-                value={settings.sms_phone_number}
-                onChange={(e) =>
-                  setSettings({ ...settings, sms_phone_number: e.target.value })
-                }
-              />
+              <div className="flex gap-2">
+                <Input
+                  id="phone"
+                  type="tel"
+                  placeholder="+1234567890"
+                  value={settings.sms_phone_number}
+                  onChange={(e) =>
+                    setSettings({ ...settings, sms_phone_number: e.target.value })
+                  }
+                  className="flex-1"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleTestSMS}
+                  disabled={sendingTest || !settings.sms_phone_number}
+                >
+                  <Send className="h-4 w-4 mr-2" />
+                  {sendingTest ? "Sending..." : "Test"}
+                </Button>
+              </div>
               <p className="text-xs text-muted-foreground">
                 Include country code (e.g., +1 for US)
               </p>

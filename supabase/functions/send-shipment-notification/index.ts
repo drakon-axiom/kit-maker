@@ -380,6 +380,46 @@ strong { font-weight: bold !important; }
 
       await client.close();
       console.log(`Email sent successfully to ${recipientEmail}`);
+
+      // Send SMS notification if enabled
+      try {
+        const { data: customerData } = await supabase
+          .from('customers')
+          .select('id')
+          .eq('email', recipientEmail)
+          .single();
+
+        if (customerData) {
+          const { data: prefs } = await supabase
+            .from('notification_preferences')
+            .select('sms_enabled, sms_phone_number, sms_shipment_updates')
+            .eq('customer_id', customerData.id)
+            .single();
+
+          if (prefs?.sms_enabled && prefs?.sms_shipment_updates && prefs?.sms_phone_number) {
+            const TEXTBELT_API_KEY = Deno.env.get("TEXTBELT_API_KEY");
+            const isDelivered = status.toLowerCase() === 'delivered';
+            const message = isDelivered 
+              ? `Hi ${customer.name}, your order ${order.human_uid} has been delivered!`
+              : `Hi ${customer.name}, your order ${order.human_uid} has shipped! Tracking: ${shipment.tracking_no}`;
+            
+            const smsResponse = await fetch("https://textbelt.com/text", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                phone: prefs.sms_phone_number,
+                message: message,
+                key: TEXTBELT_API_KEY,
+              }),
+            });
+            
+            const smsResult = await smsResponse.json();
+            console.log('SMS sent:', smsResult);
+          }
+        }
+      } catch (smsError) {
+        console.error('SMS notification failed but continuing:', smsError);
+      }
     } catch (smtpError: any) {
       console.error("SMTP Error details:", smtpError);
       throw new Error(`Failed to send email: ${smtpError.message}`);
