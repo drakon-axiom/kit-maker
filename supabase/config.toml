@@ -26,3 +26,6 @@ verify_jwt = false
 
 [functions.request-customer-access]
 verify_jwt = false
+
+[functions.update-ups-tracking]
+verify_jwt = false

@@ -1,8 +1,11 @@
+import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Truck, MapPin, Calendar, ExternalLink, Package } from 'lucide-react';
+import { Truck, MapPin, Calendar, ExternalLink, Package, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { format } from 'date-fns';
+import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 
 interface Shipment {
   id: string;
@@ -17,9 +20,32 @@ interface Shipment {
 
 interface ShipmentTrackerProps {
   shipment: Shipment | null;
+  onUpdate?: () => void;
 }
 
-const ShipmentTracker = ({ shipment }: ShipmentTrackerProps) => {
+const ShipmentTracker = ({ shipment, onUpdate }: ShipmentTrackerProps) => {
+  const [refreshing, setRefreshing] = useState(false);
+
+  const handleRefreshTracking = async () => {
+    if (!shipment) return;
+
+    setRefreshing(true);
+    try {
+      const { error } = await supabase.functions.invoke('update-ups-tracking', {
+        body: { shipmentId: shipment.id },
+      });
+
+      if (error) throw error;
+
+      toast.success('Tracking information updated');
+      onUpdate?.();
+    } catch (error: any) {
+      console.error('Refresh tracking error:', error);
+      toast.error('Failed to refresh tracking information');
+    } finally {
+      setRefreshing(false);
+    }
+  };
   if (!shipment) {
     return (
       <Card>
@@ -93,12 +119,23 @@ const ShipmentTracker = ({ shipment }: ShipmentTrackerProps) => {
               </div>
             )}
           </div>
-          <Button variant="outline" size="sm" asChild>
-            <a href={getTrackingUrl()} target="_blank" rel="noopener noreferrer">
-              <ExternalLink className="h-4 w-4 mr-2" />
-              Track on Carrier Site
-            </a>
-          </Button>
+          <div className="flex gap-2">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={handleRefreshTracking}
+              disabled={refreshing}
+            >
+              <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
+              Refresh
+            </Button>
+            <Button variant="outline" size="sm" asChild>
+              <a href={getTrackingUrl()} target="_blank" rel="noopener noreferrer">
+                <ExternalLink className="h-4 w-4 mr-2" />
+                Track on Carrier Site
+              </a>
+            </Button>
+          </div>
         </div>
 
         {/* Status Badge */}

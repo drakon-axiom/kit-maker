@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { ArrowLeft, Loader2, Package, AlertCircle, Edit } from 'lucide-react';
+import { ArrowLeft, Loader2, Package, AlertCircle, Edit, Download, FileText } from 'lucide-react';
 import { toast } from 'sonner';
 import OrderTimeline from '@/components/OrderTimeline';
 import OrderComments from '@/components/OrderComments';
@@ -16,6 +16,7 @@ import OrderDocuments from '@/components/OrderDocuments';
 import OrderRequestHistory from '@/components/OrderRequestHistory';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
+import { format } from 'date-fns';
 
 interface Order {
   id: string;
@@ -66,6 +67,7 @@ export default function CustomerOrderDetail() {
   const [modificationDialogOpen, setModificationDialogOpen] = useState(false);
   const [submittingModification, setSubmittingModification] = useState(false);
   const [requestHistoryKey, setRequestHistoryKey] = useState(0);
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
 
   useEffect(() => {
     if (user && id) {
@@ -137,16 +139,19 @@ export default function CustomerOrderDetail() {
   };
 
   const handleModificationRequest = async () => {
-    if (!modificationRequest.trim() || !user || !order) return;
+    if (!modificationRequest.trim()) {
+      toast.error('Please enter modification details');
+      return;
+    }
 
     setSubmittingModification(true);
     try {
       const { error } = await supabase
         .from('order_comments')
         .insert({
-          so_id: order.id,
-          user_id: user.id,
-          comment: `Modification Request: ${modificationRequest}`,
+          so_id: id,
+          user_id: user?.id,
+          comment: modificationRequest,
           comment_type: 'modification_request',
           request_status: 'pending',
           is_internal: false,
@@ -157,12 +162,55 @@ export default function CustomerOrderDetail() {
       toast.success('Modification request submitted successfully');
       setModificationRequest('');
       setModificationDialogOpen(false);
-      setRequestHistoryKey(prev => prev + 1); // Refresh request history
+      setRequestHistoryKey(prev => prev + 1);
     } catch (error: any) {
       toast.error('Failed to submit modification request');
       console.error(error);
     } finally {
       setSubmittingModification(false);
+    }
+  };
+
+  const handleDownloadPdf = async () => {
+    setDownloadingPdf(true);
+    try {
+      const jsPDF = (await import('jspdf')).default;
+      const doc = new jsPDF();
+      
+      // Header
+      doc.setFontSize(20);
+      doc.text('Order Confirmation', 20, 20);
+      doc.setFontSize(10);
+      doc.text(`Order #: ${order?.human_uid}`, 20, 30);
+      doc.text(`Date: ${order?.created_at ? format(new Date(order.created_at), 'MMM dd, yyyy') : ''}`, 20, 36);
+      doc.text(`Status: ${order?.status.replace(/_/g, ' ').toUpperCase()}`, 20, 42);
+      
+      // Line items
+      doc.setFontSize(12);
+      doc.text('Order Items', 20, 55);
+      doc.setFontSize(10);
+      
+      let yPos = 65;
+      lines.forEach((line, index) => {
+        doc.text(`${index + 1}. ${line.skus.description}`, 20, yPos);
+        doc.text(`   Qty: ${line.qty_entered} ${line.sell_mode === 'kit' ? 'kits' : 'pieces'}`, 20, yPos + 5);
+        doc.text(`   Price: $${line.unit_price.toFixed(2)}`, 20, yPos + 10);
+        doc.text(`   Subtotal: $${line.line_subtotal.toFixed(2)}`, 20, yPos + 15);
+        yPos += 25;
+      });
+      
+      // Total
+      yPos += 10;
+      doc.setFontSize(12);
+      doc.text(`Total: $${order?.subtotal.toFixed(2)}`, 20, yPos);
+      
+      doc.save(`order-${order?.human_uid}.pdf`);
+      toast.success('PDF downloaded successfully');
+    } catch (error) {
+      console.error('PDF generation error:', error);
+      toast.error('Failed to generate PDF');
+    } finally {
+      setDownloadingPdf(false);
     }
   };
 
@@ -197,50 +245,66 @@ export default function CustomerOrderDetail() {
             Placed on {new Date(order.created_at).toLocaleDateString()}
           </p>
         </div>
-        {canRequestModification(order.status) && (
-          <Dialog open={modificationDialogOpen} onOpenChange={setModificationDialogOpen}>
-            <DialogTrigger asChild>
-              <Button variant="outline">
-                <Edit className="h-4 w-4 mr-2" />
-                Request Modification
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Request Order Modification</DialogTitle>
-                <DialogDescription>
-                  Describe the changes you'd like to make to this order. Our team will review your request.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4">
-                <Textarea
-                  placeholder="Please describe the modifications you'd like..."
-                  value={modificationRequest}
-                  onChange={(e) => setModificationRequest(e.target.value)}
-                  rows={5}
-                />
-              </div>
-              <DialogFooter>
-                <Button
-                  variant="outline"
-                  onClick={() => setModificationDialogOpen(false)}
-                >
-                  Cancel
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => navigate('/customer/orders')}>
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back
+          </Button>
+          {(order.status === 'quoted' || order.status === 'deposit_due' || ['in_queue', 'in_production', 'packed', 'shipped', 'awaiting_payment', 'awaiting_invoice'].includes(order.status)) && (
+            <Button variant="outline" onClick={handleDownloadPdf} disabled={downloadingPdf}>
+              {downloadingPdf ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Download className="mr-2 h-4 w-4" />
+              )}
+              Download PDF
+            </Button>
+           )}
+          {canRequestModification(order.status) && (
+            <Dialog open={modificationDialogOpen} onOpenChange={setModificationDialogOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline">
+                  <Edit className="h-4 w-4 mr-2" />
+                  Request Modification
                 </Button>
-                <Button
-                  onClick={handleModificationRequest}
-                  disabled={!modificationRequest.trim() || submittingModification}
-                >
-                  {submittingModification && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                  Submit Request
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-        )}
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Request Order Modification</DialogTitle>
+                  <DialogDescription>
+                    Describe the changes you'd like to make to this order. Our team will review your request.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <Textarea
+                    placeholder="Please describe the modifications you'd like..."
+                    value={modificationRequest}
+                    onChange={(e) => setModificationRequest(e.target.value)}
+                    rows={5}
+                  />
+                </div>
+                <DialogFooter>
+                  <Button
+                    variant="outline"
+                    onClick={() => setModificationDialogOpen(false)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={handleModificationRequest}
+                    disabled={!modificationRequest.trim() || submittingModification}
+                  >
+                    {submittingModification && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                    Submit Request
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          )}
+        </div>
       </div>
 
-        {/* Visual Progress Timeline */}
+      {/* Visual Progress Timeline */}
         <Card>
           <CardHeader>
             <CardTitle>Order Progress</CardTitle>
@@ -298,7 +362,8 @@ export default function CustomerOrderDetail() {
            order.status !== 'shipped' && 
            order.status !== 'awaiting_approval' && 
            order.status !== 'draft' &&
-           order.status !== 'quoted' && (
+           order.status !== 'quoted' &&
+           order.status !== 'cancelled' && (
             <PaymentCard
               type="deposit"
               amount={order.deposit_amount || 0}
@@ -342,7 +407,7 @@ export default function CustomerOrderDetail() {
         </div>
 
         {/* Shipment Tracking */}
-        <ShipmentTracker shipment={shipment} />
+        <ShipmentTracker shipment={shipment} onUpdate={fetchOrderDetails} />
 
         {/* Request History Timeline */}
         <OrderRequestHistory 
