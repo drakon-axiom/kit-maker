@@ -40,7 +40,7 @@ const Dashboard = () => {
       if (error) throw error;
 
       const stats = {
-        totalOrders: orders?.length || 0,
+        totalOrders: orders?.filter(o => o.status !== 'cancelled').length || 0,
         inProduction: orders?.filter(o => 
           ['in_queue', 'in_production'].includes(o.status)
         ).length || 0,
