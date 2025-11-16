@@ -12,6 +12,8 @@ const RequestSchema = z.object({
   orderId: z.string().uuid(),
   approved: z.boolean(),
   rejectionReason: z.string().optional(),
+  testMode: z.boolean().optional(),
+  testEmail: z.string().email().optional(),
 });
 
 serve(async (req) => {
@@ -25,7 +27,7 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
     const body = await req.json();
-    const { orderId, approved, rejectionReason } = RequestSchema.parse(body);
+    const { orderId, approved, rejectionReason, testMode, testEmail } = RequestSchema.parse(body);
 
     // Fetch order details
     const { data: order, error: orderError } = await supabase
@@ -44,6 +46,9 @@ serve(async (req) => {
     if (orderError || !order) {
       throw new Error('Order not found');
     }
+
+    const customer = Array.isArray(order.customers) ? order.customers[0] : order.customers;
+    const recipientEmail = testMode && testEmail ? testEmail : customer.email;
 
     // Fetch company name
     const { data: settings } = await supabase
@@ -66,11 +71,8 @@ serve(async (req) => {
       throw new Error(`Email template ${templateType} not found`);
     }
 
-    // Prepare email content
     let subject = template.subject;
     let htmlContent = template.custom_html || getDefaultTemplate(approved);
-
-    const customer = Array.isArray(order.customers) ? order.customers[0] : order.customers;
 
     // Replace variables
     const variables: Record<string, string> = {
@@ -108,14 +110,30 @@ serve(async (req) => {
 
     await smtpClient.send({
       from: `${companyName} <${Deno.env.get("SMTP_USER")!}>`,
-      to: customer.email,
-      subject: subject,
+      to: recipientEmail,
+      subject: testMode ? `[TEST] ${subject}` : subject,
       html: htmlContent,
     });
 
     await smtpClient.close();
 
-    console.log(`${approved ? 'Approval' : 'Rejection'} email sent for order ${order.human_uid}`);
+    console.log(`${approved ? 'Approval' : 'Rejection'} email ${testMode ? '(TEST)' : ''} sent for order ${order.human_uid} to ${recipientEmail}`);
+
+    // Log email send to audit_log (skip logging for test emails)
+    if (!testMode) {
+      await supabase.from('audit_log').insert({
+        entity: 'email',
+        entity_id: orderId,
+        action: approved ? 'order_approval_email_sent' : 'order_rejection_email_sent',
+        after: {
+          recipient: recipientEmail,
+          subject: subject,
+          template_type: templateType,
+          order_number: order.human_uid,
+          status: 'sent'
+        }
+      });
+    }
 
     return new Response(
       JSON.stringify({ success: true }),
@@ -127,6 +145,25 @@ serve(async (req) => {
 
   } catch (error: any) {
     console.error('Error sending approval email:', error);
+    
+    // Log email failure to audit_log
+    try {
+      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+      const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+      const supabase = createClient(supabaseUrl, serviceRoleKey);
+      
+      await supabase.from('audit_log').insert({
+        entity: 'email',
+        action: 'email_send_failed',
+        after: {
+          error: error.message,
+          template_type: 'order_approval'
+        }
+      });
+    } catch (logError) {
+      console.error('Failed to log email error:', logError);
+    }
+    
     return new Response(
       JSON.stringify({ error: error.message }),
       { 
