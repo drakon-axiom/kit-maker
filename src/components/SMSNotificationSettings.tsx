@@ -66,6 +66,8 @@ export const SMSNotificationSettings = ({ customerId }: SMSNotificationSettingsP
         .upsert({
           customer_id: customerId,
           ...settings,
+        }, {
+          onConflict: 'customer_id'
         });
 
       if (error) throw error;
