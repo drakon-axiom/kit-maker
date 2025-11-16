@@ -1262,6 +1262,90 @@ export type Database = {
           },
         ]
       }
+      sms_logs: {
+        Row: {
+          created_at: string
+          customer_id: string | null
+          id: string
+          message: string
+          phone_number: string
+          sent_by: string | null
+          so_id: string | null
+          status: string
+          template_type: string | null
+          textbelt_response: Json | null
+        }
+        Insert: {
+          created_at?: string
+          customer_id?: string | null
+          id?: string
+          message: string
+          phone_number: string
+          sent_by?: string | null
+          so_id?: string | null
+          status?: string
+          template_type?: string | null
+          textbelt_response?: Json | null
+        }
+        Update: {
+          created_at?: string
+          customer_id?: string | null
+          id?: string
+          message?: string
+          phone_number?: string
+          sent_by?: string | null
+          so_id?: string | null
+          status?: string
+          template_type?: string | null
+          textbelt_response?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sms_logs_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sms_logs_so_id_fkey"
+            columns: ["so_id"]
+            isOneToOne: false
+            referencedRelation: "sales_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sms_templates: {
+        Row: {
+          available_variables: string[]
+          created_at: string
+          id: string
+          message_template: string
+          name: string
+          template_type: string
+          updated_at: string
+        }
+        Insert: {
+          available_variables?: string[]
+          created_at?: string
+          id?: string
+          message_template: string
+          name: string
+          template_type: string
+          updated_at?: string
+        }
+        Update: {
+          available_variables?: string[]
+          created_at?: string
+          id?: string
+          message_template?: string
+          name?: string
+          template_type?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string

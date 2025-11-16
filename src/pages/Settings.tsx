@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, Save } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
+import { SMSTemplateManager } from '@/components/SMSTemplateManager';
 
 interface Setting {
   key: string;
@@ -322,6 +323,11 @@ const Settings = () => {
               </div>
             </CardContent>
           </Card>
+
+          {/* SMS Templates */}
+          <div className="md:col-span-2">
+            <SMSTemplateManager />
+          </div>
         </div>
       )}
     </div>
