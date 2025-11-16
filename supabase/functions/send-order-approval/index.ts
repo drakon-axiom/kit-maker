@@ -135,6 +135,46 @@ serve(async (req) => {
       });
     }
 
+    // Send SMS notification if enabled and quote was approved
+    if (approved && !testMode) {
+      try {
+        // Get customer ID from order
+        const { data: customerData } = await supabase
+          .from('customers')
+          .select('id')
+          .eq('email', customer.email)
+          .single();
+
+        if (customerData) {
+          const { data: prefs } = await supabase
+            .from('notification_preferences')
+            .select('sms_enabled, sms_phone_number, sms_quote_approved')
+            .eq('customer_id', customerData.id)
+            .single();
+
+          if (prefs?.sms_enabled && prefs?.sms_quote_approved && prefs?.sms_phone_number) {
+            const TEXTBELT_API_KEY = Deno.env.get("TEXTBELT_API_KEY");
+            const message = `Hi ${customer.name}, your quote ${order.human_uid} has been approved!`;
+            
+            const smsResponse = await fetch("https://textbelt.com/text", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                phone: prefs.sms_phone_number,
+                message: message,
+                key: TEXTBELT_API_KEY,
+              }),
+            });
+            
+            const smsResult = await smsResponse.json();
+            console.log('SMS sent:', smsResult);
+          }
+        }
+      } catch (smsError) {
+        console.error('SMS notification failed but continuing:', smsError);
+      }
+    }
+
     return new Response(
       JSON.stringify({ success: true }),
       { 
