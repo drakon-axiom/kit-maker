@@ -88,12 +88,17 @@ serve(async (req) => {
       htmlContent = htmlContent.replace(new RegExp(key, 'g'), value);
     });
 
-    // Send email
+    // Send email with Proton SMTP configuration
+    const smtpHost = Deno.env.get("SMTP_HOST")!;
+    const envPort = parseInt(Deno.env.get("SMTP_PORT") || "0");
+    const effectivePort = smtpHost?.includes("protonmail") ? 465 : (envPort || 465);
+    const useTls = effectivePort === 465;
+
     const smtpClient = new SMTPClient({
       connection: {
-        hostname: Deno.env.get("SMTP_HOST")!,
-        port: parseInt(Deno.env.get("SMTP_PORT") || "587"),
-        tls: true,
+        hostname: smtpHost,
+        port: effectivePort,
+        tls: useTls,
         auth: {
           username: Deno.env.get("SMTP_USER")!,
           password: Deno.env.get("SMTP_PASSWORD")!,
@@ -102,7 +107,7 @@ serve(async (req) => {
     });
 
     await smtpClient.send({
-      from: Deno.env.get("SMTP_USER")!,
+      from: `${companyName} <${Deno.env.get("SMTP_USER")!}>`,
       to: customer.email,
       subject: subject,
       html: htmlContent,
