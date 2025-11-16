@@ -12,7 +12,6 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Loader2, Plus, Trash2, Edit2, Check } from 'lucide-react';
 import { toast } from 'sonner';
-import { CustomerLayout } from '@/components/CustomerLayout';
 
 interface SavedAddress {
   id: string;
@@ -235,14 +234,13 @@ export default function CustomerAccountSettings() {
   }
 
   return (
-    <CustomerLayout>
-      <div className="p-6 max-w-4xl mx-auto space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold">Account Settings</h1>
-          <p className="text-muted-foreground mt-1">
-            Manage your addresses, notifications, and security
-          </p>
-        </div>
+    <div className="p-6 max-w-4xl mx-auto space-y-6">
+      <div>
+        <h1 className="text-3xl font-bold">Account Settings</h1>
+        <p className="text-muted-foreground mt-1">
+          Manage your addresses, notifications, and security
+        </p>
+      </div>
 
         {/* Saved Addresses */}
         <Card>
@@ -527,7 +525,6 @@ export default function CustomerAccountSettings() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
-      </div>
-    </CustomerLayout>
+    </div>
   );
 }

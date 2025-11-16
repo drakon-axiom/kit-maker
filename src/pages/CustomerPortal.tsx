@@ -10,7 +10,6 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Plus, Package, Loader2, Eye, RefreshCw, Search, Filter, Download, XCircle, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
-import { CustomerLayout } from '@/components/CustomerLayout';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 
 interface Order {
@@ -268,20 +267,19 @@ export default function CustomerPortal() {
   }
 
   return (
-    <CustomerLayout>
-      <div className="p-6 space-y-6">
-        <div className="flex justify-between items-start">
-          <div>
-            <h1 className="text-3xl font-bold">Welcome, {customerName}</h1>
-            <p className="text-muted-foreground mt-1">Manage your orders and place new ones</p>
-          </div>
-          <div className="flex gap-2">
-            <Button onClick={() => navigate('/customer/new-order')}>
-              <Plus className="h-4 w-4 mr-2" />
-              New Order
-            </Button>
-          </div>
+    <div className="p-6 space-y-6">
+      <div className="flex justify-between items-start">
+        <div>
+          <h1 className="text-3xl font-bold">Welcome, {customerName}</h1>
+          <p className="text-muted-foreground mt-1">Manage your orders and place new ones</p>
         </div>
+        <div className="flex gap-2">
+          <Button onClick={() => navigate('/customer/new-order')}>
+            <Plus className="h-4 w-4 mr-2" />
+            New Order
+          </Button>
+        </div>
+      </div>
 
         <Card>
           <CardHeader>
@@ -473,7 +471,6 @@ export default function CustomerPortal() {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
-      </div>
-    </CustomerLayout>
+    </div>
   );
 }

@@ -148,19 +148,13 @@ export default function CustomerOrderDetail() {
   }
 
   return (
-    <div className="min-h-screen bg-background p-6">
-      <div className="max-w-7xl mx-auto space-y-6">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" onClick={() => navigate('/customer')}>
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-          <div>
-            <h1 className="text-3xl font-bold">Order {order.human_uid}</h1>
-            <p className="text-muted-foreground mt-1">
-              Placed on {new Date(order.created_at).toLocaleDateString()}
-            </p>
-          </div>
-        </div>
+    <div className="p-6 space-y-6">
+      <div>
+        <h1 className="text-3xl font-bold">Order {order.human_uid}</h1>
+        <p className="text-muted-foreground mt-1">
+          Placed on {new Date(order.created_at).toLocaleDateString()}
+        </p>
+      </div>
 
         {/* Visual Progress Timeline */}
         <Card>
@@ -313,7 +307,6 @@ export default function CustomerOrderDetail() {
 
         {/* Order Comments */}
         <OrderComments orderId={order.id} />
-      </div>
     </div>
   );
 }

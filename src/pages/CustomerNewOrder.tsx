@@ -216,17 +216,12 @@ export default function CustomerNewOrder() {
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>;
   }
-  return <div className="min-h-screen bg-background p-6">
-      <div className="max-w-7xl mx-auto space-y-6">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" onClick={() => navigate('/customer')}>
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-          <div>
-            <h1 className="text-3xl font-bold">Place New Order</h1>
-            <p className="text-muted-foreground mt-1">Select products and quantities</p>
-          </div>
-        </div>
+  return (
+    <div className="p-6 space-y-6">
+      <div>
+        <h1 className="text-3xl font-bold">Place New Order</h1>
+        <p className="text-muted-foreground mt-1">Select products and quantities</p>
+      </div>
 
         <Card>
           <CardHeader>
@@ -346,6 +341,6 @@ export default function CustomerNewOrder() {
             </>}
           </CardContent>
         </Card>
-      </div>
-    </div>;
+    </div>
+  );
 }

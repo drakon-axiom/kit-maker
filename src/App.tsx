@@ -34,6 +34,7 @@ import UserManagement from "./pages/UserManagement";
 import EmailHistory from "./pages/EmailHistory";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Layout from "./components/Layout";
+import { CustomerLayout } from "./components/CustomerLayout";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -53,37 +54,51 @@ const App = () => (
             {/* Customer Portal Routes */}
             <Route path="/customer" element={
               <ProtectedRoute requiredRole="customer">
-                <CustomerPortal />
+                <CustomerLayout>
+                  <CustomerPortal />
+                </CustomerLayout>
               </ProtectedRoute>
             } />
             <Route path="/customer/profile" element={
               <ProtectedRoute requiredRole="customer">
-                <CustomerProfile />
+                <CustomerLayout>
+                  <CustomerProfile />
+                </CustomerLayout>
               </ProtectedRoute>
             } />
             <Route path="/customer/new-order" element={
               <ProtectedRoute requiredRole="customer">
-                <CustomerNewOrder />
+                <CustomerLayout>
+                  <CustomerNewOrder />
+                </CustomerLayout>
               </ProtectedRoute>
             } />
             <Route path="/customer/orders/:id" element={
               <ProtectedRoute requiredRole="customer">
-                <CustomerOrderDetail />
+                <CustomerLayout>
+                  <CustomerOrderDetail />
+                </CustomerLayout>
               </ProtectedRoute>
             } />
             <Route path="/customer/payments" element={
               <ProtectedRoute requiredRole="customer">
-                <CustomerPaymentHistory />
+                <CustomerLayout>
+                  <CustomerPaymentHistory />
+                </CustomerLayout>
               </ProtectedRoute>
             } />
             <Route path="/customer/quotes" element={
               <ProtectedRoute requiredRole="customer">
-                <CustomerQuoteManagement />
+                <CustomerLayout>
+                  <CustomerQuoteManagement />
+                </CustomerLayout>
               </ProtectedRoute>
             } />
             <Route path="/customer/settings" element={
               <ProtectedRoute requiredRole="customer">
-                <CustomerAccountSettings />
+                <CustomerLayout>
+                  <CustomerAccountSettings />
+                </CustomerLayout>
               </ProtectedRoute>
             } />
             
