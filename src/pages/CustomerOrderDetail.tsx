@@ -6,13 +6,15 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { ArrowLeft, Loader2, Package, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Loader2, Package, AlertCircle, Edit } from 'lucide-react';
 import { toast } from 'sonner';
 import OrderTimeline from '@/components/OrderTimeline';
 import OrderComments from '@/components/OrderComments';
 import ShipmentTracker from '@/components/ShipmentTracker';
 import PaymentCard from '@/components/PaymentCard';
 import OrderDocuments from '@/components/OrderDocuments';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
 
 interface Order {
   id: string;
@@ -59,6 +61,9 @@ export default function CustomerOrderDetail() {
   const [lines, setLines] = useState<OrderLine[]>([]);
   const [shipment, setShipment] = useState<Shipment | null>(null);
   const [loading, setLoading] = useState(true);
+  const [modificationRequest, setModificationRequest] = useState('');
+  const [modificationDialogOpen, setModificationDialogOpen] = useState(false);
+  const [submittingModification, setSubmittingModification] = useState(false);
 
   useEffect(() => {
     if (user && id) {
@@ -125,6 +130,39 @@ export default function CustomerOrderDetail() {
     ).join(' ');
   };
 
+  const canRequestModification = (status: string) => {
+    return ['draft', 'quoted', 'deposit_due', 'awaiting_approval', 'in_queue'].includes(status);
+  };
+
+  const handleModificationRequest = async () => {
+    if (!modificationRequest.trim() || !user || !order) return;
+
+    setSubmittingModification(true);
+    try {
+      const { error } = await supabase
+        .from('order_comments')
+        .insert({
+          so_id: order.id,
+          user_id: user.id,
+          comment: `Modification Request: ${modificationRequest}`,
+          comment_type: 'modification_request',
+          request_status: 'pending',
+          is_internal: false,
+        });
+
+      if (error) throw error;
+
+      toast.success('Modification request submitted successfully');
+      setModificationRequest('');
+      setModificationDialogOpen(false);
+    } catch (error: any) {
+      toast.error('Failed to submit modification request');
+      console.error(error);
+    } finally {
+      setSubmittingModification(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -149,11 +187,54 @@ export default function CustomerOrderDetail() {
 
   return (
     <div className="p-6 space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Order {order.human_uid}</h1>
-        <p className="text-muted-foreground mt-1">
-          Placed on {new Date(order.created_at).toLocaleDateString()}
-        </p>
+      <div className="flex justify-between items-start">
+        <div>
+          <h1 className="text-3xl font-bold">Order {order.human_uid}</h1>
+          <p className="text-muted-foreground mt-1">
+            Placed on {new Date(order.created_at).toLocaleDateString()}
+          </p>
+        </div>
+        {canRequestModification(order.status) && (
+          <Dialog open={modificationDialogOpen} onOpenChange={setModificationDialogOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline">
+                <Edit className="h-4 w-4 mr-2" />
+                Request Modification
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Request Order Modification</DialogTitle>
+                <DialogDescription>
+                  Describe the changes you'd like to make to this order. Our team will review your request.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                <Textarea
+                  placeholder="Please describe the modifications you'd like..."
+                  value={modificationRequest}
+                  onChange={(e) => setModificationRequest(e.target.value)}
+                  rows={5}
+                />
+              </div>
+              <DialogFooter>
+                <Button
+                  variant="outline"
+                  onClick={() => setModificationDialogOpen(false)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleModificationRequest}
+                  disabled={!modificationRequest.trim() || submittingModification}
+                >
+                  {submittingModification && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                  Submit Request
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        )}
       </div>
 
         {/* Visual Progress Timeline */}
