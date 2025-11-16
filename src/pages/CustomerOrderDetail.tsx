@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { ArrowLeft, Loader2, Package } from 'lucide-react';
+import { ArrowLeft, Loader2, Package, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import OrderTimeline from '@/components/OrderTimeline';
 import OrderComments from '@/components/OrderComments';
@@ -179,10 +179,48 @@ export default function CustomerOrderDetail() {
 
         {/* Payment Cards */}
         <div className="grid gap-6 md:grid-cols-2">
+          {/* Approval Pending Message */}
+          {order.deposit_required && 
+           (order.status === 'awaiting_approval' || order.status === 'draft' || order.status === 'quoted') && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <AlertCircle className="h-5 w-5 text-yellow-500" />
+                  Awaiting Approval
+                </CardTitle>
+                <CardDescription>
+                  Payment will be available once your order is approved
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-baseline justify-between">
+                  <span className="text-sm text-muted-foreground">Deposit Amount</span>
+                  <span className="text-3xl font-bold">${(order.deposit_amount || 0).toFixed(2)}</span>
+                </div>
+
+                <div className="flex items-start gap-2 p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/20">
+                  <AlertCircle className="h-4 w-4 text-yellow-600 mt-0.5" />
+                  <div className="text-sm text-yellow-700">
+                    Your order is currently under review. You'll receive an email notification once it's approved and ready for payment.
+                  </div>
+                </div>
+
+                <div className="p-4 rounded-lg bg-muted">
+                  <p className="text-sm text-muted-foreground">
+                    <strong>What happens next?</strong><br/>
+                    Once approved, you'll be able to pay the deposit to move your order into production.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Active Deposit Payment Card */}
           {order.deposit_required && 
            order.status !== 'shipped' && 
            order.status !== 'awaiting_approval' && 
-           order.status !== 'draft' && (
+           order.status !== 'draft' &&
+           order.status !== 'quoted' && (
             <PaymentCard
               type="deposit"
               amount={order.deposit_amount || 0}
