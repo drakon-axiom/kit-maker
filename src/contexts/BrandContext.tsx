@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './AuthContext';
+import { useLocation } from 'react-router-dom';
 
 interface Brand {
   id: string;
@@ -25,17 +26,38 @@ interface BrandContextType {
   currentBrand: Brand | null;
   allBrands: Brand[];
   loading: boolean;
+  detectedBrandSlug: string | null;
   setCurrentBrandById: (brandId: string) => void;
   refreshBrands: () => Promise<void>;
 }
 
 const BrandContext = createContext<BrandContextType | undefined>(undefined);
 
+const BRAND_COOKIE_NAME = 'axiom_brand_slug';
+
+const getBrandCookie = (): string | null => {
+  const cookies = document.cookie.split(';');
+  for (const cookie of cookies) {
+    const [name, value] = cookie.trim().split('=');
+    if (name === BRAND_COOKIE_NAME) {
+      return decodeURIComponent(value);
+    }
+  }
+  return null;
+};
+
+const setBrandCookie = (slug: string) => {
+  const maxAge = 365 * 24 * 60 * 60; // 1 year
+  document.cookie = `${BRAND_COOKIE_NAME}=${encodeURIComponent(slug)}; path=/; max-age=${maxAge}; SameSite=Lax`;
+};
+
 export const BrandProvider = ({ children }: { children: React.ReactNode }) => {
   const [currentBrand, setCurrentBrand] = useState<Brand | null>(null);
   const [allBrands, setAllBrands] = useState<Brand[]>([]);
   const [loading, setLoading] = useState(true);
+  const [detectedBrandSlug, setDetectedBrandSlug] = useState<string | null>(null);
   const { user } = useAuth();
+  const location = useLocation();
 
   const applyBrandTheme = (brand: Brand) => {
     const root = document.documentElement;
@@ -100,10 +122,36 @@ export const BrandProvider = ({ children }: { children: React.ReactNode }) => {
 
       let brandToUse: Brand | null = null;
 
-      if (user) {
+      // 1. Detect brand from URL path (e.g., /nexus_aminos)
+      const pathSegments = location.pathname.split('/').filter(Boolean);
+      if (pathSegments.length > 0) {
+        const potentialSlug = pathSegments[0].toLowerCase().replace(/_/g, '-');
+        const detectedBrand = brands.find(b => b.slug.toLowerCase() === potentialSlug);
+        if (detectedBrand) {
+          setDetectedBrandSlug(detectedBrand.slug);
+          setBrandCookie(detectedBrand.slug);
+          brandToUse = detectedBrand;
+        }
+      }
+
+      // 2. If logged in, use user's assigned brand
+      if (!brandToUse && user) {
         brandToUse = await fetchUserBrand();
       }
 
+      // 3. Check cookie for previously detected brand
+      if (!brandToUse) {
+        const cookieBrandSlug = getBrandCookie();
+        if (cookieBrandSlug) {
+          const cookieBrand = brands.find(b => b.slug === cookieBrandSlug);
+          if (cookieBrand) {
+            setDetectedBrandSlug(cookieBrand.slug);
+            brandToUse = cookieBrand;
+          }
+        }
+      }
+
+      // 4. Fallback to default brand
       if (!brandToUse) {
         brandToUse = brands.find(b => b.is_default) || brands[0] || null;
       }
@@ -117,7 +165,7 @@ export const BrandProvider = ({ children }: { children: React.ReactNode }) => {
     };
 
     initializeBrand();
-  }, [user]);
+  }, [user, location.pathname]);
 
   const setCurrentBrandById = (brandId: string) => {
     const brand = allBrands.find(b => b.id === brandId);
@@ -133,6 +181,7 @@ export const BrandProvider = ({ children }: { children: React.ReactNode }) => {
         currentBrand,
         allBrands,
         loading,
+        detectedBrandSlug,
         setCurrentBrandById,
         refreshBrands,
       }}
