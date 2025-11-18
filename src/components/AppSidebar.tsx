@@ -22,6 +22,7 @@ import {
   UserCog,
   History,
   MessageSquare,
+  Palette,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -95,6 +96,7 @@ export function AppSidebar() {
     { title: 'Customer Access', url: '/customer-access', icon: ShieldCheck, badge: null },
     { title: 'Order Requests', url: '/order-requests', icon: MessageSquare, badge: pendingRequestsCount },
     { title: 'User Management', url: '/user-management', icon: UserCog, badge: null },
+    { title: 'Brand Management', url: '/brand-management', icon: Palette, badge: null },
     { title: 'Products (SKUs)', url: '/skus', icon: Package, badge: null },
     { title: 'Wholesale Applications', url: '/wholesale-applications', icon: UserPlus, badge: null },
     { title: 'Notifications', url: '/notifications', icon: Mail, badge: null },

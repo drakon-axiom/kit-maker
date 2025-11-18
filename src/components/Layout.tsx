@@ -1,5 +1,6 @@
 import React from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useBrand } from '@/contexts/BrandContext';
 import { SidebarProvider, SidebarTrigger, SidebarInset } from '@/components/ui/sidebar';
 import { AppSidebar } from '@/components/AppSidebar';
 import { Button } from '@/components/ui/button';
@@ -20,6 +21,7 @@ interface LayoutProps {
 
 const Layout = ({ children }: LayoutProps) => {
   const { user, userRole, signOut } = useAuth();
+  const { currentBrand } = useBrand();
   
   // Monitor SMS quota for admins and show browser notifications
   useSMSQuotaMonitor();
@@ -32,7 +34,11 @@ const Layout = ({ children }: LayoutProps) => {
           <header className="h-14 border-b bg-card flex items-center justify-between px-4 sticky top-0 z-10">
             <div className="flex items-center gap-2">
               <SidebarTrigger className="h-9 w-9" />
-              <h1 className="text-lg font-semibold">Production Manager</h1>
+              {currentBrand?.logo_url ? (
+                <img src={currentBrand.logo_url} alt={currentBrand.name} className="h-8" />
+              ) : (
+                <h1 className="text-lg font-semibold">{currentBrand?.name || 'Production Manager'}</h1>
+              )}
             </div>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
