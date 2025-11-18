@@ -55,6 +55,7 @@ export type Database = {
           background_color: string
           card_color: string
           created_at: string | null
+          domain: string | null
           foreground_color: string
           id: string
           is_default: boolean | null
@@ -75,6 +76,7 @@ export type Database = {
           background_color?: string
           card_color?: string
           created_at?: string | null
+          domain?: string | null
           foreground_color?: string
           id?: string
           is_default?: boolean | null
@@ -95,6 +97,7 @@ export type Database = {
           background_color?: string
           card_color?: string
           created_at?: string | null
+          domain?: string | null
           foreground_color?: string
           id?: string
           is_default?: boolean | null
