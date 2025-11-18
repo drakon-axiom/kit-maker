@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Loader2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -30,14 +31,17 @@ const ProtectedRoute = ({ children, requiredRole }: ProtectedRouteProps) => {
     return null;
   }
 
-  if (requiredRole && userRole !== requiredRole && userRole !== 'admin') {
+  if (requiredRole && userRole !== requiredRole) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold mb-2">Access Denied</h1>
+        <div className="text-center space-y-4">
+          <h1 className="text-2xl font-bold">Access Denied</h1>
           <p className="text-muted-foreground">
             You don't have permission to access this page.
           </p>
+          <Button onClick={() => navigate('/')}>
+            Return to Dashboard
+          </Button>
         </div>
       </div>
     );
