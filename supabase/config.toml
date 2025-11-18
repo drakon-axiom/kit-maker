@@ -16,16 +16,19 @@ verify_jwt = true
 verify_jwt = false
 
 [functions.accept-quote]
-verify_jwt = false
+verify_jwt = true
 
 [functions.check-expiring-quotes]
 verify_jwt = false
+
+[functions.renew-quote]
+verify_jwt = true
 
 [functions.send-verification-email]
 verify_jwt = false
 
 [functions.request-customer-access]
-verify_jwt = false
+verify_jwt = true
 
 [functions.update-ups-tracking]
 verify_jwt = false

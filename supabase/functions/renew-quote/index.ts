@@ -18,24 +18,49 @@ serve(async (req) => {
   }
 
   try {
+    // Get authenticated user
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      throw new Error("Authentication required");
+    }
+
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY");
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
-    if (!supabaseUrl || !supabaseKey) {
+    if (!supabaseUrl || !supabaseKey || !supabaseAnonKey) {
       throw new Error("Missing Supabase environment variables");
     }
 
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    // Create client with user's auth token for authorization checks
+    const supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } }
+    });
+
+    // Get authenticated user
+    const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
+    if (userError || !user) {
+      throw new Error("Invalid authentication token");
+    }
+
     const { orderId, additionalDays }: RenewQuoteRequest = await req.json();
 
-    console.log(`Renewing quote for order: ${orderId}`);
+    console.log(`Renewing quote for order: ${orderId} by user: ${user.id}`);
 
-    // Fetch the order details
+    // Use service role key for database operations after auth check
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
+    // Fetch the order details and verify authorization
     const { data: order, error: orderError } = await supabase
       .from('sales_orders')
       .select(`
         *,
-        customer:customers(name, email),
+        customer:customers(
+          id,
+          name,
+          email,
+          user_id
+        ),
         sales_order_lines(
           qty_entered,
           bottle_qty,
@@ -51,6 +76,12 @@ serve(async (req) => {
     if (orderError) throw orderError;
     if (!order) throw new Error('Order not found');
     if (!order.customer?.email) throw new Error('Customer email not found');
+
+    // Verify the authenticated user owns this customer
+    if (order.customer.user_id !== user.id) {
+      console.error("Authorization failed: user does not own this order");
+      throw new Error("You are not authorized to renew this quote");
+    }
 
     // Calculate new expiration date
     const daysToAdd = additionalDays || order.quote_expiration_days || 30;

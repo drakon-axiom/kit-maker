@@ -19,10 +19,28 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    );
+    // Get authenticated user
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      throw new Error("Authentication required");
+    }
+
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+
+    // Create client with user's auth token for authorization checks
+    const supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } }
+    });
+
+    // Get authenticated user
+    const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
+    if (userError || !user) {
+      throw new Error("Invalid authentication token");
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const rawBody = await req.json();
     
@@ -47,6 +65,12 @@ Deno.serve(async (req) => {
 
     if (customerError || !customer) {
       throw new Error('Customer not found');
+    }
+
+    // Verify the authenticated user owns this customer
+    if (customer.user_id !== user.id) {
+      console.error("Authorization failed: user does not own this customer");
+      throw new Error("You are not authorized to request access for this customer");
     }
 
     // Check if customer was created more than 24 hours ago
