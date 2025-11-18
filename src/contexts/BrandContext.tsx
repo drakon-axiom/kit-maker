@@ -123,9 +123,25 @@ export const BrandProvider = ({ children }: { children: React.ReactNode }) => {
 
       let brandToUse: Brand | null = null;
 
-      // 1. Detect brand from custom domain (highest priority)
+      // 1. Detect brand from custom domain (highest priority) - supports subdomains
       const currentHostname = window.location.hostname;
-      const domainBrand = brands.find(b => b.domain === currentHostname);
+      
+      // First try exact match
+      let domainBrand = brands.find(b => b.domain === currentHostname);
+      
+      // If no exact match, try subdomain match
+      if (!domainBrand) {
+        domainBrand = brands.find(b => {
+          if (!b.domain) return false;
+          // Remove www. prefix if present
+          const cleanHostname = currentHostname.replace(/^www\./, '');
+          const cleanDomain = b.domain.replace(/^www\./, '');
+          
+          // Check if hostname ends with the domain (subdomain match)
+          return cleanHostname === cleanDomain || cleanHostname.endsWith('.' + cleanDomain);
+        });
+      }
+      
       if (domainBrand) {
         setDetectedBrandSlug(domainBrand.slug);
         setBrandCookie(domainBrand.slug);
