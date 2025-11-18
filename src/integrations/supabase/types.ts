@@ -54,6 +54,9 @@ export type Database = {
           active: boolean | null
           background_color: string
           card_color: string
+          contact_address: string | null
+          contact_email: string | null
+          contact_phone: string | null
           created_at: string | null
           domain: string | null
           foreground_color: string
@@ -75,6 +78,9 @@ export type Database = {
           active?: boolean | null
           background_color?: string
           card_color?: string
+          contact_address?: string | null
+          contact_email?: string | null
+          contact_phone?: string | null
           created_at?: string | null
           domain?: string | null
           foreground_color?: string
@@ -96,6 +102,9 @@ export type Database = {
           active?: boolean | null
           background_color?: string
           card_color?: string
+          contact_address?: string | null
+          contact_email?: string | null
+          contact_phone?: string | null
           created_at?: string | null
           domain?: string | null
           foreground_color?: string
