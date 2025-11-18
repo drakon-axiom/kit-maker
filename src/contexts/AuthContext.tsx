@@ -9,7 +9,7 @@ interface AuthContextType {
   userRole: 'admin' | 'operator' | 'customer' | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
-  signUp: (email: string, password: string, fullName: string) => Promise<{ error: any }>;
+  signUp: (email: string, password: string, fullName: string, brandSlug?: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
 }
 
@@ -88,20 +88,82 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return { error };
   };
 
-  const signUp = async (email: string, password: string, fullName: string) => {
-    const redirectUrl = `${window.location.origin}/`;
-    
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: redirectUrl,
-        data: {
-          full_name: fullName,
+  const signUp = async (email: string, password: string, fullName: string, brandSlug?: string) => {
+    try {
+      const redirectUrl = `${window.location.origin}/`;
+      
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: redirectUrl,
+          data: {
+            full_name: fullName,
+          },
         },
-      },
-    });
-    return { error };
+      });
+
+      if (error) throw error;
+
+      if (data.user) {
+        // Get brand ID if slug provided
+        let brandId: string | null = null;
+        if (brandSlug) {
+          const { data: brandData } = await supabase
+            .from('brands')
+            .select('id')
+            .eq('slug', brandSlug)
+            .single();
+          
+          if (brandData) {
+            brandId = brandData.id;
+          }
+        }
+
+        // Create profile
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .insert({
+            id: data.user.id,
+            email: data.user.email!,
+            full_name: fullName,
+          });
+
+        if (profileError) {
+          console.error('Error creating profile:', profileError);
+        }
+
+        // Create customer role
+        const { error: roleError } = await supabase
+          .from('user_roles')
+          .insert({
+            user_id: data.user.id,
+            role: 'customer',
+          });
+
+        if (roleError) {
+          console.error('Error creating role:', roleError);
+        }
+
+        // Create customer record with brand
+        const { error: customerError } = await supabase
+          .from('customers')
+          .insert({
+            user_id: data.user.id,
+            name: fullName,
+            email: data.user.email!,
+            brand_id: brandId,
+          });
+
+        if (customerError) {
+          console.error('Error creating customer:', customerError);
+        }
+      }
+
+      return { error: null };
+    } catch (error: any) {
+      return { error };
+    }
   };
 
   const signOut = async () => {

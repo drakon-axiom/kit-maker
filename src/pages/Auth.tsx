@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useBrand } from '@/contexts/BrandContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -26,6 +27,7 @@ const Auth = () => {
     signUp,
     user
   } = useAuth();
+  const { detectedBrandSlug } = useBrand();
   const {
     toast
   } = useToast();
@@ -79,7 +81,7 @@ const Auth = () => {
     setLoading(true);
     const {
       error
-    } = await signUp(email, password, fullName);
+    } = await signUp(email, password, fullName, detectedBrandSlug || undefined);
     if (error) {
       toast({
         title: 'Error signing up',
