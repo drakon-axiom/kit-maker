@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
-import { Plus, Save, Trash2 } from 'lucide-react';
+import { Plus, Save, Trash2, TestTube, CheckCircle, XCircle } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -15,6 +15,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 interface Brand {
   id: string;
@@ -33,6 +34,8 @@ const BrandManagement = () => {
   const [loading, setLoading] = useState(true);
   const [editingBrand, setEditingBrand] = useState<Partial<Brand> | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [testUrl, setTestUrl] = useState('');
+  const [testResult, setTestResult] = useState<{ brand: Brand | null; method: string } | null>(null);
 
   const fetchBrands = async () => {
     const { data, error } = await supabase
@@ -114,6 +117,66 @@ const BrandManagement = () => {
     fetchBrands();
   };
 
+  const handleTestUrl = () => {
+    if (!testUrl) {
+      toast.error('Please enter a URL to test');
+      return;
+    }
+
+    try {
+      const url = new URL(testUrl.startsWith('http') ? testUrl : `https://${testUrl}`);
+      const hostname = url.hostname;
+      const pathname = url.pathname;
+
+      let detectedBrand: Brand | null = null;
+      let detectionMethod = '';
+
+      // 1. Try exact domain match
+      detectedBrand = brands.find(b => b.domain === hostname) || null;
+      if (detectedBrand) {
+        detectionMethod = 'Exact domain match';
+      }
+
+      // 2. Try subdomain match
+      if (!detectedBrand) {
+        detectedBrand = brands.find(b => {
+          if (!b.domain) return false;
+          const cleanHostname = hostname.replace(/^www\./, '');
+          const cleanDomain = b.domain.replace(/^www\./, '');
+          return cleanHostname === cleanDomain || cleanHostname.endsWith('.' + cleanDomain);
+        }) || null;
+        
+        if (detectedBrand) {
+          detectionMethod = 'Subdomain match';
+        }
+      }
+
+      // 3. Try path-based detection
+      if (!detectedBrand) {
+        const pathSegments = pathname.split('/').filter(Boolean);
+        if (pathSegments.length > 0) {
+          const potentialSlug = pathSegments[0].toLowerCase().replace(/_/g, '-');
+          detectedBrand = brands.find(b => b.slug.toLowerCase() === potentialSlug) || null;
+          
+          if (detectedBrand) {
+            detectionMethod = `Path-based match (/${pathSegments[0]})`;
+          }
+        }
+      }
+
+      // 4. Fallback to default
+      if (!detectedBrand) {
+        detectedBrand = brands.find(b => b.is_default) || brands[0] || null;
+        detectionMethod = 'Default brand (fallback)';
+      }
+
+      setTestResult({ brand: detectedBrand, method: detectionMethod });
+    } catch (error) {
+      toast.error('Invalid URL format');
+      setTestResult(null);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -123,8 +186,8 @@ const BrandManagement = () => {
   }
 
   return (
-    <div className="container mx-auto py-8">
-      <div className="flex justify-between items-center mb-6">
+    <div className="container mx-auto py-8 space-y-6">
+      <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold">Brand Management</h1>
           <p className="text-muted-foreground">Manage your business brands and their visual identity</p>
@@ -230,6 +293,86 @@ const BrandManagement = () => {
           </DialogContent>
         </Dialog>
       </div>
+
+      {/* Domain Tester Section */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <TestTube className="h-5 w-5 text-primary" />
+            <CardTitle>Domain Tester</CardTitle>
+          </div>
+          <CardDescription>
+            Test which brand will be detected for a given URL before setting up DNS
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex gap-2">
+            <Input
+              placeholder="Enter URL (e.g., b2b.nexusaminos.com or portal.axc.llc/nexus_aminos)"
+              value={testUrl}
+              onChange={(e) => setTestUrl(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleTestUrl()}
+            />
+            <Button onClick={handleTestUrl}>
+              <TestTube className="h-4 w-4 mr-2" />
+              Test
+            </Button>
+          </div>
+
+          {testResult && (
+            <Alert className={testResult.brand ? 'border-green-500' : 'border-yellow-500'}>
+              <div className="flex items-start gap-3">
+                {testResult.brand ? (
+                  <CheckCircle className="h-5 w-5 text-green-500 flex-shrink-0 mt-0.5" />
+                ) : (
+                  <XCircle className="h-5 w-5 text-yellow-500 flex-shrink-0 mt-0.5" />
+                )}
+                <div className="flex-1 space-y-2">
+                  <AlertTitle className="font-semibold">
+                    {testResult.brand ? `Brand Detected: ${testResult.brand.name}` : 'No Brand Detected'}
+                  </AlertTitle>
+                  <AlertDescription className="space-y-2">
+                    <p className="text-sm">
+                      <span className="font-medium">Detection Method:</span> {testResult.method}
+                    </p>
+                    {testResult.brand && (
+                      <>
+                        <p className="text-sm">
+                          <span className="font-medium">Slug:</span> {testResult.brand.slug}
+                        </p>
+                        {testResult.brand.domain && (
+                          <p className="text-sm">
+                            <span className="font-medium">Configured Domain:</span> {testResult.brand.domain}
+                          </p>
+                        )}
+                        <div className="flex items-center gap-2 mt-3">
+                          <div 
+                            className="w-8 h-8 rounded border"
+                            style={{ backgroundColor: `hsl(${testResult.brand.primary_color})` }}
+                          />
+                          <span className="text-xs text-muted-foreground">Primary color preview</span>
+                        </div>
+                      </>
+                    )}
+                  </AlertDescription>
+                </div>
+              </div>
+            </Alert>
+          )}
+
+          <div className="text-sm text-muted-foreground space-y-1">
+            <p className="font-medium">Detection Priority:</p>
+            <ol className="list-decimal list-inside space-y-1 ml-2">
+              <li>Exact domain match (e.g., nexusaminos.com)</li>
+              <li>Subdomain match (e.g., b2b.nexusaminos.com)</li>
+              <li>URL path match (e.g., portal.axc.llc/nexus_aminos)</li>
+              <li>User's assigned brand (when logged in)</li>
+              <li>Cookie from previous visit</li>
+              <li>Default brand (fallback)</li>
+            </ol>
+          </div>
+        </CardContent>
+      </Card>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {brands.map((brand) => (
