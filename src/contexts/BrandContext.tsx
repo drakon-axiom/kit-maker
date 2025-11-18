@@ -7,6 +7,7 @@ interface Brand {
   id: string;
   name: string;
   slug: string;
+  domain: string | null;
   logo_url: string | null;
   primary_color: string;
   primary_foreground: string;
@@ -122,24 +123,35 @@ export const BrandProvider = ({ children }: { children: React.ReactNode }) => {
 
       let brandToUse: Brand | null = null;
 
-      // 1. Detect brand from URL path (e.g., /nexus_aminos)
-      const pathSegments = location.pathname.split('/').filter(Boolean);
-      if (pathSegments.length > 0) {
-        const potentialSlug = pathSegments[0].toLowerCase().replace(/_/g, '-');
-        const detectedBrand = brands.find(b => b.slug.toLowerCase() === potentialSlug);
-        if (detectedBrand) {
-          setDetectedBrandSlug(detectedBrand.slug);
-          setBrandCookie(detectedBrand.slug);
-          brandToUse = detectedBrand;
+      // 1. Detect brand from custom domain (highest priority)
+      const currentHostname = window.location.hostname;
+      const domainBrand = brands.find(b => b.domain === currentHostname);
+      if (domainBrand) {
+        setDetectedBrandSlug(domainBrand.slug);
+        setBrandCookie(domainBrand.slug);
+        brandToUse = domainBrand;
+      }
+
+      // 2. Detect brand from URL path (e.g., /nexus_aminos)
+      if (!brandToUse) {
+        const pathSegments = location.pathname.split('/').filter(Boolean);
+        if (pathSegments.length > 0) {
+          const potentialSlug = pathSegments[0].toLowerCase().replace(/_/g, '-');
+          const detectedBrand = brands.find(b => b.slug.toLowerCase() === potentialSlug);
+          if (detectedBrand) {
+            setDetectedBrandSlug(detectedBrand.slug);
+            setBrandCookie(detectedBrand.slug);
+            brandToUse = detectedBrand;
+          }
         }
       }
 
-      // 2. If logged in, use user's assigned brand
+      // 3. If logged in, use user's assigned brand
       if (!brandToUse && user) {
         brandToUse = await fetchUserBrand();
       }
 
-      // 3. Check cookie for previously detected brand
+      // 4. Check cookie for previously detected brand
       if (!brandToUse) {
         const cookieBrandSlug = getBrandCookie();
         if (cookieBrandSlug) {
@@ -151,7 +163,7 @@ export const BrandProvider = ({ children }: { children: React.ReactNode }) => {
         }
       }
 
-      // 4. Fallback to default brand
+      // 5. Fallback to default brand
       if (!brandToUse) {
         brandToUse = brands.find(b => b.is_default) || brands[0] || null;
       }

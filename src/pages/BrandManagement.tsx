@@ -20,6 +20,7 @@ interface Brand {
   id: string;
   name: string;
   slug: string;
+  domain: string | null;
   logo_url: string | null;
   primary_color: string;
   primary_foreground: string;
@@ -60,6 +61,7 @@ const BrandManagement = () => {
     const brandData = {
       name: editingBrand.name,
       slug: editingBrand.slug,
+      domain: editingBrand.domain || null,
       logo_url: editingBrand.logo_url || null,
       primary_color: editingBrand.primary_color || '222.2 84% 4.9%',
       primary_foreground: editingBrand.primary_foreground || '210 40% 98%',
@@ -159,6 +161,18 @@ const BrandManagement = () => {
                   onChange={(e) => setEditingBrand({ ...editingBrand, slug: e.target.value })}
                   placeholder="axiom-collective"
                 />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="domain">Custom Domain</Label>
+                <Input
+                  id="domain"
+                  value={editingBrand?.domain || ''}
+                  onChange={(e) => setEditingBrand({ ...editingBrand, domain: e.target.value })}
+                  placeholder="nexusaminos.com"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Custom domain for this brand (optional). Set up CNAME record to point to portal.axc.llc
+                </p>
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="logo">Logo URL</Label>
