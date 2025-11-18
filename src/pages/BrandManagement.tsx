@@ -27,6 +27,9 @@ interface Brand {
   primary_foreground: string;
   is_default: boolean;
   active: boolean;
+  contact_email: string | null;
+  contact_phone: string | null;
+  contact_address: string | null;
 }
 
 const BrandManagement = () => {
@@ -70,6 +73,9 @@ const BrandManagement = () => {
       primary_foreground: editingBrand.primary_foreground || '210 40% 98%',
       is_default: editingBrand.is_default || false,
       active: editingBrand.active !== false,
+      contact_email: editingBrand.contact_email || null,
+      contact_phone: editingBrand.contact_phone || null,
+      contact_address: editingBrand.contact_address || null,
     };
 
     if (editingBrand.id) {
@@ -244,6 +250,35 @@ const BrandManagement = () => {
                   value={editingBrand?.logo_url || ''}
                   onChange={(e) => setEditingBrand({ ...editingBrand, logo_url: e.target.value })}
                   placeholder="https://..."
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="contact-email">Contact Email</Label>
+                <Input
+                  id="contact-email"
+                  type="email"
+                  value={editingBrand?.contact_email || ''}
+                  onChange={(e) => setEditingBrand({ ...editingBrand, contact_email: e.target.value })}
+                  placeholder="contact@brand.com"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="contact-phone">Contact Phone</Label>
+                <Input
+                  id="contact-phone"
+                  type="tel"
+                  value={editingBrand?.contact_phone || ''}
+                  onChange={(e) => setEditingBrand({ ...editingBrand, contact_phone: e.target.value })}
+                  placeholder="+1 (555) 123-4567"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="contact-address">Contact Address</Label>
+                <Input
+                  id="contact-address"
+                  value={editingBrand?.contact_address || ''}
+                  onChange={(e) => setEditingBrand({ ...editingBrand, contact_address: e.target.value })}
+                  placeholder="123 Main St, City, State ZIP"
                 />
               </div>
               <div className="grid grid-cols-2 gap-4">
