@@ -10,6 +10,7 @@ import { ArrowLeft, Loader2, CreditCard, Receipt, Download } from 'lucide-react'
 import { toast } from 'sonner';
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from '@/components/ui/breadcrumb';
 import { Link } from 'react-router-dom';
+import { downloadBrandedReceipt } from '@/utils/brandedPdfDownload';
 
 interface PaymentTransaction {
   id: string;
@@ -112,27 +113,11 @@ export default function CustomerPaymentHistory() {
   const handleDownloadReceipt = async (transactionId: string, orderNumber: string, paymentType: string) => {
     setDownloadingId(transactionId);
     try {
-      const { data, error } = await supabase.functions.invoke('generate-payment-receipt', {
-        body: { transactionId },
-      });
-
-      if (error) throw error;
-
-      // Create blob and download
-      const blob = new Blob([data], { type: 'text/html' });
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `receipt-${orderNumber}-${paymentType}.html`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-
+      await downloadBrandedReceipt(transactionId);
       toast.success('Receipt downloaded successfully');
     } catch (error: any) {
       console.error('Error downloading receipt:', error);
-      toast.error('Failed to download receipt');
+      toast.error(error.message || 'Failed to download receipt');
     } finally {
       setDownloadingId(null);
     }
