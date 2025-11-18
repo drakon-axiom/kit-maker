@@ -13,6 +13,27 @@ serve(async (req) => {
   }
 
   try {
+    // Get authenticated user
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      throw new Error("Authentication required");
+    }
+
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    
+    // Create client with user's auth token for authorization checks
+    const supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } }
+    });
+
+    // Get authenticated user
+    const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
+    if (userError || !user) {
+      throw new Error("Invalid authentication token");
+    }
+
     const url = new URL(req.url);
     const orderId = url.searchParams.get("orderId");
 
@@ -20,20 +41,21 @@ serve(async (req) => {
       throw new Error("Order ID is required");
     }
 
-    console.log("Accepting quote for order:", orderId);
+    console.log("Accepting quote for order:", orderId, "by user:", user.id);
 
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    // Use service role key for database operations after auth check
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Fetch order details
+    // Fetch order details and verify user owns the customer
     const { data: order, error: orderError } = await supabase
       .from("sales_orders")
       .select(`
         *,
         customer:customers (
+          id,
           name,
-          email
+          email,
+          user_id
         )
       `)
       .eq("id", orderId)
@@ -42,6 +64,12 @@ serve(async (req) => {
     if (orderError || !order) {
       console.error("Order fetch error:", orderError);
       throw new Error("Order not found");
+    }
+
+    // Verify the authenticated user owns this customer
+    if (order.customer.user_id !== user.id) {
+      console.error("Authorization failed: user does not own this order");
+      throw new Error("You are not authorized to accept this quote");
     }
 
     // Check if order is in correct status
