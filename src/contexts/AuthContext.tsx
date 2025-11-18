@@ -25,14 +25,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
+      (event, session) => {
         console.log('Auth state change:', event, session?.user?.id);
         
         if (event === 'SIGNED_OUT') {
           setSession(null);
           setUser(null);
           setUserRole(null);
-          setLoading(false);
           return;
         }
         
@@ -40,16 +39,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(session?.user ?? null);
         
         if (session?.user) {
-          await fetchUserRole(session.user.id);
+          fetchUserRole(session.user.id);
         } else {
           setUserRole(null);
         }
-        
-        setLoading(false);
       }
     );
 
-    // Check for existing session
+    // Check for existing session - this is the only place we set loading to false
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
