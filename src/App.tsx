@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./contexts/AuthContext";
+import { BrandProvider } from "./contexts/BrandContext";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import Customers from "./pages/Customers";
@@ -22,6 +23,7 @@ import LabelSettings from "./pages/LabelSettings";
 import WholesaleSignup from "./pages/WholesaleSignup";
 import WholesaleApplications from "./pages/WholesaleApplications";
 import QuoteApproval from "./pages/QuoteApproval";
+import BrandManagement from "./pages/BrandManagement";
 import CustomerPortal from "./pages/CustomerPortal";
 import CustomerProfile from "./pages/CustomerProfile";
 import CustomerNewOrder from "./pages/CustomerNewOrder";
@@ -47,7 +49,8 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <AuthProvider>
-          <Routes>
+          <BrandProvider>
+            <Routes>
             <Route path="/auth" element={<Auth />} />
             <Route path="/wholesale-signup" element={<WholesaleSignup />} />
             <Route path="/quote-approval" element={<QuoteApproval />} />
@@ -149,6 +152,16 @@ const App = () => (
                 <ProtectedRoute requiredRole="admin">
                   <Layout>
                     <UserManagement />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/brand-management"
+              element={
+                <ProtectedRoute requiredRole="admin">
+                  <Layout>
+                    <BrandManagement />
                   </Layout>
                 </ProtectedRoute>
               }
@@ -293,6 +306,7 @@ const App = () => (
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
+          </BrandProvider>
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>

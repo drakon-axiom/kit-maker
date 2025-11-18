@@ -47,6 +47,69 @@ export type Database = {
         }
         Relationships: []
       }
+      brands: {
+        Row: {
+          accent_color: string
+          accent_foreground: string
+          active: boolean | null
+          background_color: string
+          card_color: string
+          created_at: string | null
+          foreground_color: string
+          id: string
+          is_default: boolean | null
+          logo_url: string | null
+          muted_color: string
+          name: string
+          primary_color: string
+          primary_foreground: string
+          secondary_color: string
+          secondary_foreground: string
+          slug: string
+          updated_at: string | null
+        }
+        Insert: {
+          accent_color?: string
+          accent_foreground?: string
+          active?: boolean | null
+          background_color?: string
+          card_color?: string
+          created_at?: string | null
+          foreground_color?: string
+          id?: string
+          is_default?: boolean | null
+          logo_url?: string | null
+          muted_color?: string
+          name: string
+          primary_color?: string
+          primary_foreground?: string
+          secondary_color?: string
+          secondary_foreground?: string
+          slug: string
+          updated_at?: string | null
+        }
+        Update: {
+          accent_color?: string
+          accent_foreground?: string
+          active?: boolean | null
+          background_color?: string
+          card_color?: string
+          created_at?: string | null
+          foreground_color?: string
+          id?: string
+          is_default?: boolean | null
+          logo_url?: string | null
+          muted_color?: string
+          name?: string
+          primary_color?: string
+          primary_foreground?: string
+          secondary_color?: string
+          secondary_foreground?: string
+          slug?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       categories: {
         Row: {
           active: boolean
@@ -204,6 +267,7 @@ export type Database = {
           billing_same_as_shipping: boolean | null
           billing_state: string | null
           billing_zip: string | null
+          brand_id: string | null
           created_at: string
           default_terms: string | null
           email: string | null
@@ -229,6 +293,7 @@ export type Database = {
           billing_same_as_shipping?: boolean | null
           billing_state?: string | null
           billing_zip?: string | null
+          brand_id?: string | null
           created_at?: string
           default_terms?: string | null
           email?: string | null
@@ -254,6 +319,7 @@ export type Database = {
           billing_same_as_shipping?: boolean | null
           billing_state?: string | null
           billing_zip?: string | null
+          brand_id?: string | null
           created_at?: string
           default_terms?: string | null
           email?: string | null
@@ -271,7 +337,15 @@ export type Database = {
           updated_at?: string
           user_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "customers_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       email_templates: {
         Row: {
