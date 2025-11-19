@@ -48,8 +48,17 @@ const hexToHsl = (hex: string): string => {
 };
 
 const hslToHex = (hsl: string): string => {
-  const match = hsl.match(/(\d+\.?\d*)\s+(\d+\.?\d*)%\s+(\d+\.?\d*)%/);
-  if (!match) return '#000000';
+  if (!hsl) return '#000000';
+  
+  // Remove degree symbols and normalize format
+  const normalized = hsl.replace(/°/g, '').replace(/\s+/g, ' ').trim();
+  
+  // Match various HSL formats: "206 87% 73%" or "206° 87% 73%" or "206, 87%, 73%"
+  const match = normalized.match(/(\d+\.?\d*)[,\s]+(\d+\.?\d*)\s*%?[,\s]+(\d+\.?\d*)\s*%?/);
+  if (!match) {
+    console.error('Invalid HSL format:', hsl);
+    return '#000000';
+  }
   
   let h = parseFloat(match[1]) / 360;
   let s = parseFloat(match[2]) / 100;
