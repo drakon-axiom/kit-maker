@@ -116,6 +116,16 @@ const App = () => (
               element={<Index />}
             />
             <Route
+              path="/dashboard"
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Dashboard />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="/customers"
               element={
                 <ProtectedRoute requiredRole="admin">

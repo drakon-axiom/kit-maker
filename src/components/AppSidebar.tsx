@@ -83,7 +83,7 @@ export function AppSidebar() {
   };
 
   const mainItems = [
-    { title: 'Dashboard', url: '/', icon: Factory },
+    { title: 'Dashboard', url: '/dashboard', icon: Factory },
     { title: 'Orders', url: '/orders', icon: ClipboardList },
     { title: 'Production Queue', url: '/queue', icon: Boxes },
     { title: 'Operator Console', url: '/operator', icon: PackageSearch },
