@@ -10,7 +10,7 @@ const Index = () => {
   useEffect(() => {
     if (!loading && user) {
       // Redirect authenticated users to their dashboard
-      navigate('/orders');
+      navigate('/dashboard');
     }
   }, [user, loading, navigate]);
 
