@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import ExpiringQuotesWidget from '@/components/ExpiringQuotesWidget';
+import InternalOrdersWidget from '@/components/InternalOrdersWidget';
 
 interface Stats {
   totalOrders: number;
@@ -120,7 +121,10 @@ const Dashboard = () => {
         </Card>
       )}
 
-      <ExpiringQuotesWidget />
+      <div className="grid gap-6 lg:grid-cols-2">
+        <ExpiringQuotesWidget />
+        <InternalOrdersWidget />
+      </div>
     </div>
   );
 };
