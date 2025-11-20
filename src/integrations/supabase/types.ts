@@ -990,14 +990,16 @@ export type Database = {
       }
       sales_orders: {
         Row: {
+          brand_id: string | null
           created_at: string
-          customer_id: string
+          customer_id: string | null
           deposit_amount: number | null
           deposit_required: boolean
           deposit_status: Database["public"]["Enums"]["deposit_status"]
           eta_date: string | null
           human_uid: string
           id: string
+          is_internal: boolean
           label_required: boolean
           manual_payment_notes: string | null
           promised_date: string | null
@@ -1011,14 +1013,16 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          brand_id?: string | null
           created_at?: string
-          customer_id: string
+          customer_id?: string | null
           deposit_amount?: number | null
           deposit_required?: boolean
           deposit_status?: Database["public"]["Enums"]["deposit_status"]
           eta_date?: string | null
           human_uid: string
           id?: string
+          is_internal?: boolean
           label_required?: boolean
           manual_payment_notes?: string | null
           promised_date?: string | null
@@ -1032,14 +1036,16 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          brand_id?: string | null
           created_at?: string
-          customer_id?: string
+          customer_id?: string | null
           deposit_amount?: number | null
           deposit_required?: boolean
           deposit_status?: Database["public"]["Enums"]["deposit_status"]
           eta_date?: string | null
           human_uid?: string
           id?: string
+          is_internal?: boolean
           label_required?: boolean
           manual_payment_notes?: string | null
           promised_date?: string | null
@@ -1053,6 +1059,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "sales_orders_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "sales_orders_customer_id_fkey"
             columns: ["customer_id"]
@@ -1627,6 +1640,7 @@ export type Database = {
         | "awaiting_invoice"
         | "awaiting_payment"
         | "awaiting_approval"
+        | "ready_to_stock"
       payment_method: "cash" | "check" | "ach" | "wire" | "other"
       sell_mode: "kit" | "piece"
       step_status: "pending" | "wip" | "done"
@@ -1784,6 +1798,7 @@ export const Constants = {
         "awaiting_invoice",
         "awaiting_payment",
         "awaiting_approval",
+        "ready_to_stock",
       ],
       payment_method: ["cash", "check", "ach", "wire", "other"],
       sell_mode: ["kit", "piece"],
