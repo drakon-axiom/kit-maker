@@ -182,12 +182,6 @@ const InternalOrderNew = () => {
     return lines.reduce((sum, line) => sum + line.bottle_qty, 0);
   };
 
-  const generateOrderUID = () => {
-    const timestamp = Date.now().toString(36).toUpperCase();
-    const random = Math.random().toString(36).substring(2, 6).toUpperCase();
-    return `INT-${timestamp}-${random}`;
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -214,15 +208,20 @@ const InternalOrderNew = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
-      const uid = generateOrderUID();
+      // Generate order number using database function
+      const { data: orderNumber, error: numberError } = await supabase
+        .rpc('generate_order_number', { order_prefix: 'INT' });
+      
+      if (numberError) throw numberError;
+
       const subtotal = calculateSubtotal();
 
       // Create internal order
       const { data: order, error: orderError } = await supabase
         .from('sales_orders')
         .insert({
-          uid: uid,
-          human_uid: uid,
+          uid: orderNumber,
+          human_uid: orderNumber,
           brand_id: selectedBrand,
           customer_id: null,
           is_internal: true,
@@ -260,13 +259,13 @@ const InternalOrderNew = () => {
         entity: 'sales_order',
         entity_id: order.id,
         action: 'create_internal',
-        after: { order_uid: uid, brand_id: selectedBrand, subtotal },
+        after: { order_uid: orderNumber, brand_id: selectedBrand, subtotal },
         actor_id: user.id,
       });
 
       toast({
         title: 'Success',
-        description: `Internal order ${uid} created successfully`,
+        description: `Internal order ${orderNumber} created successfully`,
       });
 
       navigate(`/orders/${order.id}`);
