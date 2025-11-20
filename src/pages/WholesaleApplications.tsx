@@ -70,14 +70,8 @@ const WholesaleApplications = () => {
     setActionLoading(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      const application = applications.find(app => app.id === appId);
       
-      if (!application) {
-        toast.error('Application not found');
-        return;
-      }
-
-      // Update application status
+      // Update application status first
       const { error: updateError } = await supabase
         .from('wholesale_applications')
         .update({
@@ -90,37 +84,32 @@ const WholesaleApplications = () => {
 
       if (updateError) throw updateError;
 
-      // If approved, create customer record
+      // If approved, call edge function to create account and send email
       if (newStatus === 'approved') {
-        const { error: customerError } = await supabase
-          .from('customers')
-          .insert([{
-            name: application.company_name,
-            email: application.email,
-            phone: application.phone,
-            default_terms: 'Net 30',
-            shipping_address_line1: application.shipping_address_line1,
-            shipping_address_line2: application.shipping_address_line2,
-            shipping_city: application.shipping_city,
-            shipping_state: application.shipping_state,
-            shipping_zip: application.shipping_zip,
-            shipping_country: application.shipping_country,
-            billing_address_line1: application.billing_address_line1,
-            billing_address_line2: application.billing_address_line2,
-            billing_city: application.billing_city,
-            billing_state: application.billing_state,
-            billing_zip: application.billing_zip,
-            billing_country: application.billing_country,
-            billing_same_as_shipping: application.billing_same_as_shipping,
-          }]);
+        const webhookSecret = await supabase
+          .from('settings')
+          .select('value')
+          .eq('key', 'internal_webhook_secret')
+          .single();
 
-        if (customerError) {
-          console.error('Error creating customer:', customerError);
-          toast.error('Application approved but failed to create customer record');
+        const { data, error: functionError } = await supabase.functions.invoke('approve-wholesale-application', {
+          body: {
+            applicationId: appId,
+            reviewNotes: reviewNotes || undefined,
+          },
+          headers: webhookSecret?.data?.value ? {
+            'x-webhook-secret': webhookSecret.data.value
+          } : undefined
+        });
+
+        if (functionError) {
+          console.error('Error in approval function:', functionError);
+          toast.error('Application approved but failed to create account. Please contact support.');
           return;
         }
-        
-        toast.success('Application approved and customer created successfully!');
+
+        console.log('Account created:', data);
+        toast.success(`Application approved! Login credentials sent to ${applications.find(a => a.id === appId)?.email}`);
       } else {
         toast.success('Application rejected');
       }
