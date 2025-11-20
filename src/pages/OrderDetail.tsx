@@ -64,12 +64,18 @@ interface OrderDetail {
   quote_expiration_days: number | null;
   quote_expires_at: string | null;
   created_at: string;
-  customer: {
+  is_internal: boolean;
+  brand_id: string | null;
+  brand?: {
+    name: string;
+    slug: string;
+  } | null;
+  customer?: {
     name: string;
     email: string | null;
     phone: string | null;
-  };
-  customer_id: string;
+  } | null;
+  customer_id: string | null;
   sales_order_lines: Array<{
     id: string;
     sell_mode: string;
@@ -161,6 +167,7 @@ const OrderDetail = () => {
         .select(`
           *,
           customer:customers(name, email, phone),
+          brand:brands(name, slug),
           sales_order_lines(
             *,
             sku:skus(code, description, batch_prefix)
@@ -801,7 +808,11 @@ const OrderDetail = () => {
         </Button>
         <div className="flex-1">
           <h1 className="text-3xl font-bold tracking-tight font-mono">{order.human_uid}</h1>
-          <p className="text-muted-foreground mt-1">{order.customer.name}</p>
+          <p className="text-muted-foreground mt-1">
+            {order.is_internal 
+              ? `Internal Order - ${order.brand?.name || 'No Brand'}`
+              : order.customer?.name || 'No Customer'}
+          </p>
         </div>
         <div className="flex items-center gap-2">
           {userRole === 'admin' && order.status === 'awaiting_approval' && (
@@ -878,39 +889,69 @@ const OrderDetail = () => {
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle>Customer Information</CardTitle>
-              {userRole === 'admin' && (
-                <SendCustomSMS
-                  orderId={order.id}
-                  orderNumber={order.human_uid}
-                  customerName={order.customer.name}
-                  customerId={order.customer_id}
-                />
+        {order.is_internal ? (
+          <Card>
+            <CardHeader>
+              <CardTitle>Internal Order Information</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              <div>
+                <p className="text-sm text-muted-foreground">Type</p>
+                <p className="font-medium">Internal Production Run</p>
+              </div>
+              {order.brand && (
+                <div>
+                  <p className="text-sm text-muted-foreground">Brand</p>
+                  <p className="font-medium">{order.brand.name}</p>
+                </div>
               )}
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            <div>
-              <p className="text-sm text-muted-foreground">Name</p>
-              <p className="font-medium">{order.customer.name}</p>
-            </div>
-            {order.customer.email && (
               <div>
-                <p className="text-sm text-muted-foreground">Email</p>
-                <p className="font-medium">{order.customer.email}</p>
+                <p className="text-sm text-muted-foreground">Purpose</p>
+                <p className="font-medium">Retail Stock</p>
               </div>
-            )}
-            {order.customer.phone && (
-              <div>
-                <p className="text-sm text-muted-foreground">Phone</p>
-                <p className="font-medium">{order.customer.phone}</p>
+            </CardContent>
+          </Card>
+        ) : (
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle>Customer Information</CardTitle>
+                {userRole === 'admin' && order.customer && (
+                  <SendCustomSMS
+                    orderId={order.id}
+                    orderNumber={order.human_uid}
+                    customerName={order.customer.name}
+                    customerId={order.customer_id!}
+                  />
+                )}
               </div>
-            )}
-          </CardContent>
-        </Card>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {order.customer ? (
+                <>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Name</p>
+                    <p className="font-medium">{order.customer.name}</p>
+                  </div>
+                  {order.customer.email && (
+                    <div>
+                      <p className="text-sm text-muted-foreground">Email</p>
+                      <p className="font-medium">{order.customer.email}</p>
+                    </div>
+                  )}
+                  {order.customer.phone && (
+                    <div>
+                      <p className="text-sm text-muted-foreground">Phone</p>
+                      <p className="font-medium">{order.customer.phone}</p>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <p className="text-sm text-muted-foreground">No customer assigned</p>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         <Card>
           <CardHeader>
@@ -1316,7 +1357,9 @@ const OrderDetail = () => {
             batchUid={selectedBatch.uid}
             humanUid={selectedBatch.human_uid}
             orderUid={order.human_uid}
-            customerName={order.customer.name}
+            customerName={order.is_internal 
+              ? `Internal - ${order.brand?.name || 'No Brand'}` 
+              : order.customer?.name || 'No Customer'}
             quantity={selectedBatch.qty_bottle_planned}
             createdDate={selectedBatch.created_at}
           />
