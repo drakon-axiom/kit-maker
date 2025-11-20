@@ -1603,6 +1603,7 @@ export type Database = {
     }
     Functions: {
       generate_batch_number: { Args: { sku_code: string }; Returns: string }
+      generate_order_number: { Args: { order_prefix: string }; Returns: string }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

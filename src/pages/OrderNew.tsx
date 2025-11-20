@@ -233,19 +233,6 @@ const OrderNew = () => {
     return lines.reduce((sum, line) => sum + line.bottle_qty, 0);
   };
 
-  const generateOrderUID = () => {
-    const date = new Date();
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
-    
-    const uid = `ORD-${year}${month}${day}-${random}`;
-    const humanUid = uid;
-    
-    return { uid, humanUid };
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -271,15 +258,21 @@ const OrderNew = () => {
 
     try {
       const subtotal = calculateSubtotal();
-      const { uid, humanUid } = generateOrderUID();
+      
+      // Generate order number using database function
+      const { data: orderNumber, error: numberError } = await supabase
+        .rpc('generate_order_number', { order_prefix: 'SO' });
+      
+      if (numberError) throw numberError;
+      
       const depositAmount = depositRequired ? (subtotal * depositPercent / 100) : 0;
 
       // Insert order
       const { data: orderData, error: orderError } = await supabase
         .from('sales_orders')
         .insert([{
-          uid,
-          human_uid: humanUid,
+          uid: orderNumber,
+          human_uid: orderNumber,
           customer_id: selectedCustomer,
           status: 'draft',
           subtotal,
@@ -316,12 +309,12 @@ const OrderNew = () => {
         action: 'create',
         entity: 'sales_order',
         entity_id: orderData.id,
-        after: { order_uid: humanUid, status: 'draft' },
+        after: { order_uid: orderNumber, status: 'draft' },
       }]);
 
       toast({
         title: 'Success',
-        description: `Order ${humanUid} created successfully`,
+        description: `Order ${orderNumber} created successfully`,
       });
 
       navigate(`/orders/${orderData.id}`);
