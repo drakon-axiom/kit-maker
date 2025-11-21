@@ -282,6 +282,9 @@ export default function ManualPaymentRecording() {
                         const invoice = invoices.find(inv => inv.type === value);
                         if (invoice) {
                           setAmount(invoice.total.toString());
+                        } else if (orderDetails) {
+                          // Fallback to order subtotal if no invoice exists
+                          setAmount(orderDetails.subtotal.toString());
                         }
                       }}
                     >
@@ -293,13 +296,20 @@ export default function ManualPaymentRecording() {
                         <SelectItem value="final">Final Payment</SelectItem>
                       </SelectContent>
                     </Select>
-                    {selectedInvoice && (
+                    {selectedInvoice ? (
                       <p className="text-sm text-muted-foreground">
                         {paymentType === "deposit" ? "Deposit" : "Final"} invoice total: ${selectedInvoice.total}
                         {selectedInvoice.status === "paid" && (
                           <span className="ml-2 text-green-600 font-medium">(Already Paid)</span>
                         )}
                       </p>
+                    ) : (
+                      <Alert variant="destructive" className="mt-2">
+                        <AlertCircle className="h-4 w-4" />
+                        <AlertDescription>
+                          No {paymentType} invoice exists. Using order subtotal (${orderDetails?.subtotal || 0}).
+                        </AlertDescription>
+                      </Alert>
                     )}
                   </div>
 
