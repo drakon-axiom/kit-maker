@@ -61,8 +61,8 @@ serve(async (req) => {
 
     let message = "";
 
-    // Handle test message
-    if (eventType === 'test' && testMessage) {
+    // Handle test message or custom message
+    if ((eventType === 'test' || eventType === 'custom') && testMessage) {
       message = testMessage;
     } else if (!orderId) {
       throw new Error("Order ID required for non-test messages");
