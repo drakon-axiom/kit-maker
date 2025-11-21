@@ -10,6 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/contexts/AuthContext';
 import { SMSQuotaTracker } from '@/components/SMSQuotaTracker';
+import { SMSTemplateEditor } from '@/components/SMSTemplateEditor';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 interface EmailTemplate {
@@ -350,7 +351,8 @@ const Notifications = () => {
       <Tabs defaultValue="email" className="w-full">
         <TabsList>
           <TabsTrigger value="email">Email Templates</TabsTrigger>
-          <TabsTrigger value="sms">SMS Quota</TabsTrigger>
+          <TabsTrigger value="sms-templates">SMS Templates</TabsTrigger>
+          <TabsTrigger value="sms-quota">SMS Quota</TabsTrigger>
         </TabsList>
         
         <TabsContent value="email" className="space-y-4 mt-6">
@@ -383,7 +385,11 @@ const Notifications = () => {
           </div>
         </TabsContent>
 
-        <TabsContent value="sms" className="mt-6">
+        <TabsContent value="sms-templates" className="mt-6">
+          <SMSTemplateEditor />
+        </TabsContent>
+
+        <TabsContent value="sms-quota" className="mt-6">
           <SMSQuotaTracker />
         </TabsContent>
       </Tabs>
