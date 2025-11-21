@@ -1613,6 +1613,13 @@ export type Database = {
       }
       is_authenticated_user: { Args: never; Returns: boolean }
       is_customer: { Args: never; Returns: boolean }
+      validate_order_status_transition: {
+        Args: {
+          _new_status: Database["public"]["Enums"]["order_status"]
+          _order_id: string
+        }
+        Returns: Json
+      }
     }
     Enums: {
       app_role: "admin" | "operator" | "customer"

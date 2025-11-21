@@ -24,6 +24,8 @@ import QuoteCountdown from '@/components/QuoteCountdown';
 import { ProductionPhotoUpload } from '@/components/ProductionPhotoUpload';
 import { ProductionPhotosGallery } from '@/components/ProductionPhotosGallery';
 import { SendCustomSMS } from '@/components/SendCustomSMS';
+import { StatusChangeDialog } from '@/components/StatusChangeDialog';
+import { Database } from '@/integrations/supabase/types';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -146,6 +148,8 @@ const OrderDetail = () => {
   const [deleteBatchDialogOpen, setDeleteBatchDialogOpen] = useState(false);
   const [batchToDelete, setBatchToDelete] = useState<Batch | null>(null);
   const [deletingBatch, setDeletingBatch] = useState(false);
+  const [statusChangeDialogOpen, setStatusChangeDialogOpen] = useState(false);
+  const [pendingStatusChange, setPendingStatusChange] = useState<Database["public"]["Enums"]["order_status"] | null>(null);
   const labelRef = useRef<HTMLDivElement>(null);
   
   const handlePrint = useReactToPrint({
@@ -351,7 +355,7 @@ const OrderDetail = () => {
     setDeleteDialogOpen(true);
   };
 
-  const handleStatusChange = async (newStatus: string) => {
+  const handleStatusChange = async (newStatus: string, overrideNote?: string) => {
     if (!order || newStatus === order.status) return;
     
     setUpdatingStatus(true);
@@ -363,14 +367,17 @@ const OrderDetail = () => {
 
       if (updateError) throw updateError;
 
-      // Log the status change
+      // Log the status change with override note if provided
       await supabase.from('audit_log').insert({
         entity: 'sales_order',
         entity_id: id,
-        action: 'status_changed',
+        action: overrideNote ? 'status_changed_override' : 'status_changed',
         actor_id: (await supabase.auth.getUser()).data.user?.id,
         before: { status: order.status },
-        after: { status: newStatus },
+        after: { 
+          status: newStatus,
+          override_note: overrideNote || null
+        },
       });
 
       toast({
@@ -388,6 +395,11 @@ const OrderDetail = () => {
     } finally {
       setUpdatingStatus(false);
     }
+  };
+
+  const initiateStatusChange = (newStatus: string) => {
+    setPendingStatusChange(newStatus as Database["public"]["Enums"]["order_status"]);
+    setStatusChangeDialogOpen(true);
   };
 
   const handleApproval = async (approved: boolean) => {
@@ -835,7 +847,7 @@ const OrderDetail = () => {
             <>
               <Select 
                 value={order.status} 
-                onValueChange={handleStatusChange}
+                onValueChange={initiateStatusChange}
                 disabled={updatingStatus}
               >
                 <SelectTrigger className="w-[200px]">
@@ -1485,6 +1497,21 @@ const OrderDetail = () => {
             } finally {
               setUpdatingStatus(false);
             }
+          }}
+        />
+      )}
+
+      {/* Status Change Dialog with Validation */}
+      {order && pendingStatusChange && (
+        <StatusChangeDialog
+          open={statusChangeDialogOpen}
+          onOpenChange={setStatusChangeDialogOpen}
+          orderId={order.id}
+          currentStatus={order.status as Database["public"]["Enums"]["order_status"]}
+          newStatus={pendingStatusChange}
+          onConfirm={async (overrideNote) => {
+            await handleStatusChange(pendingStatusChange, overrideNote);
+            setPendingStatusChange(null);
           }}
         />
       )}
