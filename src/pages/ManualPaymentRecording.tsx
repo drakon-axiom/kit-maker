@@ -275,7 +275,16 @@ export default function ManualPaymentRecording() {
                   {/* Payment Type */}
                   <div className="space-y-2">
                     <Label htmlFor="paymentType">Payment Type</Label>
-                    <Select value={paymentType} onValueChange={(value: "deposit" | "final") => setPaymentType(value)}>
+                    <Select 
+                      value={paymentType} 
+                      onValueChange={(value: "deposit" | "final") => {
+                        setPaymentType(value);
+                        const invoice = invoices.find(inv => inv.type === value);
+                        if (invoice) {
+                          setAmount(invoice.total.toString());
+                        }
+                      }}
+                    >
                       <SelectTrigger id="paymentType" className="bg-background">
                         <SelectValue />
                       </SelectTrigger>
