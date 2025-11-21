@@ -7,15 +7,17 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Palette } from 'lucide-react';
 import axiomLogo from '@/assets/axiom-logo.png';
 
 const WholesaleSignup = () => {
   const navigate = useNavigate();
-  const { currentBrand } = useBrand();
+  const { currentBrand, allBrands, setCurrentBrandById } = useBrand();
   const [loading, setLoading] = useState(false);
+  const [showBrandSwitcher, setShowBrandSwitcher] = useState(false);
   const [formData, setFormData] = useState({
     company_name: '',
     contact_name: '',
@@ -107,9 +109,25 @@ const WholesaleSignup = () => {
     }
   };
 
+  const handleBrandChange = (brandId: string) => {
+    setCurrentBrandById(brandId);
+    toast.success('Brand preview updated');
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5 flex items-center justify-center p-4">
-      <Card className="w-full max-w-2xl border-primary/10">
+      <Card className="w-full max-w-2xl border-primary/10 shadow-xl relative">
+        {/* Brand Switcher Toggle */}
+        <Button
+          variant="ghost"
+          size="icon"
+          className="absolute top-4 right-4 h-8 w-8 z-10"
+          onClick={() => setShowBrandSwitcher(!showBrandSwitcher)}
+          title="Test different brands"
+        >
+          <Palette className="h-4 w-4" />
+        </Button>
+
         <CardHeader className="space-y-4 text-center">
           <div className="flex justify-center mb-2">
             <img 
@@ -118,6 +136,25 @@ const WholesaleSignup = () => {
               className="h-16 object-contain" 
             />
           </div>
+          
+          {/* Brand Switcher Dropdown */}
+          {showBrandSwitcher && allBrands && allBrands.length > 1 && (
+            <div className="mb-4 max-w-xs mx-auto">
+              <Select value={currentBrand?.id} onValueChange={handleBrandChange}>
+                <SelectTrigger className="w-full border-primary/20">
+                  <SelectValue placeholder="Select a brand to preview" />
+                </SelectTrigger>
+                <SelectContent>
+                  {allBrands.map((brand) => (
+                    <SelectItem key={brand.id} value={brand.id}>
+                      {brand.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
           <div>
             <CardTitle className="text-3xl font-bold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
               {currentBrand?.name || "Wholesale"} Partner Application
