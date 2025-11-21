@@ -22,8 +22,28 @@ serve(async (req) => {
     const { orderId, newStatus, phoneNumber, eventType, testMessage } = body as any;
     const isTest = eventType === 'test';
 
-    // Security: require internal secret for non-test events. Allow authenticated users for test.
-    if (!isTest && webhookSecret !== expectedSecret) {
+    // Security: require either internal webhook secret OR authenticated user
+    const hasValidWebhookSecret = webhookSecret === expectedSecret;
+    
+    // Check if user is authenticated by verifying JWT
+    let isAuthenticated = false;
+    if (authHeader) {
+      try {
+        const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+        const supabaseKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+        const supabase = createClient(supabaseUrl, supabaseKey, {
+          global: {
+            headers: { Authorization: authHeader }
+          }
+        });
+        const { data: { user } } = await supabase.auth.getUser();
+        isAuthenticated = !!user;
+      } catch (e) {
+        console.log("Auth check failed:", e);
+      }
+    }
+
+    if (!isTest && !hasValidWebhookSecret && !isAuthenticated) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
