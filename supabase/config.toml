@@ -32,3 +32,6 @@ verify_jwt = true
 
 [functions.update-ups-tracking]
 verify_jwt = false
+
+[functions.cashapp-webhook]
+verify_jwt = false
