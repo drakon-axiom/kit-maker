@@ -8,9 +8,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff, Palette } from 'lucide-react';
 import axiomLogo from '@/assets/axiom-logo.png';
+
 const Auth = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -24,10 +26,12 @@ const Auth = () => {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [passwordChangeLoading, setPasswordChangeLoading] = useState(false);
+  const [showBrandSwitcher, setShowBrandSwitcher] = useState(false);
   const { signIn, user } = useAuth();
-  const { currentBrand } = useBrand();
+  const { currentBrand, allBrands, setCurrentBrandById } = useBrand();
   const { toast } = useToast();
   const navigate = useNavigate();
+
   useEffect(() => {
     const checkUserRole = async () => {
       if (user && !isRedirecting) {
@@ -65,6 +69,7 @@ const Auth = () => {
     };
     checkUserRole();
   }, [user, navigate]);
+
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -86,6 +91,7 @@ const Auth = () => {
     }
     setLoading(false);
   };
+
   const handlePasswordReset = async (e: React.FormEvent) => {
     e.preventDefault();
     setResetLoading(true);
@@ -183,16 +189,26 @@ const Auth = () => {
     }
   };
 
+  const handleBrandChange = (brandId: string) => {
+    setCurrentBrandById(brandId);
+    toast({
+      title: 'Brand Changed',
+      description: 'Preview updated with new brand styling'
+    });
+  };
+
   // Show password change form if required
   if (requiresPasswordChange && user) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-muted/30 to-background p-4">
-        <Card className="w-full max-w-md">
-        <CardHeader className="space-y-1 text-center">
-          <div className="flex justify-center mb-4">
-            <img src={currentBrand?.logo_url || axiomLogo} alt={currentBrand?.name || "Axiom Collective LLC"} className="h-12" />
-          </div>
-          <CardTitle className="text-2xl font-bold">Set New Password</CardTitle>
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-secondary/5 p-4">
+        <Card className="w-full max-w-md border-primary/10 shadow-xl">
+          <CardHeader className="space-y-1 text-center">
+            <div className="flex justify-center mb-4">
+              <img src={currentBrand?.logo_url || axiomLogo} alt={currentBrand?.name || "Company"} className="h-12" />
+            </div>
+            <CardTitle className="text-2xl font-bold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
+              Set New Password
+            </CardTitle>
             <CardDescription>
               For security, please change your temporary password
             </CardDescription>
@@ -209,7 +225,7 @@ const Auth = () => {
                     onChange={e => setNewPassword(e.target.value)}
                     placeholder="Minimum 8 characters"
                     required 
-                    className="pr-10"
+                    className="pr-10 border-primary/20 focus:border-primary"
                     minLength={8}
                   />
                   <Button
@@ -233,9 +249,10 @@ const Auth = () => {
                   placeholder="Re-enter password"
                   required 
                   minLength={8}
+                  className="border-primary/20 focus:border-primary"
                 />
               </div>
-              <Button type="submit" className="w-full" disabled={passwordChangeLoading}>
+              <Button type="submit" className="w-full bg-primary hover:bg-primary/90" disabled={passwordChangeLoading}>
                 {passwordChangeLoading ? 'Changing Password...' : 'Change Password'}
               </Button>
             </form>
@@ -246,75 +263,136 @@ const Auth = () => {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-muted/30 to-background p-4">
-      <Card className="w-full max-w-md">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-secondary/5 p-4">
+      <Card className="w-full max-w-md border-primary/10 shadow-xl relative">
+        {/* Brand Switcher Toggle */}
+        <Button
+          variant="ghost"
+          size="icon"
+          className="absolute top-4 right-4 h-8 w-8"
+          onClick={() => setShowBrandSwitcher(!showBrandSwitcher)}
+          title="Test different brands"
+        >
+          <Palette className="h-4 w-4" />
+        </Button>
+
         <CardHeader className="space-y-1 text-center">
           <div className="flex justify-center mb-4">
-            <img src={currentBrand?.logo_url || axiomLogo} alt={currentBrand?.name || "Axiom Collective LLC"} className="h-12" />
+            <img src={currentBrand?.logo_url || axiomLogo} alt={currentBrand?.name || "Company"} className="h-12" />
           </div>
-          <CardTitle className="text-2xl font-bold">Wholesale Manager</CardTitle>
+          
+          {/* Brand Switcher Dropdown */}
+          {showBrandSwitcher && allBrands && allBrands.length > 1 && (
+            <div className="mb-4">
+              <Select value={currentBrand?.id} onValueChange={handleBrandChange}>
+                <SelectTrigger className="w-full border-primary/20">
+                  <SelectValue placeholder="Select a brand to preview" />
+                </SelectTrigger>
+                <SelectContent>
+                  {allBrands.map((brand) => (
+                    <SelectItem key={brand.id} value={brand.id}>
+                      {brand.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          <CardTitle className="text-2xl font-bold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
+            Wholesale Manager
+          </CardTitle>
           <CardDescription>
             Sign in to manage wholesale orders and workflows
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSignIn} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="signin-email">Email</Label>
-                  <Input id="signin-email" type="email" placeholder="you@company.com" value={email} onChange={e => setEmail(e.target.value)} required />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="signin-password">Password</Label>
-                  <div className="relative">
-                    <Input id="signin-password" type={showPassword ? "text" : "password"} value={password} onChange={e => setPassword(e.target.value)} required className="pr-10" />
-                    <Button type="button" variant="ghost" size="icon" className="absolute right-0 top-0 h-full px-3 hover:bg-transparent" onClick={() => setShowPassword(!showPassword)}>
-                      {showPassword ? <EyeOff className="h-4 w-4 text-muted-foreground" /> : <Eye className="h-4 w-4 text-muted-foreground" />}
-                    </Button>
-                  </div>
-                </div>
-                <div className="flex justify-end">
-                  <Dialog open={resetDialogOpen} onOpenChange={setResetDialogOpen}>
-                    <DialogTrigger asChild>
-                      <Button variant="link" className="px-0 text-sm" type="button">
-                        Forgot Password?
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                      <DialogHeader>
-                        <DialogTitle>Reset Password</DialogTitle>
-                        <DialogDescription>
-                          Enter your email address and we'll send you a link to reset your password.
-                        </DialogDescription>
-                      </DialogHeader>
-                      <form onSubmit={handlePasswordReset} className="space-y-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="reset-email">Email</Label>
-                          <Input id="reset-email" type="email" placeholder="you@company.com" value={resetEmail} onChange={e => setResetEmail(e.target.value)} required />
-                        </div>
-                        <Button type="submit" className="w-full" disabled={resetLoading}>
-                          {resetLoading ? 'Sending...' : 'Send Reset Link'}
-                        </Button>
-                      </form>
-                    </DialogContent>
-                  </Dialog>
-                </div>
-                <Button type="submit" className="w-full" disabled={loading}>
-                  {loading ? 'Signing in...' : 'Sign In'}
+            <div className="space-y-2">
+              <Label htmlFor="signin-email">Email</Label>
+              <Input 
+                id="signin-email" 
+                type="email" 
+                placeholder="you@company.com" 
+                value={email} 
+                onChange={e => setEmail(e.target.value)} 
+                required 
+                className="border-primary/20 focus:border-primary"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="signin-password">Password</Label>
+              <div className="relative">
+                <Input 
+                  id="signin-password" 
+                  type={showPassword ? "text" : "password"} 
+                  value={password} 
+                  onChange={e => setPassword(e.target.value)} 
+                  required 
+                  className="pr-10 border-primary/20 focus:border-primary" 
+                />
+                <Button 
+                  type="button" 
+                  variant="ghost" 
+                  size="icon" 
+                  className="absolute right-0 top-0 h-full px-3 hover:bg-transparent" 
+                  onClick={() => setShowPassword(!showPassword)}
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4 text-muted-foreground" /> : <Eye className="h-4 w-4 text-muted-foreground" />}
                 </Button>
-                <div className="text-center pt-4 border-t mt-4">
-                  <p className="text-sm text-muted-foreground">
-                    New wholesale customer?{' '}
-                    <Button 
-                      variant="link" 
-                      className="px-0 text-sm font-semibold" 
-                      type="button"
-                      onClick={() => navigate('/wholesale-signup')}
-                    >
-                      Apply for wholesale account
+              </div>
+            </div>
+            <div className="flex justify-end">
+              <Dialog open={resetDialogOpen} onOpenChange={setResetDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="link" className="px-0 text-sm text-primary" type="button">
+                    Forgot Password?
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Reset Password</DialogTitle>
+                    <DialogDescription>
+                      Enter your email address and we'll send you a link to reset your password.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <form onSubmit={handlePasswordReset} className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="reset-email">Email</Label>
+                      <Input 
+                        id="reset-email" 
+                        type="email" 
+                        placeholder="you@company.com" 
+                        value={resetEmail} 
+                        onChange={e => setResetEmail(e.target.value)} 
+                        required 
+                        className="border-primary/20 focus:border-primary"
+                      />
+                    </div>
+                    <Button type="submit" className="w-full bg-primary hover:bg-primary/90" disabled={resetLoading}>
+                      {resetLoading ? 'Sending...' : 'Send Reset Link'}
                     </Button>
-                  </p>
-                </div>
-            </form>
+                  </form>
+                </DialogContent>
+              </Dialog>
+            </div>
+            <Button type="submit" className="w-full bg-primary hover:bg-primary/90" disabled={loading}>
+              {loading ? 'Signing in...' : 'Sign In'}
+            </Button>
+            <div className="text-center pt-4 border-t border-border mt-4">
+              <p className="text-sm text-muted-foreground">
+                New wholesale customer?{' '}
+                <Button 
+                  variant="link" 
+                  className="px-0 text-sm font-semibold text-primary hover:text-primary/80" 
+                  type="button"
+                  onClick={() => navigate('/wholesale-signup')}
+                >
+                  Apply for wholesale account
+                </Button>
+              </p>
+            </div>
+          </form>
         </CardContent>
       </Card>
     </div>

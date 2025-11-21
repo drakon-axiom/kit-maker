@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useBrand } from '@/contexts/BrandContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -9,9 +10,11 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Loader2 } from 'lucide-react';
+import axiomLogo from '@/assets/axiom-logo.png';
 
 const WholesaleSignup = () => {
   const navigate = useNavigate();
+  const { currentBrand } = useBrand();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     company_name: '',
@@ -106,96 +109,117 @@ const WholesaleSignup = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5 flex items-center justify-center p-4">
-      <Card className="w-full max-w-2xl">
-        <CardHeader className="space-y-1">
-          <CardTitle className="text-3xl font-bold text-center">Wholesale Account Application</CardTitle>
-          <CardDescription className="text-center text-base">
-            Join our wholesale program and get access to exclusive pricing and benefits
-          </CardDescription>
+      <Card className="w-full max-w-2xl border-primary/10">
+        <CardHeader className="space-y-4 text-center">
+          <div className="flex justify-center mb-2">
+            <img 
+              src={currentBrand?.logo_url || axiomLogo} 
+              alt={currentBrand?.name || "Company"} 
+              className="h-16 object-contain" 
+            />
+          </div>
+          <div>
+            <CardTitle className="text-3xl font-bold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
+              {currentBrand?.name || "Wholesale"} Partner Application
+            </CardTitle>
+            <CardDescription className="text-center text-base mt-2">
+              Join our wholesale program and get access to exclusive pricing, priority service, and dedicated support
+            </CardDescription>
+          </div>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="company_name">Company Name *</Label>
-                <Input
-                  id="company_name"
-                  value={formData.company_name}
-                  onChange={(e) => setFormData({ ...formData, company_name: e.target.value })}
-                  required
-                  placeholder="Acme Corporation"
-                />
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold text-foreground border-b border-border pb-2">Company Information</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="company_name">Company Name *</Label>
+                  <Input
+                    id="company_name"
+                    value={formData.company_name}
+                    onChange={(e) => setFormData({ ...formData, company_name: e.target.value })}
+                    required
+                    placeholder="Acme Corporation"
+                    className="border-primary/20 focus:border-primary"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="contact_name">Contact Name *</Label>
+                  <Input
+                    id="contact_name"
+                    value={formData.contact_name}
+                    onChange={(e) => setFormData({ ...formData, contact_name: e.target.value })}
+                    required
+                    placeholder="John Doe"
+                    className="border-primary/20 focus:border-primary"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email *</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={formData.email}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    required
+                    placeholder="john@acme.com"
+                    className="border-primary/20 focus:border-primary"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="phone">Phone</Label>
+                  <Input
+                    id="phone"
+                    type="tel"
+                    value={formData.phone}
+                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                    placeholder="+1 (555) 123-4567"
+                    className="border-primary/20 focus:border-primary"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="business_type">Business Type</Label>
+                  <Input
+                    id="business_type"
+                    value={formData.business_type}
+                    onChange={(e) => setFormData({ ...formData, business_type: e.target.value })}
+                    placeholder="Retail, Distribution, etc."
+                    className="border-primary/20 focus:border-primary"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="website">Website</Label>
+                  <Input
+                    id="website"
+                    type="url"
+                    value={formData.website}
+                    onChange={(e) => setFormData({ ...formData, website: e.target.value })}
+                    placeholder="https://www.acme.com"
+                    className="border-primary/20 focus:border-primary"
+                  />
+                </div>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="contact_name">Contact Name *</Label>
-                <Input
-                  id="contact_name"
-                  value={formData.contact_name}
-                  onChange={(e) => setFormData({ ...formData, contact_name: e.target.value })}
-                  required
-                  placeholder="John Doe"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="email">Email *</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  required
-                  placeholder="john@acme.com"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="phone">Phone</Label>
-                <Input
-                  id="phone"
-                  type="tel"
-                  value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  placeholder="+1 (555) 123-4567"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="business_type">Business Type</Label>
-                <Input
-                  id="business_type"
-                  value={formData.business_type}
-                  onChange={(e) => setFormData({ ...formData, business_type: e.target.value })}
-                  placeholder="Retail, Distribution, etc."
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="website">Website</Label>
-                <Input
-                  id="website"
-                  type="url"
-                  value={formData.website}
-                  onChange={(e) => setFormData({ ...formData, website: e.target.value })}
-                  placeholder="https://www.acme.com"
+                <Label htmlFor="message">Tell us about your business</Label>
+                <Textarea
+                  id="message"
+                  value={formData.message}
+                  onChange={(e) => setFormData({ ...formData, message: e.target.value })}
+                  placeholder="Share details about your business, target market, and why you'd like to partner with us..."
+                  rows={4}
+                  className="border-primary/20 focus:border-primary resize-none"
                 />
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="message">Additional Information</Label>
-              <Textarea
-                id="message"
-                value={formData.message}
-                onChange={(e) => setFormData({ ...formData, message: e.target.value })}
-                placeholder="Tell us about your business and why you'd like to become a wholesale customer..."
-                rows={4}
-              />
-            </div>
-
-            <div className="space-y-4 border-t pt-4">
-              <h3 className="text-lg font-semibold">Shipping Address</h3>
+            <div className="space-y-4 border-t border-border pt-6">
+              <h3 className="text-lg font-semibold text-foreground">Shipping Address</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2 col-span-2">
                   <Label htmlFor="shipping_address_line1">Address Line 1</Label>
@@ -204,6 +228,7 @@ const WholesaleSignup = () => {
                     value={formData.shipping_address_line1}
                     onChange={(e) => setFormData({ ...formData, shipping_address_line1: e.target.value })}
                     placeholder="123 Main Street"
+                    className="border-primary/20 focus:border-primary"
                   />
                 </div>
                 <div className="space-y-2 col-span-2">
@@ -213,6 +238,7 @@ const WholesaleSignup = () => {
                     value={formData.shipping_address_line2}
                     onChange={(e) => setFormData({ ...formData, shipping_address_line2: e.target.value })}
                     placeholder="Suite 100"
+                    className="border-primary/20 focus:border-primary"
                   />
                 </div>
                 <div className="space-y-2">
@@ -222,6 +248,7 @@ const WholesaleSignup = () => {
                     value={formData.shipping_city}
                     onChange={(e) => setFormData({ ...formData, shipping_city: e.target.value })}
                     placeholder="New York"
+                    className="border-primary/20 focus:border-primary"
                   />
                 </div>
                 <div className="space-y-2">
@@ -231,6 +258,7 @@ const WholesaleSignup = () => {
                     value={formData.shipping_state}
                     onChange={(e) => setFormData({ ...formData, shipping_state: e.target.value })}
                     placeholder="NY"
+                    className="border-primary/20 focus:border-primary"
                   />
                 </div>
                 <div className="space-y-2">
@@ -240,6 +268,7 @@ const WholesaleSignup = () => {
                     value={formData.shipping_zip}
                     onChange={(e) => setFormData({ ...formData, shipping_zip: e.target.value })}
                     placeholder="10001"
+                    className="border-primary/20 focus:border-primary"
                   />
                 </div>
                 <div className="space-y-2">
@@ -248,13 +277,14 @@ const WholesaleSignup = () => {
                     id="shipping_country"
                     value={formData.shipping_country}
                     onChange={(e) => setFormData({ ...formData, shipping_country: e.target.value })}
+                    className="border-primary/20 focus:border-primary"
                   />
                 </div>
               </div>
             </div>
 
             <div className="space-y-4">
-              <div className="flex items-center space-x-2">
+              <div className="flex items-center space-x-2 bg-muted/50 p-3 rounded-lg">
                 <Checkbox
                   id="billing_same"
                   checked={formData.billing_same_as_shipping}
@@ -267,7 +297,7 @@ const WholesaleSignup = () => {
 
               {!formData.billing_same_as_shipping && (
                 <>
-                  <h3 className="text-lg font-semibold">Billing Address</h3>
+                  <h3 className="text-lg font-semibold text-foreground">Billing Address</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2 col-span-2">
                       <Label htmlFor="billing_address_line1">Address Line 1</Label>
@@ -276,6 +306,7 @@ const WholesaleSignup = () => {
                         value={formData.billing_address_line1}
                         onChange={(e) => setFormData({ ...formData, billing_address_line1: e.target.value })}
                         placeholder="123 Main Street"
+                        className="border-primary/20 focus:border-primary"
                       />
                     </div>
                     <div className="space-y-2 col-span-2">
@@ -285,6 +316,7 @@ const WholesaleSignup = () => {
                         value={formData.billing_address_line2}
                         onChange={(e) => setFormData({ ...formData, billing_address_line2: e.target.value })}
                         placeholder="Suite 100"
+                        className="border-primary/20 focus:border-primary"
                       />
                     </div>
                     <div className="space-y-2">
@@ -294,6 +326,7 @@ const WholesaleSignup = () => {
                         value={formData.billing_city}
                         onChange={(e) => setFormData({ ...formData, billing_city: e.target.value })}
                         placeholder="New York"
+                        className="border-primary/20 focus:border-primary"
                       />
                     </div>
                     <div className="space-y-2">
@@ -303,6 +336,7 @@ const WholesaleSignup = () => {
                         value={formData.billing_state}
                         onChange={(e) => setFormData({ ...formData, billing_state: e.target.value })}
                         placeholder="NY"
+                        className="border-primary/20 focus:border-primary"
                       />
                     </div>
                     <div className="space-y-2">
@@ -312,6 +346,7 @@ const WholesaleSignup = () => {
                         value={formData.billing_zip}
                         onChange={(e) => setFormData({ ...formData, billing_zip: e.target.value })}
                         placeholder="10001"
+                        className="border-primary/20 focus:border-primary"
                       />
                     </div>
                     <div className="space-y-2">
@@ -320,6 +355,7 @@ const WholesaleSignup = () => {
                         id="billing_country"
                         value={formData.billing_country}
                         onChange={(e) => setFormData({ ...formData, billing_country: e.target.value })}
+                        className="border-primary/20 focus:border-primary"
                       />
                     </div>
                   </div>
@@ -327,10 +363,10 @@ const WholesaleSignup = () => {
               )}
             </div>
 
-            <div className="flex gap-3 pt-4">
+            <div className="flex gap-3 pt-4 border-t border-border">
               <Button 
                 type="submit" 
-                className="flex-1"
+                className="flex-1 bg-primary hover:bg-primary/90"
                 disabled={loading}
               >
                 {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
@@ -339,9 +375,10 @@ const WholesaleSignup = () => {
               <Button 
                 type="button" 
                 variant="outline"
-                onClick={() => navigate('/')}
+                onClick={() => navigate('/auth')}
+                className="border-primary/20"
               >
-                Cancel
+                Back to Sign In
               </Button>
             </div>
           </form>
