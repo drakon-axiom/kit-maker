@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import Layout from "@/components/Layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -207,8 +206,8 @@ export default function ManualPaymentRecording() {
   const isPartialPayment = selectedInvoice && !isNaN(amountNum) && amountNum > 0 && amountNum < selectedInvoice.total;
 
   return (
-    <Layout>
-      <div className="container mx-auto py-8 max-w-3xl">
+    <div className="min-h-screen bg-background p-8">
+      <div className="container mx-auto max-w-3xl">
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -361,6 +360,6 @@ export default function ManualPaymentRecording() {
           </CardContent>
         </Card>
       </div>
-    </Layout>
+    </div>
   );
 }
