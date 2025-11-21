@@ -39,6 +39,7 @@ import CustomerAccountSettings from "./pages/CustomerAccountSettings";
 import CustomerAccess from "./pages/CustomerAccess";
 import UserManagement from "./pages/UserManagement";
 import EmailHistory from "./pages/EmailHistory";
+import ManualPaymentRecording from "./pages/ManualPaymentRecording";
 import OrderRequestManagement from "./pages/OrderRequestManagement";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Layout from "./components/Layout";
@@ -292,6 +293,16 @@ const App = () => (
                 <ProtectedRoute requiredRole="admin">
                   <Layout>
                     <EmailHistory />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/manual-payment"
+              element={
+                <ProtectedRoute requiredRole="admin">
+                  <Layout>
+                    <ManualPaymentRecording />
                   </Layout>
                 </ProtectedRoute>
               }

@@ -23,6 +23,7 @@ import {
   History,
   MessageSquare,
   Palette,
+  DollarSign,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -102,6 +103,7 @@ export function AppSidebar() {
     { title: 'Wholesale Applications', url: '/wholesale-applications', icon: UserPlus, badge: null },
     { title: 'Notifications', url: '/notifications', icon: Mail, badge: null },
     { title: 'Email History', url: '/email-history', icon: History, badge: null },
+    { title: 'Manual Payments', url: '/manual-payment', icon: DollarSign, badge: null },
     { title: 'Label Settings', url: '/label-settings', icon: Tags, badge: null },
     { title: 'Settings', url: '/settings', icon: Settings, badge: null },
   ];
