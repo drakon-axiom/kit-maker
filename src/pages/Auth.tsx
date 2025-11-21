@@ -25,6 +25,7 @@ const Auth = () => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [passwordChangeLoading, setPasswordChangeLoading] = useState(false);
   const { signIn, user } = useAuth();
+  const { currentBrand } = useBrand();
   const { toast } = useToast();
   const navigate = useNavigate();
   useEffect(() => {
@@ -187,11 +188,11 @@ const Auth = () => {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-muted/30 to-background p-4">
         <Card className="w-full max-w-md">
-          <CardHeader className="space-y-1 text-center">
-            <div className="flex justify-center mb-4">
-              <img src={axiomLogo} alt="Axiom Collective LLC" className="h-12" />
-            </div>
-            <CardTitle className="text-2xl font-bold">Set New Password</CardTitle>
+        <CardHeader className="space-y-1 text-center">
+          <div className="flex justify-center mb-4">
+            <img src={currentBrand?.logo_url || axiomLogo} alt={currentBrand?.name || "Axiom Collective LLC"} className="h-12" />
+          </div>
+          <CardTitle className="text-2xl font-bold">Set New Password</CardTitle>
             <CardDescription>
               For security, please change your temporary password
             </CardDescription>
@@ -249,9 +250,9 @@ const Auth = () => {
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1 text-center">
           <div className="flex justify-center mb-4">
-            <img src={axiomLogo} alt="Axiom Collective LLC" className="h-12" />
+            <img src={currentBrand?.logo_url || axiomLogo} alt={currentBrand?.name || "Axiom Collective LLC"} className="h-12" />
           </div>
-          <CardTitle className="text-2xl font-bold">Wholesale Manager        </CardTitle>
+          <CardTitle className="text-2xl font-bold">Wholesale Manager</CardTitle>
           <CardDescription>
             Sign in to manage wholesale orders and workflows
           </CardDescription>
