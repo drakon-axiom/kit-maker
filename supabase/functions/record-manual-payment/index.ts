@@ -125,8 +125,31 @@ serve(async (req) => {
       );
     }
 
-    // Insert payment transaction record
-    const { error: txError } = await supabaseAdmin
+    // Insert payment record in invoice_payments table
+    const { data: paymentRecord, error: paymentError } = await supabaseAdmin
+      .from("invoice_payments")
+      .insert({
+        invoice_id: invoice.id,
+        amount: amount,
+        method: "other", // CashApp - using 'other' as it's not in the enum
+        recorded_by: user.id,
+        recorded_at: new Date().toISOString(),
+        external_ref: `CASHAPP-${Date.now()}`,
+        notes: notes || null,
+      })
+      .select()
+      .single();
+
+    if (paymentError) {
+      console.error("Error inserting payment record:", paymentError);
+      return new Response(JSON.stringify({ error: "Failed to record payment" }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Also insert into payment_transactions for compatibility
+    await supabaseAdmin
       .from("payment_transactions")
       .insert({
         so_id: order.id,
@@ -141,16 +164,9 @@ serve(async (req) => {
           customer_name: order.customers.name,
           order_number: order.human_uid,
           notes: notes || null,
+          invoice_payment_id: paymentRecord.id,
         },
       });
-
-    if (txError) {
-      console.error("Error inserting payment transaction:", txError);
-      return new Response(JSON.stringify({ error: "Failed to record payment" }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
 
     // Update invoice status if amount matches total
     if (amount >= invoice.total) {
@@ -201,7 +217,8 @@ serve(async (req) => {
         orderNumber: order.human_uid,
         amount,
         paymentType,
-        invoiceStatus: amount >= invoice.total ? "paid" : "partial"
+        invoiceStatus: amount >= invoice.total ? "paid" : "partial",
+        paymentId: paymentRecord.id, // Include payment ID for receipt generation
       }),
       {
         status: 200,
