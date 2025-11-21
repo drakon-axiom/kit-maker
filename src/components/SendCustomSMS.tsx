@@ -42,7 +42,7 @@ export const SendCustomSMS = ({
         .from("notification_preferences")
         .select("sms_enabled, sms_phone_number")
         .eq("customer_id", customerId)
-        .single();
+        .maybeSingle();
 
       if (prefsError) throw prefsError;
 
