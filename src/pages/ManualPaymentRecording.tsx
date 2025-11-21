@@ -177,9 +177,37 @@ export default function ManualPaymentRecording() {
 
       if (error) throw error;
 
+      // Generate and download receipt
+      if (data?.paymentId) {
+        try {
+          const { data: receiptHtml, error: receiptError } = await supabase.functions.invoke(
+            "generate-manual-payment-receipt",
+            {
+              body: { paymentId: data.paymentId },
+            }
+          );
+
+          if (!receiptError && receiptHtml) {
+            // Create a blob and download
+            const blob = new Blob([receiptHtml], { type: "text/html" });
+            const url = window.URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.href = url;
+            link.download = `receipt-${orderNumber}-${paymentType}.html`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            window.URL.revokeObjectURL(url);
+          }
+        } catch (receiptErr) {
+          console.error("Error generating receipt:", receiptErr);
+          // Don't fail the whole operation if receipt generation fails
+        }
+      }
+
       toast({
         title: "Payment recorded",
-        description: `Successfully recorded ${paymentType} payment of $${amountNum}`,
+        description: `Successfully recorded ${paymentType} payment of $${amountNum}. Receipt downloaded.`,
       });
 
       // Reset form
