@@ -46,7 +46,21 @@ export const SendCustomSMS = ({
 
       if (prefsError) throw prefsError;
 
-      if (!prefs?.sms_phone_number) {
+      // Fall back to customer's phone if notification preferences don't have one
+      let phoneNumber = prefs?.sms_phone_number;
+      
+      if (!phoneNumber) {
+        const { data: customer, error: customerError } = await supabase
+          .from("customers")
+          .select("phone")
+          .eq("id", customerId)
+          .single();
+
+        if (customerError) throw customerError;
+        phoneNumber = customer?.phone;
+      }
+
+      if (!phoneNumber) {
         toast({
           title: "No phone number",
           description: "Customer has not provided a phone number for SMS",
@@ -55,7 +69,7 @@ export const SendCustomSMS = ({
         return;
       }
 
-      if (!prefs.sms_enabled) {
+      if (prefs?.sms_enabled === false) {
         toast({
           title: "SMS disabled",
           description: "Customer has SMS notifications disabled. Send anyway?",
@@ -68,7 +82,7 @@ export const SendCustomSMS = ({
       const { error: smsError } = await supabase.functions.invoke("send-sms-notification", {
         body: {
           orderId: orderId,
-          phoneNumber: prefs.sms_phone_number,
+          phoneNumber: phoneNumber,
           eventType: "custom",
           testMessage: `${customerName}, ${message} - Order: ${orderNumber}`,
         },
@@ -80,7 +94,7 @@ export const SendCustomSMS = ({
       await supabase.from("sms_logs").insert({
         customer_id: customerId,
         so_id: orderId,
-        phone_number: prefs.sms_phone_number,
+        phone_number: phoneNumber,
         message: message,
         template_type: "custom",
         status: "sent",
@@ -89,7 +103,7 @@ export const SendCustomSMS = ({
 
       toast({
         title: "SMS sent",
-        description: `Message sent to ${prefs.sms_phone_number}`,
+        description: `Message sent to ${phoneNumber}`,
       });
 
       setMessage("");
