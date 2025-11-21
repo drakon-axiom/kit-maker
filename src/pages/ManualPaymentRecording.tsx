@@ -45,15 +45,22 @@ export default function ManualPaymentRecording() {
   const fetchEligibleOrders = async () => {
     setLoadingOrders(true);
     try {
-      // Fetch all orders with their customers and invoices
+      // Fetch all orders with their customers
       const { data: orders, error: ordersError } = await supabase
         .from("sales_orders")
         .select("id, human_uid, status, subtotal, customers(name, email)")
+        .in("status", [
+          "awaiting_payment",
+          "deposit_due",
+          "awaiting_invoice",
+          "invoiced",
+          "payment_due"
+        ])
         .order("created_at", { ascending: false });
 
       if (ordersError) throw ordersError;
 
-      // Fetch all invoices
+      // Fetch all unpaid invoices
       const { data: allInvoices, error: invoicesError } = await supabase
         .from("invoices")
         .select("*")
@@ -61,13 +68,9 @@ export default function ManualPaymentRecording() {
 
       if (invoicesError) throw invoicesError;
 
-      // Filter orders that have unpaid invoices
+      // Map orders with their invoice info
       const eligible: EligibleOrder[] = orders
-        ?.filter(order => {
-          const orderInvoices = allInvoices?.filter(inv => inv.so_id === order.id) || [];
-          return orderInvoices.length > 0;
-        })
-        .map(order => {
+        ?.map(order => {
           const orderInvoices = allInvoices?.filter(inv => inv.so_id === order.id) || [];
           return {
             id: order.id,
