@@ -301,7 +301,9 @@ const App = () => (
               path="/manual-payment"
               element={
                 <ProtectedRoute requiredRole="admin">
-                  <ManualPaymentRecording />
+                  <Layout>
+                    <ManualPaymentRecording />
+                  </Layout>
                 </ProtectedRoute>
               }
             />
