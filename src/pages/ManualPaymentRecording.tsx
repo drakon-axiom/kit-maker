@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Layout from "@/components/Layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,13 +10,27 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, Search, DollarSign, AlertCircle, CheckCircle2 } from "lucide-react";
+import { Loader2, DollarSign, AlertCircle, CheckCircle2 } from "lucide-react";
+
+interface EligibleOrder {
+  id: string;
+  human_uid: string;
+  customer_name: string;
+  customer_email: string;
+  subtotal: number;
+  status: string;
+  unpaid_invoices: {
+    type: "deposit" | "final";
+    total: number;
+  }[];
+}
 
 export default function ManualPaymentRecording() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
-  const [searching, setSearching] = useState(false);
+  const [loadingOrders, setLoadingOrders] = useState(true);
+  const [eligibleOrders, setEligibleOrders] = useState<EligibleOrder[]>([]);
   const [orderNumber, setOrderNumber] = useState("");
   const [amount, setAmount] = useState("");
   const [paymentType, setPaymentType] = useState<"deposit" | "final">("final");
@@ -24,29 +38,79 @@ export default function ManualPaymentRecording() {
   const [orderDetails, setOrderDetails] = useState<any>(null);
   const [invoices, setInvoices] = useState<any[]>([]);
 
-  const searchOrder = async () => {
-    if (!orderNumber.trim()) {
+  useEffect(() => {
+    fetchEligibleOrders();
+  }, []);
+
+  const fetchEligibleOrders = async () => {
+    setLoadingOrders(true);
+    try {
+      // Fetch all orders with their customers and invoices
+      const { data: orders, error: ordersError } = await supabase
+        .from("sales_orders")
+        .select("id, human_uid, status, subtotal, customers(name, email)")
+        .order("created_at", { ascending: false });
+
+      if (ordersError) throw ordersError;
+
+      // Fetch all invoices
+      const { data: allInvoices, error: invoicesError } = await supabase
+        .from("invoices")
+        .select("*")
+        .neq("status", "paid");
+
+      if (invoicesError) throw invoicesError;
+
+      // Filter orders that have unpaid invoices
+      const eligible: EligibleOrder[] = orders
+        ?.filter(order => {
+          const orderInvoices = allInvoices?.filter(inv => inv.so_id === order.id) || [];
+          return orderInvoices.length > 0;
+        })
+        .map(order => {
+          const orderInvoices = allInvoices?.filter(inv => inv.so_id === order.id) || [];
+          return {
+            id: order.id,
+            human_uid: order.human_uid,
+            customer_name: order.customers?.name || "Unknown",
+            customer_email: order.customers?.email || "",
+            subtotal: order.subtotal,
+            status: order.status,
+            unpaid_invoices: orderInvoices.map(inv => ({
+              type: inv.type as "deposit" | "final",
+              total: inv.total,
+            })),
+          };
+        }) || [];
+
+      setEligibleOrders(eligible);
+    } catch (error) {
+      console.error("Error fetching eligible orders:", error);
       toast({
-        title: "Order number required",
-        description: "Please enter an order number to search",
+        title: "Failed to load orders",
+        description: "Could not fetch eligible orders",
         variant: "destructive",
       });
-      return;
+    } finally {
+      setLoadingOrders(false);
     }
+  };
 
-    setSearching(true);
+  const handleOrderSelect = async (selectedOrderNumber: string) => {
+    setOrderNumber(selectedOrderNumber);
+    
     try {
       // Fetch order details
       const { data: order, error: orderError } = await supabase
         .from("sales_orders")
         .select("*, customers(name, email)")
-        .eq("human_uid", orderNumber.trim())
-        .single();
+        .eq("human_uid", selectedOrderNumber)
+        .maybeSingle();
 
       if (orderError || !order) {
         toast({
           title: "Order not found",
-          description: `No order found with number ${orderNumber}`,
+          description: `No order found with number ${selectedOrderNumber}`,
           variant: "destructive",
         });
         setOrderDetails(null);
@@ -66,19 +130,13 @@ export default function ManualPaymentRecording() {
 
       setOrderDetails(order);
       setInvoices(invoiceData || []);
-      toast({
-        title: "Order found",
-        description: `Order ${order.human_uid} - ${order.customers.name}`,
-      });
     } catch (error) {
-      console.error("Error searching order:", error);
+      console.error("Error loading order:", error);
       toast({
-        title: "Search failed",
-        description: "Failed to search for order",
+        title: "Failed to load order",
+        description: "Could not fetch order details",
         variant: "destructive",
       });
-    } finally {
-      setSearching(false);
     }
   };
 
@@ -160,48 +218,55 @@ export default function ManualPaymentRecording() {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Order Search */}
-              <div className="space-y-4">
-                <div className="flex gap-2">
-                  <div className="flex-1">
-                    <Label htmlFor="orderNumber">Order Number</Label>
-                    <Input
-                      id="orderNumber"
-                      placeholder="SO-XXXX"
-                      value={orderNumber}
-                      onChange={(e) => setOrderNumber(e.target.value.toUpperCase())}
-                      disabled={loading}
-                    />
+              {/* Order Selection */}
+              <div className="space-y-2">
+                <Label htmlFor="orderNumber">Select Order</Label>
+                {loadingOrders ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                   </div>
-                  <Button
-                    type="button"
-                    onClick={searchOrder}
-                    disabled={searching || !orderNumber.trim()}
-                    className="mt-8"
-                  >
-                    {searching ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Search className="h-4 w-4" />
-                    )}
-                  </Button>
-                </div>
-
-                {/* Order Details Display */}
-                {orderDetails && (
-                  <Alert className="bg-muted">
-                    <CheckCircle2 className="h-4 w-4" />
+                ) : eligibleOrders.length === 0 ? (
+                  <Alert>
+                    <AlertCircle className="h-4 w-4" />
                     <AlertDescription>
-                      <div className="space-y-1">
-                        <p className="font-semibold">{orderDetails.customers.name}</p>
-                        <p className="text-sm text-muted-foreground">{orderDetails.customers.email}</p>
-                        <p className="text-sm">Status: <span className="font-medium">{orderDetails.status}</span></p>
-                        <p className="text-sm">Subtotal: <span className="font-medium">${orderDetails.subtotal}</span></p>
-                      </div>
+                      No orders with outstanding payments found
                     </AlertDescription>
                   </Alert>
+                ) : (
+                  <Select value={orderNumber} onValueChange={handleOrderSelect}>
+                    <SelectTrigger id="orderNumber" className="bg-background">
+                      <SelectValue placeholder="Select an order..." />
+                    </SelectTrigger>
+                    <SelectContent className="bg-popover z-50">
+                      {eligibleOrders.map((order) => (
+                        <SelectItem key={order.id} value={order.human_uid}>
+                          <div className="flex flex-col">
+                            <span className="font-medium">{order.human_uid}</span>
+                            <span className="text-sm text-muted-foreground">
+                              {order.customer_name} - ${order.subtotal}
+                            </span>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 )}
               </div>
+
+              {/* Order Details Display */}
+              {orderDetails && (
+                <Alert className="bg-muted">
+                  <CheckCircle2 className="h-4 w-4" />
+                  <AlertDescription>
+                    <div className="space-y-1">
+                      <p className="font-semibold">{orderDetails.customers.name}</p>
+                      <p className="text-sm text-muted-foreground">{orderDetails.customers.email}</p>
+                      <p className="text-sm">Status: <span className="font-medium">{orderDetails.status}</span></p>
+                      <p className="text-sm">Subtotal: <span className="font-medium">${orderDetails.subtotal}</span></p>
+                    </div>
+                  </AlertDescription>
+                </Alert>
+              )}
 
               {orderDetails && (
                 <>
@@ -209,10 +274,10 @@ export default function ManualPaymentRecording() {
                   <div className="space-y-2">
                     <Label htmlFor="paymentType">Payment Type</Label>
                     <Select value={paymentType} onValueChange={(value: "deposit" | "final") => setPaymentType(value)}>
-                      <SelectTrigger id="paymentType">
+                      <SelectTrigger id="paymentType" className="bg-background">
                         <SelectValue />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent className="bg-popover z-50">
                         <SelectItem value="deposit">Deposit</SelectItem>
                         <SelectItem value="final">Final Payment</SelectItem>
                       </SelectContent>
