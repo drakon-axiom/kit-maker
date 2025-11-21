@@ -96,19 +96,59 @@ serve(async (req) => {
       });
     }
 
-    // Get the invoice for this payment type
-    const { data: invoice, error: invoiceError } = await supabaseAdmin
+    // Get or create the invoice for this payment type
+    let { data: invoice, error: invoiceError } = await supabaseAdmin
       .from("invoices")
       .select("*")
       .eq("so_id", order.id)
       .eq("type", paymentType)
-      .single();
+      .maybeSingle();
 
-    if (invoiceError || !invoice) {
-      return new Response(JSON.stringify({ error: `No ${paymentType} invoice found for this order` }), {
-        status: 404,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    // If no invoice exists, create one
+    if (!invoice) {
+      const invoiceAmount = paymentType === "deposit" 
+        ? (order.deposit_amount || order.subtotal * 0.5) 
+        : order.subtotal;
+
+      // Generate invoice number
+      const invoicePrefix = paymentType === "deposit" ? "DEP" : "INV";
+      const { data: maxInvoice } = await supabaseAdmin
+        .from("invoices")
+        .select("invoice_no")
+        .like("invoice_no", `${invoicePrefix}-%`)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      let invoiceNumber = `${invoicePrefix}-0001`;
+      if (maxInvoice?.invoice_no) {
+        const lastNum = parseInt(maxInvoice.invoice_no.split("-")[1]) || 0;
+        invoiceNumber = `${invoicePrefix}-${String(lastNum + 1).padStart(4, "0")}`;
+      }
+
+      const { data: newInvoice, error: createError } = await supabaseAdmin
+        .from("invoices")
+        .insert({
+          so_id: order.id,
+          type: paymentType,
+          invoice_no: invoiceNumber,
+          subtotal: invoiceAmount,
+          tax: 0,
+          total: invoiceAmount,
+          status: "unpaid",
+        })
+        .select()
+        .single();
+
+      if (createError || !newInvoice) {
+        console.error("Error creating invoice:", createError);
+        return new Response(JSON.stringify({ error: "Failed to create invoice" }), {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      invoice = newInvoice;
     }
 
     // Validate amount doesn't exceed invoice total
