@@ -7,6 +7,7 @@ import { HelmetProvider } from "react-helmet-async";
 import { AuthProvider } from "./contexts/AuthContext";
 import { BrandProvider } from "./contexts/BrandContext";
 import Auth from "./pages/Auth";
+import AdminAuth from "./pages/AdminAuth";
 import Landing from "./pages/Landing";
 import Index from "./pages/Index";
 import Dashboard from "./pages/Dashboard";
@@ -58,6 +59,7 @@ const App = () => (
               <Routes>
               <Route path="/landing" element={<Landing />} />
             <Route path="/auth" element={<Auth />} />
+            <Route path="/admin-login" element={<AdminAuth />} />
             <Route path="/wholesale-signup" element={<WholesaleSignup />} />
             <Route path="/quote-approval" element={<QuoteApproval />} />
             

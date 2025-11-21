@@ -300,10 +300,10 @@ const Auth = () => {
           )}
 
           <CardTitle className="text-2xl font-bold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
-            Wholesale Manager
+            Wholesale Customer Portal
           </CardTitle>
           <CardDescription>
-            Sign in to manage wholesale orders and workflows
+            Sign in to view your orders, quotes, and account
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -379,18 +379,33 @@ const Auth = () => {
             <Button type="submit" className="w-full bg-primary hover:bg-primary/90" disabled={loading}>
               {loading ? 'Signing in...' : 'Sign In'}
             </Button>
-            <div className="text-center pt-4 border-t border-border mt-4">
-              <p className="text-sm text-muted-foreground">
-                New wholesale customer?{' '}
-                <Button 
-                  variant="link" 
-                  className="px-0 text-sm font-semibold text-primary hover:text-primary/80" 
-                  type="button"
-                  onClick={() => navigate('/wholesale-signup')}
-                >
-                  Apply for wholesale account
-                </Button>
-              </p>
+            <div className="space-y-3 pt-4 border-t border-border mt-4">
+              <div className="text-center">
+                <p className="text-sm text-muted-foreground">
+                  New wholesale customer?{' '}
+                  <Button 
+                    variant="link" 
+                    className="px-0 text-sm font-semibold text-primary hover:text-primary/80" 
+                    type="button"
+                    onClick={() => navigate('/wholesale-signup')}
+                  >
+                    Apply for wholesale account
+                  </Button>
+                </p>
+              </div>
+              <div className="text-center pt-2 border-t border-border">
+                <p className="text-sm text-muted-foreground">
+                  Administrator?{' '}
+                  <Button 
+                    variant="link" 
+                    className="px-0 text-sm font-semibold text-muted-foreground hover:text-foreground" 
+                    type="button"
+                    onClick={() => navigate('/admin-login')}
+                  >
+                    Admin portal
+                  </Button>
+                </p>
+              </div>
             </div>
           </form>
         </CardContent>

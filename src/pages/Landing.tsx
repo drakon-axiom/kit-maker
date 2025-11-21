@@ -157,11 +157,14 @@ const Landing = () => {
               )}
             </div>
             <div className="flex gap-2">
-              <Button variant="ghost" onClick={() => navigate('/auth')}>
-                Sign In
+              <Button variant="outline" size="sm" onClick={() => navigate('/admin-login')} className="text-xs">
+                Admin
               </Button>
-              <Button onClick={() => navigate('/auth')}>
-                Get Started
+              <Button variant="ghost" onClick={() => navigate('/auth')}>
+                Customer Sign In
+              </Button>
+              <Button onClick={() => navigate('/wholesale-signup')}>
+                Apply Now
               </Button>
             </div>
           </div>
