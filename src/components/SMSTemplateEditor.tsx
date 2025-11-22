@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Plus, Edit, Trash2, MessageSquare, Save, X } from "lucide-react";
+import { Loader2, Plus, Edit, Trash2, MessageSquare, Save, X, Send } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface SMSTemplate {
@@ -49,6 +49,10 @@ export const SMSTemplateEditor = () => {
     message_template: "",
     available_variables: COMMON_VARIABLES,
   });
+  const [testDialogOpen, setTestDialogOpen] = useState(false);
+  const [testTemplate, setTestTemplate] = useState<SMSTemplate | null>(null);
+  const [testPhoneNumber, setTestPhoneNumber] = useState("");
+  const [sendingTest, setSendingTest] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -200,6 +204,49 @@ export const SMSTemplateEditor = () => {
     return preview;
   };
 
+  const handleSendTest = async () => {
+    if (!testPhoneNumber || !testTemplate) {
+      toast({
+        title: "Missing information",
+        description: "Please enter a phone number",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setSendingTest(true);
+    try {
+      const previewMessage = getPreviewMessage(testTemplate.message_template);
+      
+      const { error } = await supabase.functions.invoke("send-sms-notification", {
+        body: {
+          phoneNumber: testPhoneNumber,
+          eventType: "test",
+          testMessage: previewMessage,
+        },
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Test SMS sent",
+        description: `Test message sent to ${testPhoneNumber}`,
+      });
+
+      setTestDialogOpen(false);
+      setTestPhoneNumber("");
+      setTestTemplate(null);
+    } catch (error: any) {
+      toast({
+        title: "Error sending test SMS",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setSendingTest(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center p-8">
@@ -324,6 +371,17 @@ export const SMSTemplateEditor = () => {
                   <Button
                     variant="ghost"
                     size="sm"
+                    onClick={() => {
+                      setTestTemplate(template);
+                      setTestDialogOpen(true);
+                    }}
+                    title="Send test SMS"
+                  >
+                    <Send className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
                     onClick={() => setEditingTemplate(template)}
                   >
                     <Edit className="h-4 w-4" />
@@ -434,6 +492,16 @@ export const SMSTemplateEditor = () => {
               </div>
             </div>
             <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setTestTemplate(editingTemplate);
+                  setTestDialogOpen(true);
+                }}
+              >
+                <Send className="h-4 w-4 mr-2" />
+                Send Test
+              </Button>
               <Button variant="outline" onClick={() => setEditingTemplate(null)}>
                 <X className="h-4 w-4 mr-2" />
                 Cancel
@@ -446,6 +514,65 @@ export const SMSTemplateEditor = () => {
           </DialogContent>
         </Dialog>
       )}
+
+      <Dialog open={testDialogOpen} onOpenChange={setTestDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Send Test SMS</DialogTitle>
+            <DialogDescription>
+              Send a test SMS to verify the template works correctly
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="test-phone">Phone Number</Label>
+              <Input
+                id="test-phone"
+                placeholder="+1234567890"
+                value={testPhoneNumber}
+                onChange={(e) => setTestPhoneNumber(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Include country code (e.g., +1 for US)
+              </p>
+            </div>
+            {testTemplate && (
+              <div>
+                <Label>Message Preview</Label>
+                <div className="p-3 bg-muted rounded-md text-sm">
+                  {getPreviewMessage(testTemplate.message_template)}
+                </div>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setTestDialogOpen(false);
+                setTestPhoneNumber("");
+                setTestTemplate(null);
+              }}
+              disabled={sendingTest}
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleSendTest} disabled={sendingTest}>
+              {sendingTest ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Sending...
+                </>
+              ) : (
+                <>
+                  <Send className="h-4 w-4 mr-2" />
+                  Send Test
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
