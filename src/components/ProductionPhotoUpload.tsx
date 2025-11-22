@@ -89,12 +89,8 @@ export const ProductionPhotoUpload = ({
 
       if (uploadError) throw uploadError;
 
-      // Get public URL
-      const { data: { publicUrl } } = supabase.storage
-        .from("production-photos")
-        .getPublicUrl(filePath);
-
-      // Create database record
+      // Create database record with file path only
+      // Signed URLs will be generated on-demand when viewing
       const { error: dbError } = await supabase
         .from("production_photos")
         .insert({

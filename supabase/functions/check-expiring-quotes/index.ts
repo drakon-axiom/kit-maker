@@ -13,17 +13,8 @@ serve(async (req) => {
   }
 
   try {
-    // Validate webhook secret for scheduled/cron calls
-    const webhookSecret = req.headers.get("x-webhook-secret");
-    const expectedSecret = Deno.env.get("INTERNAL_WEBHOOK_SECRET");
-    
-    if (webhookSecret !== expectedSecret) {
-      console.error("Invalid or missing webhook secret");
-      return new Response(
-        JSON.stringify({ error: "Unauthorized" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
+    // JWT authentication is handled by Supabase (verify_jwt = true in config.toml)
+    // This function should only be called with proper service role authentication
 
     console.log("Starting quote expiration check...");
 

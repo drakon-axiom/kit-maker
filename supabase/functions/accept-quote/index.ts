@@ -72,6 +72,24 @@ serve(async (req) => {
       throw new Error("You are not authorized to accept this quote");
     }
 
+    // Rate limiting: Check for recent quote acceptances
+    const { data: recentActions } = await supabase
+      .from('quote_actions')
+      .select('created_at')
+      .eq('so_id', orderId)
+      .eq('action_by', user.id)
+      .order('created_at', { ascending: false })
+      .limit(1);
+
+    if (recentActions && recentActions.length > 0) {
+      const lastActionTime = new Date(recentActions[0].created_at);
+      const minutesSinceLastAction = (Date.now() - lastActionTime.getTime()) / (1000 * 60);
+      
+      if (minutesSinceLastAction < 5) {
+        throw new Error('Please wait a few minutes before trying again');
+      }
+    }
+
     // Check if order is in correct status
     if (order.status !== "quoted") {
       throw new Error("Order is not in quoted status");

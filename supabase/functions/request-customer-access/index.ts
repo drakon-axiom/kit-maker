@@ -88,6 +88,29 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Rate limiting: Check for recent requests (within 24 hours)
+    const { data: recentRequests } = await supabase
+      .from('customer_access_requests')
+      .select('requested_at')
+      .eq('customer_id', customerId)
+      .order('requested_at', { ascending: false })
+      .limit(1);
+
+    if (recentRequests && recentRequests.length > 0) {
+      const lastRequestTime = new Date(recentRequests[0].requested_at);
+      const hoursSinceLastRequest = (now.getTime() - lastRequestTime.getTime()) / (1000 * 60 * 60);
+      
+      if (hoursSinceLastRequest < 24) {
+        return new Response(
+          JSON.stringify({ 
+            error: 'Please wait 24 hours between access requests',
+            nextAllowedRequest: new Date(lastRequestTime.getTime() + 24 * 60 * 60 * 1000).toISOString()
+          }),
+          { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+
     // Check if there's already a pending request
     const { data: existingRequest } = await supabase
       .from('customer_access_requests')
