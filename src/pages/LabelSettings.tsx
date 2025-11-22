@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import DOMPurify from 'dompurify';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -615,7 +616,7 @@ const LabelSettingsPage = () => {
                   maxHeight: '600px',
                 }}
               >
-                <div dangerouslySetInnerHTML={{ __html: generatePreviewHtml(settings) }} />
+                <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(generatePreviewHtml(settings)) }} />
               </div>
               <p className="text-xs text-muted-foreground">
                 Preview shows sample data. Actual labels will use real order/batch data.

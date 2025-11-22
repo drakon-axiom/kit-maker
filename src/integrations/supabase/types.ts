@@ -484,6 +484,13 @@ export type Database = {
             foreignKeyName: "invoices_so_id_fkey"
             columns: ["so_id"]
             isOneToOne: false
+            referencedRelation: "public_quotes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_so_id_fkey"
+            columns: ["so_id"]
+            isOneToOne: false
             referencedRelation: "sales_orders"
             referencedColumns: ["id"]
           },
@@ -674,6 +681,13 @@ export type Database = {
             foreignKeyName: "order_comments_so_id_fkey"
             columns: ["so_id"]
             isOneToOne: false
+            referencedRelation: "public_quotes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_comments_so_id_fkey"
+            columns: ["so_id"]
+            isOneToOne: false
             referencedRelation: "sales_orders"
             referencedColumns: ["id"]
           },
@@ -720,6 +734,13 @@ export type Database = {
           stripe_session_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "payment_transactions_so_id_fkey"
+            columns: ["so_id"]
+            isOneToOne: false
+            referencedRelation: "public_quotes"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "payment_transactions_so_id_fkey"
             columns: ["so_id"]
@@ -825,6 +846,13 @@ export type Database = {
             foreignKeyName: "production_batches_so_id_fkey"
             columns: ["so_id"]
             isOneToOne: false
+            referencedRelation: "public_quotes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "production_batches_so_id_fkey"
+            columns: ["so_id"]
+            isOneToOne: false
             referencedRelation: "sales_orders"
             referencedColumns: ["id"]
           },
@@ -867,6 +895,13 @@ export type Database = {
             columns: ["batch_id"]
             isOneToOne: false
             referencedRelation: "production_batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "production_photos_so_id_fkey"
+            columns: ["so_id"]
+            isOneToOne: false
+            referencedRelation: "public_quotes"
             referencedColumns: ["id"]
           },
           {
@@ -932,6 +967,13 @@ export type Database = {
             foreignKeyName: "quote_actions_so_id_fkey"
             columns: ["so_id"]
             isOneToOne: false
+            referencedRelation: "public_quotes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quote_actions_so_id_fkey"
+            columns: ["so_id"]
+            isOneToOne: false
             referencedRelation: "sales_orders"
             referencedColumns: ["id"]
           },
@@ -977,6 +1019,13 @@ export type Database = {
             columns: ["sku_id"]
             isOneToOne: false
             referencedRelation: "skus"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_order_lines_so_id_fkey"
+            columns: ["so_id"]
+            isOneToOne: false
+            referencedRelation: "public_quotes"
             referencedColumns: ["id"]
           },
           {
@@ -1209,6 +1258,13 @@ export type Database = {
             foreignKeyName: "shipments_so_id_fkey"
             columns: ["so_id"]
             isOneToOne: false
+            referencedRelation: "public_quotes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shipments_so_id_fkey"
+            columns: ["so_id"]
+            isOneToOne: false
             referencedRelation: "sales_orders"
             referencedColumns: ["id"]
           },
@@ -1410,6 +1466,13 @@ export type Database = {
             foreignKeyName: "sms_logs_so_id_fkey"
             columns: ["so_id"]
             isOneToOne: false
+            referencedRelation: "public_quotes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sms_logs_so_id_fkey"
+            columns: ["so_id"]
+            isOneToOne: false
             referencedRelation: "sales_orders"
             referencedColumns: ["id"]
           },
@@ -1599,7 +1662,21 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      public_quotes: {
+        Row: {
+          created_at: string | null
+          customer_name: string | null
+          deposit_amount: number | null
+          deposit_required: boolean | null
+          human_uid: string | null
+          id: string | null
+          quote_expires_at: string | null
+          quote_link_token: string | null
+          status: Database["public"]["Enums"]["order_status"] | null
+          subtotal: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       generate_batch_number: { Args: { sku_code: string }; Returns: string }
