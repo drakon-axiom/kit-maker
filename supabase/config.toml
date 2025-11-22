@@ -7,10 +7,10 @@ verify_jwt = true
 verify_jwt = true
 
 [functions.send-shipment-notification]
-verify_jwt = false
+verify_jwt = true
 
 [functions.send-order-notification]
-verify_jwt = false
+verify_jwt = true
 
 [functions.email-test]
 verify_jwt = true
@@ -22,7 +22,7 @@ verify_jwt = false
 verify_jwt = true
 
 [functions.check-expiring-quotes]
-verify_jwt = false
+verify_jwt = true
 
 [functions.renew-quote]
 verify_jwt = true

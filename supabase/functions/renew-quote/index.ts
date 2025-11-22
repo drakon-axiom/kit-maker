@@ -83,6 +83,33 @@ serve(async (req) => {
       throw new Error("You are not authorized to renew this quote");
     }
 
+    // Rate limiting: Check for recent renewals
+    const { data: recentActions } = await supabase
+      .from('quote_actions')
+      .select('created_at')
+      .eq('so_id', orderId)
+      .eq('action', 'renewed')
+      .order('created_at', { ascending: false })
+      .limit(1);
+
+    if (recentActions && recentActions.length > 0) {
+      const lastRenewalTime = new Date(recentActions[0].created_at);
+      const hoursSinceLastRenewal = (Date.now() - lastRenewalTime.getTime()) / (1000 * 60 * 60);
+      
+      if (hoursSinceLastRenewal < 24) {
+        return new Response(
+          JSON.stringify({ 
+            error: 'Quote renewals are limited to once per 24 hours',
+            nextAllowedRenewal: new Date(lastRenewalTime.getTime() + 24 * 60 * 60 * 1000).toISOString()
+          }),
+          { 
+            status: 429,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          }
+        );
+      }
+    }
+
     // Calculate new expiration date
     const daysToAdd = additionalDays || order.quote_expiration_days || 30;
     const newExpirationDate = new Date();
