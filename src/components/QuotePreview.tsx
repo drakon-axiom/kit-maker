@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import DOMPurify from 'dompurify';
 
 interface QuotePreviewProps {
   open: boolean;
@@ -170,7 +171,7 @@ const QuotePreview = ({ open, onOpenChange, order, onSend, sending }: QuotePrevi
 
         <div className="border rounded-lg overflow-hidden">
           {/* Email Preview */}
-          <div dangerouslySetInnerHTML={{ __html: generatePreviewHtml() }} />
+          <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(generatePreviewHtml()) }} />
         </div>
 
         <DialogFooter className="gap-2">

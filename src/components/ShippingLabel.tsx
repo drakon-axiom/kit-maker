@@ -1,6 +1,7 @@
 import { forwardRef } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { renderToStaticMarkup } from 'react-dom/server';
+import DOMPurify from 'dompurify';
 
 interface LabelSettings {
   size_width: number;
@@ -89,7 +90,7 @@ const ShippingLabel = forwardRef<HTMLDivElement, ShippingLabelProps>(
               }
             }
           `}</style>
-          <div dangerouslySetInnerHTML={{ __html: replaceVariables(settings.custom_html) }} />
+          <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(replaceVariables(settings.custom_html)) }} />
         </div>
       );
     }

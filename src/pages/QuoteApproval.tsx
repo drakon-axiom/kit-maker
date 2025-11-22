@@ -27,29 +27,43 @@ export default function QuoteApproval() {
       }
 
       try {
-        // Bypass type inference issues with direct any cast
-        const result = await (supabase as any)
-          .from("sales_orders")
-          .select(`
-            *,
-            customer:customers (
-              name,
-              email,
-              phone
-            ),
-            sales_order_lines (
-              qty_entered,
-              bottle_qty,
-              unit_price,
-              line_subtotal,
-              sku:skus (
-                code,
-                description
-              )
-            )
-          `)
+        // Use the secure public_quotes view that only exposes necessary data
+        const quoteResult = await supabase
+          .from("public_quotes")
+          .select("*")
           .eq("quote_link_token", token)
           .single();
+
+        if (quoteResult.error || !quoteResult.data) {
+          setError("Quote not found or link expired");
+          setLoading(false);
+          return;
+        }
+
+        // Get line items separately using the order ID
+        const linesResult = await supabase
+          .from("sales_order_lines")
+          .select(`
+            qty_entered,
+            bottle_qty,
+            unit_price,
+            line_subtotal,
+            sku:skus (
+              code,
+              description
+            )
+          `)
+          .eq("so_id", quoteResult.data.id);
+
+        // Combine the data
+        const result = {
+          data: {
+            ...quoteResult.data,
+            customer: { name: quoteResult.data.customer_name },
+            sales_order_lines: linesResult.data || []
+          },
+          error: null
+        };
 
         if (result.error || !result.data) {
           setError("Quote not found or link expired");
