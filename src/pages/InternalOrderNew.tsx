@@ -30,8 +30,15 @@ interface SKU {
   description: string;
   price_per_kit: number;
   price_per_piece: number;
+  pack_size: number | null;
   use_tier_pricing: boolean;
   pricing_tiers?: PricingTier[];
+  bundle_product_price: number | null;
+  bundle_labeling_price: number | null;
+  bundle_labor_price: number | null;
+  bundle_overhead_price: number | null;
+  bundle_packaging_price: number | null;
+  bundle_inserts_price: number | null;
 }
 
 interface OrderLine {
@@ -93,30 +100,37 @@ const InternalOrderNew = () => {
     }
   };
 
-  const getPriceForQuantity = (sku: SKU, quantity: number): number => {
-    if (!sku.use_tier_pricing || !sku.pricing_tiers || sku.pricing_tiers.length === 0) {
-      return sku.price_per_kit;
-    }
+  // Calculate total cost (sum of all bundle components) for internal orders
+  const getCostPerKit = (sku: SKU): number => {
+    const productCost = sku.bundle_product_price || 0;
+    const labelingCost = sku.bundle_labeling_price || 0;
+    const laborCost = sku.bundle_labor_price || 0;
+    const overheadCost = sku.bundle_overhead_price || 0;
+    const packagingCost = sku.bundle_packaging_price || 0;
+    const insertsCost = sku.bundle_inserts_price || 0;
+    
+    return productCost + labelingCost + laborCost + overheadCost + packagingCost + insertsCost;
+  };
 
-    const tier = sku.pricing_tiers.find(t => 
-      quantity >= t.min_quantity && (t.max_quantity === null || quantity <= t.max_quantity)
-    );
-
-    return tier ? tier.price_per_kit : sku.price_per_kit;
+  const getCostPerPiece = (sku: SKU): number => {
+    const costPerKit = getCostPerKit(sku);
+    const packSize = sku.pack_size || 1;
+    return costPerKit / packSize;
   };
 
   const addLine = () => {
     if (skus.length === 0) return;
     
     const defaultSKU = skus[0];
+    const costPerKit = getCostPerKit(defaultSKU);
     const newLine: OrderLine = {
       sku_id: defaultSKU.id,
       sku_code: defaultSKU.code,
       sku_description: defaultSKU.description,
       sell_mode: 'kit',
       qty_entered: 1,
-      unit_price: defaultSKU.price_per_kit,
-      line_subtotal: defaultSKU.price_per_kit,
+      unit_price: costPerKit,
+      line_subtotal: costPerKit,
       bottle_qty: kitSize,
     };
     setLines([...lines, newLine]);
@@ -132,8 +146,9 @@ const InternalOrderNew = () => {
         line.sku_id = sku.id;
         line.sku_code = sku.code;
         line.sku_description = sku.description;
-        line.unit_price = sku.price_per_kit;
-        line.line_subtotal = line.qty_entered * sku.price_per_kit;
+        const costPerKit = getCostPerKit(sku);
+        line.unit_price = costPerKit;
+        line.line_subtotal = line.qty_entered * costPerKit;
       }
     } else if (field === 'qty_entered') {
       const qty = parseInt(value) || 0;
@@ -141,9 +156,9 @@ const InternalOrderNew = () => {
       
       const sku = skus.find(s => s.id === line.sku_id);
       if (sku) {
-        const pricePerKit = getPriceForQuantity(sku, qty);
-        line.unit_price = pricePerKit;
-        line.line_subtotal = qty * pricePerKit;
+        const cost = line.sell_mode === 'kit' ? getCostPerKit(sku) : getCostPerPiece(sku);
+        line.unit_price = cost;
+        line.line_subtotal = qty * cost;
       }
       
       if (line.sell_mode === 'kit') {
@@ -156,10 +171,10 @@ const InternalOrderNew = () => {
       const sku = skus.find(s => s.id === line.sku_id);
       if (sku) {
         if (value === 'kit') {
-          line.unit_price = getPriceForQuantity(sku, line.qty_entered);
+          line.unit_price = getCostPerKit(sku);
           line.bottle_qty = line.qty_entered * kitSize;
         } else {
-          line.unit_price = sku.price_per_piece;
+          line.unit_price = getCostPerPiece(sku);
           line.bottle_qty = line.qty_entered;
         }
         line.line_subtotal = line.qty_entered * line.unit_price;
@@ -306,7 +321,7 @@ const InternalOrderNew = () => {
                   <SelectTrigger>
                     <SelectValue placeholder="Select brand" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="max-h-[300px] overflow-y-auto bg-background z-50">
                     {brands.map(brand => (
                       <SelectItem key={brand.id} value={brand.id}>
                         {brand.name}
@@ -340,7 +355,7 @@ const InternalOrderNew = () => {
                   <TableHead>SKU</TableHead>
                   <TableHead>Mode</TableHead>
                   <TableHead>Quantity</TableHead>
-                  <TableHead>Unit Cost</TableHead>
+                  <TableHead>My Cost</TableHead>
                   <TableHead>Bottles</TableHead>
                   <TableHead>Subtotal</TableHead>
                   <TableHead></TableHead>
@@ -357,7 +372,7 @@ const InternalOrderNew = () => {
                         <SelectTrigger className="w-[200px]">
                           <SelectValue />
                         </SelectTrigger>
-                        <SelectContent>
+                        <SelectContent className="max-h-[300px] overflow-y-auto bg-background z-50">
                           {skus.map(sku => (
                             <SelectItem key={sku.id} value={sku.id}>
                               {sku.code} - {sku.description}
@@ -374,7 +389,7 @@ const InternalOrderNew = () => {
                         <SelectTrigger className="w-[100px]">
                           <SelectValue />
                         </SelectTrigger>
-                        <SelectContent>
+                        <SelectContent className="bg-background z-50">
                           <SelectItem value="kit">Kit</SelectItem>
                           <SelectItem value="piece">Piece</SelectItem>
                         </SelectContent>
