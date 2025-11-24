@@ -1,0 +1,297 @@
+{
+    "formula_name": "Lipo-C BioBoost Plus v3.0 (Enhanced)",
+    "batch_size_ml": 2500,
+    "delivery_route": [
+        "Intramuscular (IM)",
+        "Slow Intravenous (IV)"
+    ],
+    "storage": {
+        "preferred": "Refrigerated (2–8°C)",
+        "alternate": "Room Temperature (20–25°C, protected from light)",
+        "notes": [
+            "Do not freeze",
+            "Discard opened vials after 30 days"
+        ]
+    },
+    "enhanced_additives": [
+        {
+            "name": "EDTA Disodium",
+            "concentration": "0.01%",
+            "amount_g": 0.25
+        },
+        {
+            "name": "Polysorbate 80",
+            "concentration": "0.01%",
+            "amount_g": 0.25
+        },
+        {
+            "name": "Propylene Glycol",
+            "concentration": "10%",
+            "amount_ml": 250.0
+        }
+    ],
+    "ingredients": [
+        {
+            "name": "Methionine",
+            "amount_g": 62.5
+        },
+        {
+            "name": "Myo-Inositol (B8)",
+            "amount_g": 125.0
+        },
+        {
+            "name": "Choline Chloride",
+            "amount_g": 125.0
+        },
+        {
+            "name": "Pyridoxine HCl (B6)",
+            "amount_g": 62.5
+        },
+        {
+            "name": "Sodium D-Pantothenate (B5)",
+            "amount_g": 67.94
+        },
+        {
+            "name": "L-Arginine HCl",
+            "amount_g": 37.5
+        },
+        {
+            "name": "L-Carnitine Base",
+            "amount_g": 125.0
+        },
+        {
+            "name": "Methylcobalamin (B12)",
+            "amount_g": 2.5
+        },
+        {
+            "name": "Sodium Dihydrogen Phosphate",
+            "amount_g": 15.0
+        },
+        {
+            "name": "Disodium Hydrogen Phosphate",
+            "amount_g": 20.0
+        },
+        {
+            "name": "Benzyl Alcohol (0.9%)",
+            "amount_g": 22.5
+        },
+        {
+            "name": "Sodium Metabisulfite (0.1%)",
+            "amount_g": 2.5
+        },
+        {
+            "name": "Sodium Chloride (NaCl)",
+            "amount_g": 6.66
+        },
+        {
+            "name": "Propylene Glycol (USP)",
+            "amount_ml": 250.0
+        },
+        {
+            "name": "EDTA Disodium (USP)",
+            "amount_g": 0.25
+        },
+        {
+            "name": "Polysorbate 80 (USP)",
+            "amount_g": 0.25
+        },
+        {
+            "name": "Sterile Water for Injection",
+            "amount": "q.s. to 2500 mL"
+        }
+    ],
+    "preparation_steps": [
+        {
+            "step": 1,
+            "title": "Preparation",
+            "actions": [
+                "Sanitize work area and equipment",
+                "Wear appropriate PPE (gloves, lab coat, safety glasses)",
+                "Ensure all ingredients are at room temperature",
+                "Label the batch container with batch number and date"
+            ]
+        },
+        {
+            "step": 2,
+            "title": "Measure Propylene Glycol",
+            "actions": [
+                "Measure 250 mL of Propylene Glycol (USP) using graduated cylinder",
+                "Transfer to main mixing vessel"
+            ]
+        },
+        {
+            "step": 3,
+            "title": "Add Phosphate Buffers",
+            "actions": [
+                "Weigh 15.0g Sodium Dihydrogen Phosphate",
+                "Weigh 20.0g Disodium Hydrogen Phosphate",
+                "Add both to mixing vessel",
+                "Stir until dissolved"
+            ]
+        },
+        {
+            "step": 4,
+            "title": "Add Primary Ingredients",
+            "actions": [
+                "Weigh and add Methionine (62.5g)",
+                "Weigh and add Myo-Inositol (125.0g)",
+                "Weigh and add Choline Chloride (125.0g)",
+                "Weigh and add Pyridoxine HCl (62.5g)",
+                "Weigh and add Sodium D-Pantothenate (67.94g)",
+                "Stir thoroughly between each addition"
+            ]
+        },
+        {
+            "step": 5,
+            "title": "Add Amino Acids",
+            "actions": [
+                "Weigh and add L-Arginine HCl (37.5g)",
+                "Weigh and add L-Carnitine Base (125.0g)",
+                "Mix until fully dissolved"
+            ]
+        },
+        {
+            "step": 6,
+            "title": "Add B12",
+            "actions": [
+                "Weigh 2.5g Methylcobalamin (B12)",
+                "Add slowly while stirring",
+                "Ensure complete dissolution"
+            ]
+        },
+        {
+            "step": 7,
+            "title": "Add Preservatives",
+            "actions": [
+                "Weigh and add Benzyl Alcohol (22.5g)",
+                "Weigh and add Sodium Metabisulfite (2.5g)",
+                "Mix thoroughly"
+            ]
+        },
+        {
+            "step": 8,
+            "title": "Add Stabilizers",
+            "actions": [
+                "Weigh and add EDTA Disodium (0.25g)",
+                "Weigh and add Polysorbate 80 (0.25g)",
+                "Mix until fully incorporated"
+            ]
+        },
+        {
+            "step": 9,
+            "title": "Add Sodium Chloride",
+            "actions": [
+                "Weigh 6.66g Sodium Chloride (NaCl)",
+                "Add to mixture",
+                "Stir until dissolved"
+            ]
+        },
+        {
+            "step": 10,
+            "title": "Q.S. to Final Volume",
+            "actions": [
+                "Add Sterile Water for Injection gradually",
+                "Mix continuously",
+                "Bring total volume to exactly 2500 mL",
+                "Use graduated cylinder for final volume check"
+            ]
+        },
+        {
+            "step": 11,
+            "title": "pH Adjustment",
+            "actions": [
+                "Check pH using calibrated pH meter",
+                "Target pH: 6.0-7.0",
+                "Adjust if necessary with small amounts of sodium hydroxide or hydrochloric acid",
+                "Record final pH on batch record"
+            ]
+        },
+        {
+            "step": 12,
+            "title": "Filtration",
+            "actions": [
+                "Filter through 0.2 micron sterile filter",
+                "Collect filtrate in sterile receiving vessel",
+                "Perform filtration under laminar flow hood"
+            ]
+        },
+        {
+            "step": 13,
+            "title": "Filling",
+            "actions": [
+                "Fill sterile vials with exact volume per vial specification",
+                "Seal vials immediately with sterile stoppers",
+                "Crimp seal all vials",
+                "Work continuously under laminar flow hood"
+            ]
+        },
+        {
+            "step": 14,
+            "title": "Labeling",
+            "actions": [
+                "Apply product labels to each vial",
+                "Include: Product name, batch number, date, expiration date, storage instructions",
+                "Verify all labels are accurate and legible"
+            ]
+        },
+        {
+            "step": 15,
+            "title": "Quality Control",
+            "actions": [
+                "Visual inspection: Check for particulates, color, clarity",
+                "Record observations on QC form",
+                "Set aside samples for sterility testing if required",
+                "Record batch yield"
+            ]
+        },
+        {
+            "step": 16,
+            "title": "Storage",
+            "actions": [
+                "Place vials in designated storage area",
+                "Preferred: Refrigerated storage (2-8°C)",
+                "Alternate: Room temperature (20-25°C) protected from light",
+                "Record storage location and date"
+            ]
+        },
+        {
+            "step": 17,
+            "title": "Documentation",
+            "actions": [
+                "Complete batch production record",
+                "Sign and date all documentation",
+                "File in batch records archive",
+                "Enter batch information into inventory system"
+            ]
+        }
+    ],
+    "safety_notes": [
+        "All personnel must be trained in aseptic technique",
+        "Work under laminar flow hood for sterile operations",
+        "Dispose of waste according to facility protocols",
+        "Report any deviations or contamination immediately",
+        "Emergency contact: [Supervisor Name/Number]"
+    ],
+    "quality_checks": [
+        {
+            "check": "Visual clarity",
+            "acceptance": "Clear, no particulates"
+        },
+        {
+            "check": "Color",
+            "acceptance": "Pink to red (B12 color)"
+        },
+        {
+            "check": "pH",
+            "acceptance": "6.0 - 7.0"
+        },
+        {
+            "check": "Volume",
+            "acceptance": "2500 mL ± 25 mL"
+        },
+        {
+            "check": "Sterility",
+            "acceptance": "No growth after incubation"
+        }
+    ]
+}

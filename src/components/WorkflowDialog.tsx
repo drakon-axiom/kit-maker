@@ -1,0 +1,217 @@
+import { useState, useEffect } from "react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
+import { CheckCircle2, Circle, ChevronLeft, ChevronRight, AlertTriangle } from "lucide-react";
+import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+
+interface WorkflowStep {
+  step: number;
+  title: string;
+  actions: string[];
+}
+
+interface WorkflowData {
+  formula_name: string;
+  batch_size_ml: number;
+  preparation_steps: WorkflowStep[];
+  safety_notes: string[];
+  quality_checks: Array<{
+    check: string;
+    acceptance: string;
+  }>;
+}
+
+interface WorkflowDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  batchNumber: string;
+  productCode: string;
+}
+
+export const WorkflowDialog = ({ open, onOpenChange, batchNumber, productCode }: WorkflowDialogProps) => {
+  const [currentStep, setCurrentStep] = useState(0);
+  const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set());
+  const [workflowData, setWorkflowData] = useState<WorkflowData | null>(null);
+
+  useEffect(() => {
+    if (open) {
+      // Load the workflow data
+      fetch('/sop/lipo_c_bioboost_plus_sop_gui.json')
+        .then(res => res.json())
+        .then(data => setWorkflowData(data))
+        .catch(err => console.error('Failed to load workflow:', err));
+    }
+  }, [open]);
+
+  if (!workflowData) {
+    return null;
+  }
+
+  const steps = workflowData.preparation_steps;
+  const progress = (completedSteps.size / steps.length) * 100;
+
+  const handleStepComplete = () => {
+    const newCompleted = new Set(completedSteps);
+    newCompleted.add(currentStep);
+    setCompletedSteps(newCompleted);
+    
+    if (currentStep < steps.length - 1) {
+      setCurrentStep(currentStep + 1);
+    }
+  };
+
+  const handlePrevious = () => {
+    if (currentStep > 0) {
+      setCurrentStep(currentStep - 1);
+    }
+  };
+
+  const handleNext = () => {
+    if (currentStep < steps.length - 1) {
+      setCurrentStep(currentStep + 1);
+    }
+  };
+
+  const currentStepData = steps[currentStep];
+  const isStepCompleted = completedSteps.has(currentStep);
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="text-2xl">
+            {workflowData.formula_name}
+          </DialogTitle>
+          <div className="flex items-center gap-4 text-sm text-muted-foreground">
+            <span>Batch: <strong>{batchNumber}</strong></span>
+            <span>Product: <strong>{productCode}</strong></span>
+            <span>Batch Size: <strong>{workflowData.batch_size_ml} mL</strong></span>
+          </div>
+        </DialogHeader>
+
+        <div className="space-y-6">
+          {/* Progress Bar */}
+          <div className="space-y-2">
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">Progress</span>
+              <span className="font-semibold">
+                {completedSteps.size} / {steps.length} steps completed
+              </span>
+            </div>
+            <Progress value={progress} className="h-2" />
+          </div>
+
+          {/* Safety Alert */}
+          {workflowData.safety_notes.length > 0 && (
+            <Alert>
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription>
+                <strong>Safety Reminders:</strong>
+                <ul className="list-disc list-inside mt-2 space-y-1">
+                  {workflowData.safety_notes.slice(0, 3).map((note, idx) => (
+                    <li key={idx} className="text-sm">{note}</li>
+                  ))}
+                </ul>
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {/* Step Navigation Pills */}
+          <div className="flex flex-wrap gap-2">
+            {steps.map((_, idx) => (
+              <Button
+                key={idx}
+                variant={idx === currentStep ? "default" : "outline"}
+                size="sm"
+                onClick={() => setCurrentStep(idx)}
+                className="relative"
+              >
+                {completedSteps.has(idx) && (
+                  <CheckCircle2 className="h-3 w-3 absolute -top-1 -right-1 text-green-500 bg-background rounded-full" />
+                )}
+                Step {idx + 1}
+              </Button>
+            ))}
+          </div>
+
+          {/* Current Step Card */}
+          <Card className="p-6 space-y-4">
+            <div className="flex items-start justify-between">
+              <div>
+                <Badge variant="secondary" className="mb-2">
+                  Step {currentStepData.step} of {steps.length}
+                </Badge>
+                <h3 className="text-2xl font-semibold">{currentStepData.title}</h3>
+              </div>
+              {isStepCompleted && (
+                <CheckCircle2 className="h-8 w-8 text-green-500" />
+              )}
+            </div>
+
+            <div className="space-y-3">
+              <p className="font-medium text-muted-foreground">Actions to complete:</p>
+              <ul className="space-y-2">
+                {currentStepData.actions.map((action, idx) => (
+                  <li key={idx} className="flex items-start gap-3">
+                    <Circle className="h-5 w-5 text-muted-foreground flex-shrink-0 mt-0.5" />
+                    <span className="text-base">{action}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </Card>
+
+          {/* Navigation Buttons */}
+          <div className="flex items-center justify-between gap-4">
+            <Button
+              variant="outline"
+              onClick={handlePrevious}
+              disabled={currentStep === 0}
+            >
+              <ChevronLeft className="h-4 w-4 mr-2" />
+              Previous
+            </Button>
+
+            <div className="flex gap-2">
+              {!isStepCompleted && (
+                <Button onClick={handleStepComplete}>
+                  Mark Complete
+                  <CheckCircle2 className="h-4 w-4 ml-2" />
+                </Button>
+              )}
+              {currentStep < steps.length - 1 && (
+                <Button onClick={handleNext} variant="outline">
+                  Next
+                  <ChevronRight className="h-4 w-4 ml-2" />
+                </Button>
+              )}
+              {currentStep === steps.length - 1 && completedSteps.size === steps.length && (
+                <Button onClick={() => onOpenChange(false)} variant="default">
+                  Finish Workflow
+                </Button>
+              )}
+            </div>
+          </div>
+
+          {/* Quality Checks Section */}
+          {currentStep === steps.length - 1 && workflowData.quality_checks.length > 0 && (
+            <Card className="p-4 bg-muted/50">
+              <h4 className="font-semibold mb-3">Final Quality Checks</h4>
+              <div className="space-y-2">
+                {workflowData.quality_checks.map((check, idx) => (
+                  <div key={idx} className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">{check.check}:</span>
+                    <span className="font-medium">{check.acceptance}</span>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+};
