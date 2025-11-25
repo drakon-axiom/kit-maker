@@ -8,6 +8,9 @@ import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/hooks/use-toast";
 
 interface WorkflowStep {
   step: number;
@@ -43,6 +46,11 @@ export const WorkflowDialog = ({ open, onOpenChange, batchId, batchNumber, produ
   const [isTimerRunning, setIsTimerRunning] = useState(false);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [laborRate, setLaborRate] = useState("25.00");
+  const [workflowStartTime, setWorkflowStartTime] = useState<Date | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  
+  const { user } = useAuth();
+  const { toast } = useToast();
 
   useEffect(() => {
     if (open) {
@@ -52,9 +60,12 @@ export const WorkflowDialog = ({ open, onOpenChange, batchId, batchNumber, produ
         .then(data => setWorkflowData(data))
         .catch(err => console.error('Failed to load workflow:', err));
       
-      // Reset timer when opening
+      // Reset timer and set start time when opening
       setElapsedSeconds(0);
       setIsTimerRunning(false);
+      setWorkflowStartTime(new Date());
+      setCompletedSteps(new Set());
+      setCurrentStep(0);
     }
   }, [open]);
 
@@ -84,6 +95,54 @@ export const WorkflowDialog = ({ open, onOpenChange, batchId, batchNumber, produ
 
   const toggleTimer = () => {
     setIsTimerRunning(!isTimerRunning);
+  };
+
+  const handleFinishWorkflow = async () => {
+    if (!user || !workflowStartTime) {
+      toast({
+        title: "Error",
+        description: "Unable to save workflow data",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      const completedAt = new Date();
+      const laborCost = parseFloat(calculateLaborCost());
+
+      const { error } = await supabase
+        .from('workflow_completions')
+        .insert({
+          batch_id: batchId,
+          operator_id: user.id,
+          started_at: workflowStartTime.toISOString(),
+          completed_at: completedAt.toISOString(),
+          elapsed_seconds: elapsedSeconds,
+          labor_rate_per_hour: parseFloat(laborRate),
+          labor_cost: laborCost,
+          steps_completed: completedSteps.size
+        });
+
+      if (error) throw error;
+
+      toast({
+        title: "Workflow Completed",
+        description: `Time: ${formatTime(elapsedSeconds)} • Cost: $${laborCost}`,
+      });
+
+      onOpenChange(false);
+    } catch (error) {
+      console.error('Error saving workflow completion:', error);
+      toast({
+        title: "Error",
+        description: "Failed to save workflow completion data",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   if (!workflowData) {
@@ -288,8 +347,15 @@ export const WorkflowDialog = ({ open, onOpenChange, batchId, batchNumber, produ
                 </Button>
               )}
               {currentStep === steps.length - 1 && completedSteps.size === steps.length && (
-                <Button onClick={() => onOpenChange(false)} variant="default">
-                  Finish Workflow
+                <Button onClick={handleFinishWorkflow} variant="default" disabled={isSaving}>
+                  {isSaving ? (
+                    <>
+                      <Clock className="h-4 w-4 mr-2 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    'Finish Workflow'
+                  )}
                 </Button>
               )}
             </div>
