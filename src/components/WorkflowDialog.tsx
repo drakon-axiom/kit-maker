@@ -2,10 +2,12 @@ import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { CheckCircle2, Circle, ChevronLeft, ChevronRight, AlertTriangle } from "lucide-react";
+import { CheckCircle2, Circle, ChevronLeft, ChevronRight, AlertTriangle, Play, Pause, Clock } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 interface WorkflowStep {
   step: number;
@@ -35,6 +37,11 @@ export const WorkflowDialog = ({ open, onOpenChange, batchNumber, productCode }:
   const [currentStep, setCurrentStep] = useState(0);
   const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set());
   const [workflowData, setWorkflowData] = useState<WorkflowData | null>(null);
+  
+  // Time tracking state
+  const [isTimerRunning, setIsTimerRunning] = useState(false);
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [laborRate, setLaborRate] = useState("25.00");
 
   useEffect(() => {
     if (open) {
@@ -43,8 +50,40 @@ export const WorkflowDialog = ({ open, onOpenChange, batchNumber, productCode }:
         .then(res => res.json())
         .then(data => setWorkflowData(data))
         .catch(err => console.error('Failed to load workflow:', err));
+      
+      // Reset timer when opening
+      setElapsedSeconds(0);
+      setIsTimerRunning(false);
     }
   }, [open]);
+
+  // Timer effect
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (isTimerRunning) {
+      interval = setInterval(() => {
+        setElapsedSeconds(prev => prev + 1);
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [isTimerRunning]);
+
+  const formatTime = (seconds: number) => {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
+    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const calculateLaborCost = () => {
+    const hours = elapsedSeconds / 3600;
+    const rate = parseFloat(laborRate) || 0;
+    return (hours * rate).toFixed(2);
+  };
+
+  const toggleTimer = () => {
+    setIsTimerRunning(!isTimerRunning);
+  };
 
   if (!workflowData) {
     return null;
@@ -93,6 +132,64 @@ export const WorkflowDialog = ({ open, onOpenChange, batchNumber, productCode }:
         </DialogHeader>
 
         <div className="space-y-6">
+          {/* Time Tracking Section */}
+          <Card className="p-4 bg-primary/5 border-primary/20">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <Button
+                  variant={isTimerRunning ? "destructive" : "default"}
+                  size="lg"
+                  onClick={toggleTimer}
+                  className="gap-2"
+                >
+                  {isTimerRunning ? (
+                    <>
+                      <Pause className="h-5 w-5" />
+                      Pause
+                    </>
+                  ) : (
+                    <>
+                      <Play className="h-5 w-5" />
+                      Start
+                    </>
+                  )}
+                </Button>
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <Clock className="h-5 w-5 text-primary" />
+                    <span className="text-2xl font-mono font-bold">
+                      {formatTime(elapsedSeconds)}
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {isTimerRunning ? 'Timer running...' : 'Timer paused'}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-end gap-4">
+                <div className="space-y-1">
+                  <Label htmlFor="labor-rate" className="text-xs">
+                    Labor Rate ($/hr)
+                  </Label>
+                  <Input
+                    id="labor-rate"
+                    type="number"
+                    step="0.01"
+                    value={laborRate}
+                    onChange={(e) => setLaborRate(e.target.value)}
+                    className="w-24"
+                  />
+                </div>
+                <div className="text-right">
+                  <p className="text-xs text-muted-foreground">Labor Cost</p>
+                  <p className="text-2xl font-bold text-primary">
+                    ${calculateLaborCost()}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </Card>
+
           {/* Progress Bar */}
           <div className="space-y-2">
             <div className="flex justify-between text-sm">
