@@ -29,11 +29,12 @@ interface WorkflowData {
 interface WorkflowDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  batchId: string;
   batchNumber: string;
   productCode: string;
 }
 
-export const WorkflowDialog = ({ open, onOpenChange, batchNumber, productCode }: WorkflowDialogProps) => {
+export const WorkflowDialog = ({ open, onOpenChange, batchId, batchNumber, productCode }: WorkflowDialogProps) => {
   const [currentStep, setCurrentStep] = useState(0);
   const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set());
   const [workflowData, setWorkflowData] = useState<WorkflowData | null>(null);
@@ -124,8 +125,9 @@ export const WorkflowDialog = ({ open, onOpenChange, batchNumber, productCode }:
           <DialogTitle className="text-2xl">
             {workflowData.formula_name}
           </DialogTitle>
-          <DialogDescription className="flex items-center gap-4 text-sm">
+          <DialogDescription className="flex flex-wrap items-center gap-4 text-sm">
             <span>Batch: <strong>{batchNumber}</strong></span>
+            <span>ID: <strong className="font-mono text-xs">{batchId}</strong></span>
             <span>Product: <strong>{productCode}</strong></span>
             <span>Batch Size: <strong>{workflowData.batch_size_ml} mL</strong></span>
           </DialogDescription>
