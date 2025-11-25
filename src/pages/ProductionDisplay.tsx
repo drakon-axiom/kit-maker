@@ -48,7 +48,7 @@ const ProductionDisplay = () => {
     setIsFullscreen(!isFullscreen);
   };
 
-  const { data: batches } = useQuery({
+  const { data: batches, refetch } = useQuery({
     queryKey: ["production-display-batches"],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -75,6 +75,28 @@ const ProductionDisplay = () => {
     },
     refetchInterval: 10000, // Refresh every 10 seconds
   });
+
+  // Real-time subscription for batch updates
+  useEffect(() => {
+    const channel = supabase
+      .channel('production-display-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'production_batches'
+        },
+        () => {
+          refetch();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [refetch]);
 
   const queuedBatches = batches?.filter(b => b.status === "queued") || [];
   const inProgressBatches = batches?.filter(b => b.status === "wip") || [];

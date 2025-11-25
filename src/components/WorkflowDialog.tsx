@@ -66,8 +66,21 @@ export const WorkflowDialog = ({ open, onOpenChange, batchId, batchNumber, produ
       setWorkflowStartTime(new Date());
       setCompletedSteps(new Set());
       setCurrentStep(0);
+
+      // Update batch status to 'wip' when workflow opens
+      const updateBatchStatus = async () => {
+        const { error } = await supabase
+          .from('production_batches')
+          .update({ status: 'wip' })
+          .eq('id', batchId);
+        
+        if (error) {
+          console.error('Error updating batch status:', error);
+        }
+      };
+      updateBatchStatus();
     }
-  }, [open]);
+  }, [open, batchId]);
 
   // Timer effect
   useEffect(() => {
