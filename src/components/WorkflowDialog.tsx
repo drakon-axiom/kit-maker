@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { CheckCircle2, Circle, ChevronLeft, ChevronRight, AlertTriangle, Play, Pause, Clock } from "lucide-react";
@@ -89,8 +89,8 @@ export const WorkflowDialog = ({ open, onOpenChange, batchNumber, productCode }:
     return null;
   }
 
-  const steps = workflowData.preparation_steps;
-  const progress = (completedSteps.size / steps.length) * 100;
+  const steps = workflowData.preparation_steps || [];
+  const progress = steps.length > 0 ? (completedSteps.size / steps.length) * 100 : 0;
 
   const handleStepComplete = () => {
     const newCompleted = new Set(completedSteps);
@@ -114,7 +114,7 @@ export const WorkflowDialog = ({ open, onOpenChange, batchNumber, productCode }:
     }
   };
 
-  const currentStepData = steps[currentStep];
+  const currentStepData = steps[currentStep] || { step: 1, title: '', actions: [] };
   const isStepCompleted = completedSteps.has(currentStep);
 
   return (
@@ -124,11 +124,11 @@ export const WorkflowDialog = ({ open, onOpenChange, batchNumber, productCode }:
           <DialogTitle className="text-2xl">
             {workflowData.formula_name}
           </DialogTitle>
-          <div className="flex items-center gap-4 text-sm text-muted-foreground">
+          <DialogDescription className="flex items-center gap-4 text-sm">
             <span>Batch: <strong>{batchNumber}</strong></span>
             <span>Product: <strong>{productCode}</strong></span>
             <span>Batch Size: <strong>{workflowData.batch_size_ml} mL</strong></span>
-          </div>
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6">
@@ -202,7 +202,7 @@ export const WorkflowDialog = ({ open, onOpenChange, batchNumber, productCode }:
           </div>
 
           {/* Safety Alert */}
-          {workflowData.safety_notes.length > 0 && (
+          {workflowData.safety_notes && workflowData.safety_notes.length > 0 && (
             <Alert>
               <AlertTriangle className="h-4 w-4" />
               <AlertDescription>
@@ -294,7 +294,7 @@ export const WorkflowDialog = ({ open, onOpenChange, batchNumber, productCode }:
           </div>
 
           {/* Quality Checks Section */}
-          {currentStep === steps.length - 1 && workflowData.quality_checks.length > 0 && (
+          {currentStep === steps.length - 1 && workflowData.quality_checks && workflowData.quality_checks.length > 0 && (
             <Card className="p-4 bg-muted/50">
               <h4 className="font-semibold mb-3">Final Quality Checks</h4>
               <div className="space-y-2">
