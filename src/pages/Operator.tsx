@@ -43,7 +43,7 @@ interface Batch {
     human_uid: string;
     customers: {
       name: string;
-    };
+    } | null;
   };
 }
 
@@ -360,7 +360,7 @@ const Operator = () => {
                 <div>
                   <CardTitle className="font-mono">{batch.human_uid}</CardTitle>
                   <CardDescription>
-                    Order: {batch.sales_orders.human_uid} • Customer: {batch.sales_orders.customers.name}
+                    Order: {batch.sales_orders.human_uid} • Customer: {batch.sales_orders.customers?.name || 'Internal Order'}
                   </CardDescription>
                 </div>
                 <Badge className={getBatchStatusColor(batch.status)}>
