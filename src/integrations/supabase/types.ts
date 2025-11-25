@@ -1616,6 +1616,56 @@ export type Database = {
         }
         Relationships: []
       }
+      workflow_completions: {
+        Row: {
+          batch_id: string
+          completed_at: string
+          created_at: string
+          elapsed_seconds: number
+          id: string
+          labor_cost: number
+          labor_rate_per_hour: number
+          notes: string | null
+          operator_id: string
+          started_at: string
+          steps_completed: number
+        }
+        Insert: {
+          batch_id: string
+          completed_at: string
+          created_at?: string
+          elapsed_seconds: number
+          id?: string
+          labor_cost: number
+          labor_rate_per_hour: number
+          notes?: string | null
+          operator_id: string
+          started_at: string
+          steps_completed?: number
+        }
+        Update: {
+          batch_id?: string
+          completed_at?: string
+          created_at?: string
+          elapsed_seconds?: number
+          id?: string
+          labor_cost?: number
+          labor_rate_per_hour?: number
+          notes?: string | null
+          operator_id?: string
+          started_at?: string
+          steps_completed?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workflow_completions_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "production_batches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       workflow_steps: {
         Row: {
           batch_id: string
