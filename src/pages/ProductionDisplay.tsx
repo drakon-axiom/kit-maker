@@ -30,7 +30,7 @@ type Batch = Database["public"]["Tables"]["production_batches"]["Row"] & {
 const ProductionDisplay = () => {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
-  const [selectedBatch, setSelectedBatch] = useState<{ batchNumber: string; productCode: string } | null>(null);
+  const [selectedBatch, setSelectedBatch] = useState<{ batchId: string; batchNumber: string; productCode: string } | null>(null);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -138,7 +138,7 @@ const ProductionDisplay = () => {
                   <div
                     key={batch.id}
                     className={`${bgColor} border-2 ${borderColor} rounded-lg p-6 space-y-4 cursor-pointer hover:shadow-lg transition-shadow`}
-                    onClick={() => setSelectedBatch({ batchNumber: batch.human_uid, productCode: sku?.code || "N/A" })}
+                    onClick={() => setSelectedBatch({ batchId: batch.id, batchNumber: batch.human_uid, productCode: sku?.code || "N/A" })}
                   >
                     {(isWarning || isCritical) && (
                       <Alert variant={isCritical ? "destructive" : "default"} className="mb-4">
@@ -215,7 +215,7 @@ const ProductionDisplay = () => {
                   <div
                     key={batch.id}
                     className="bg-card border border-border rounded-lg p-6 hover:border-primary/50 transition-colors cursor-pointer"
-                    onClick={() => setSelectedBatch({ batchNumber: batch.human_uid, productCode: sku?.code || "N/A" })}
+                    onClick={() => setSelectedBatch({ batchId: batch.id, batchNumber: batch.human_uid, productCode: sku?.code || "N/A" })}
                   >
                     <div className="grid grid-cols-4 gap-6 items-center">
                       <div className="flex items-center gap-4">
@@ -252,6 +252,7 @@ const ProductionDisplay = () => {
       <WorkflowDialog
         open={!!selectedBatch}
         onOpenChange={(open) => !open && setSelectedBatch(null)}
+        batchId={selectedBatch?.batchId || ""}
         batchNumber={selectedBatch?.batchNumber || ""}
         productCode={selectedBatch?.productCode || ""}
       />
