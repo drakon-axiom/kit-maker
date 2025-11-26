@@ -3,7 +3,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { Database } from "@/integrations/supabase/types";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Maximize, Minimize, Home, AlertTriangle, AlertCircle } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
+import { Maximize, Minimize, Home, AlertTriangle, AlertCircle, CheckCircle2 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { format, formatDistanceToNow, differenceInHours } from "date-fns";
@@ -24,6 +25,9 @@ type Batch = Database["public"]["Tables"]["production_batches"]["Row"] & {
         description: string;
       };
     };
+  }>;
+  workflow_steps?: Array<{
+    status: string;
   }>;
 };
 
@@ -64,6 +68,9 @@ const ProductionDisplay = () => {
             sales_order_lines (
               skus (code, description)
             )
+          ),
+          workflow_steps (
+            status
           )
         `)
         .in("status", ["queued", "wip"])
@@ -76,10 +83,10 @@ const ProductionDisplay = () => {
     refetchInterval: 10000, // Refresh every 10 seconds
   });
 
-  // Real-time subscription for batch updates
+  // Real-time subscription for batch and workflow step updates
   useEffect(() => {
-    const channel = supabase
-      .channel('production-display-changes')
+    const batchChannel = supabase
+      .channel('production-display-batch-changes')
       .on(
         'postgres_changes',
         {
@@ -93,8 +100,24 @@ const ProductionDisplay = () => {
       )
       .subscribe();
 
+    const stepsChannel = supabase
+      .channel('production-display-step-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'workflow_steps'
+        },
+        () => {
+          refetch();
+        }
+      )
+      .subscribe();
+
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(batchChannel);
+      supabase.removeChannel(stepsChannel);
     };
   }, [refetch]);
 
@@ -213,6 +236,25 @@ const ProductionDisplay = () => {
                         </div>
                       </div>
                     </div>
+                    
+                    {/* Workflow Progress */}
+                    {batch.workflow_steps && batch.workflow_steps.length > 0 && (
+                      <div className="mt-4 pt-4 border-t border-border">
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <CheckCircle2 className="h-4 w-4 text-primary" />
+                            <span className="text-sm font-medium text-foreground">Workflow Progress</span>
+                          </div>
+                          <span className="text-sm font-semibold text-foreground">
+                            {batch.workflow_steps.filter(s => s.status === 'done').length} / {batch.workflow_steps.length} steps
+                          </span>
+                        </div>
+                        <Progress 
+                          value={(batch.workflow_steps.filter(s => s.status === 'done').length / batch.workflow_steps.length) * 100} 
+                          className="h-2"
+                        />
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -263,6 +305,25 @@ const ProductionDisplay = () => {
                         </div>
                       </div>
                     </div>
+                    
+                    {/* Workflow Progress */}
+                    {batch.workflow_steps && batch.workflow_steps.length > 0 && (
+                      <div className="mt-4 pt-4 border-t border-border">
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <CheckCircle2 className="h-4 w-4 text-primary" />
+                            <span className="text-xs font-medium text-foreground">Workflow Progress</span>
+                          </div>
+                          <span className="text-xs font-semibold text-foreground">
+                            {batch.workflow_steps.filter(s => s.status === 'done').length} / {batch.workflow_steps.length} steps
+                          </span>
+                        </div>
+                        <Progress 
+                          value={(batch.workflow_steps.filter(s => s.status === 'done').length / batch.workflow_steps.length) * 100} 
+                          className="h-2"
+                        />
+                      </div>
+                    )}
                   </div>
                 );
               })
