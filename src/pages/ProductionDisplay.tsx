@@ -9,6 +9,7 @@ import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { format, formatDistanceToNow, differenceInHours } from "date-fns";
 import { WorkflowDialog } from "@/components/WorkflowDialog";
+import { cn } from "@/lib/utils";
 
 type Batch = Database["public"]["Tables"]["production_batches"]["Row"] & {
   sales_orders?: {
@@ -28,6 +29,7 @@ type Batch = Database["public"]["Tables"]["production_batches"]["Row"] & {
   }>;
   workflow_steps?: Array<{
     status: string;
+    operator_id: string | null;
   }>;
 };
 
@@ -52,6 +54,18 @@ const ProductionDisplay = () => {
     setIsFullscreen(!isFullscreen);
   };
 
+  const { data: operatorProfiles } = useQuery({
+    queryKey: ["operator-profiles"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("id, full_name");
+
+      if (error) throw error;
+      return data as Array<{ id: string; full_name: string | null }>;
+    },
+  });
+
   const { data: batches, refetch } = useQuery({
     queryKey: ["production-display-batches"],
     queryFn: async () => {
@@ -70,7 +84,8 @@ const ProductionDisplay = () => {
             )
           ),
           workflow_steps (
-            status
+            status,
+            operator_id
           )
         `)
         .in("status", ["queued", "wip"])
@@ -123,6 +138,18 @@ const ProductionDisplay = () => {
 
   const queuedBatches = batches?.filter(b => b.status === "queued") || [];
   const inProgressBatches = batches?.filter(b => b.status === "wip") || [];
+
+  const getOperatorName = (operatorId: string | null) => {
+    if (!operatorId || !operatorProfiles) return null;
+    const profile = operatorProfiles.find(p => p.id === operatorId);
+    return profile?.full_name || "Unknown Operator";
+  };
+
+  const getProgressBarColor = (elapsedHours: number) => {
+    if (elapsedHours >= 4) return "[&>div]:bg-red-500"; // Critical - stalled
+    if (elapsedHours >= 2) return "[&>div]:bg-yellow-500"; // Warning - slow
+    return "[&>div]:bg-green-500"; // Normal - on track
+  };
 
   return (
     <div className="min-h-screen bg-background p-8">
@@ -244,6 +271,15 @@ const ProductionDisplay = () => {
                           <div className="flex items-center gap-2">
                             <CheckCircle2 className="h-4 w-4 text-primary" />
                             <span className="text-sm font-medium text-foreground">Workflow Progress</span>
+                            {(() => {
+                              const activeStep = batch.workflow_steps.find(s => s.status === 'wip');
+                              const operatorName = activeStep ? getOperatorName(activeStep.operator_id) : null;
+                              return operatorName ? (
+                                <span className="text-xs text-muted-foreground ml-2">
+                                  • {operatorName}
+                                </span>
+                              ) : null;
+                            })()}
                           </div>
                           <span className="text-sm font-semibold text-foreground">
                             {batch.workflow_steps.filter(s => s.status === 'done').length} / {batch.workflow_steps.length} steps
@@ -251,7 +287,7 @@ const ProductionDisplay = () => {
                         </div>
                         <Progress 
                           value={(batch.workflow_steps.filter(s => s.status === 'done').length / batch.workflow_steps.length) * 100} 
-                          className="h-2"
+                          className={cn("h-2", getProgressBarColor(elapsedHours))}
                         />
                       </div>
                     )}
