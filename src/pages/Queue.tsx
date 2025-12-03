@@ -142,10 +142,10 @@ const Queue = () => {
 
   if (loading) {
     return (
-      <div className="p-6 space-y-6">
+      <div className="p-4 md:p-6 space-y-4 md:space-y-6">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Production Dashboard</h1>
-          <p className="text-muted-foreground mt-1">Monitor active batches and workflow stages</p>
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Production Dashboard</h1>
+          <p className="text-sm md:text-base text-muted-foreground mt-1">Monitor active batches and workflow stages</p>
         </div>
         <div className="flex justify-center py-12">
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -155,14 +155,14 @@ const Queue = () => {
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 md:p-6 space-y-4 md:space-y-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Production Queue</h1>
-        <p className="text-muted-foreground mt-1">Visual overview of current and upcoming production batches (FIFO)</p>
+        <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Production Queue</h1>
+        <p className="text-sm md:text-base text-muted-foreground mt-1">Visual overview of current and upcoming production batches (FIFO)</p>
       </div>
 
       {/* Key Metrics */}
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid gap-3 md:gap-4 grid-cols-2 lg:grid-cols-4">
         <Card className="border-l-4 border-l-purple-500">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Queued</CardTitle>

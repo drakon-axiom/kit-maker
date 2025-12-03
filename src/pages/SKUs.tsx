@@ -978,33 +978,33 @@ const SKUs = () => {
   };
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 md:p-6 space-y-4 md:space-y-6">
       <CategoryManager />
       
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Products (SKUs)</h1>
-          <p className="text-muted-foreground mt-1">Manage your product catalog</p>
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Products (SKUs)</h1>
+          <p className="text-sm md:text-base text-muted-foreground mt-1">Manage your product catalog</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2 w-full sm:w-auto">
           {selectedSKUs.size > 0 && (
-            <Button variant="outline" onClick={() => setBulkEditOpen(true)}>
+            <Button variant="outline" size="sm" onClick={() => setBulkEditOpen(true)} className="flex-1 sm:flex-none">
               <Check className="mr-2 h-4 w-4" />
-              Edit {selectedSKUs.size} Selected
+              Edit ({selectedSKUs.size})
             </Button>
           )}
-          <Button variant="outline" onClick={() => setImportOpen(true)}>
+          <Button variant="outline" size="sm" onClick={() => setImportOpen(true)} className="flex-1 sm:flex-none">
             <Upload className="mr-2 h-4 w-4" />
-            Import
+            <span className="hidden sm:inline">Import</span>
           </Button>
           <Dialog open={dialogOpen} onOpenChange={(open) => {
             setDialogOpen(open);
             if (!open) resetForm();
           }}>
             <DialogTrigger asChild>
-              <Button>
+              <Button size="sm" className="flex-1 sm:flex-none">
                 <Plus className="mr-2 h-4 w-4" />
-                Add SKU
+                <span className="hidden sm:inline">Add SKU</span>
               </Button>
             </DialogTrigger>
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -1227,18 +1227,18 @@ const SKUs = () => {
       </div>
 
       <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
+        <CardHeader className="p-4 md:p-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
-              <CardTitle>All Products</CardTitle>
-              <CardDescription>
-                {filteredSKUs.length} of {skus.length} product{skus.length !== 1 ? 's' : ''}
+              <CardTitle className="text-lg md:text-xl">All Products</CardTitle>
+              <CardDescription className="text-xs md:text-sm">
+                {filteredSKUs.length} of {skus.length} products
               </CardDescription>
             </div>
-            <div className="relative w-80">
+            <div className="relative w-full sm:w-80">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search by code, description, size..."
+                placeholder="Search by code, description..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-10"
@@ -1246,21 +1246,22 @@ const SKUs = () => {
             </div>
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-2 md:p-6">
           {loading ? (
             <div className="flex justify-center py-8">
               <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
             </div>
           ) : skus.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              No products yet. Click "Add SKU" to get started.
+            <div className="text-center py-8 text-muted-foreground text-sm md:text-base">
+              No products yet. Tap "Add SKU" to get started.
             </div>
           ) : filteredSKUs.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              No products match your search "{searchQuery}"
+            <div className="text-center py-8 text-muted-foreground text-sm md:text-base">
+              No products match "{searchQuery}"
             </div>
           ) : (
-            <Table>
+            <div className="overflow-x-auto -mx-2 md:mx-0">
+            <Table className="min-w-[700px]">
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-10">
@@ -1388,6 +1389,7 @@ const SKUs = () => {
                 ))}
               </TableBody>
             </Table>
+            </div>
           )}
         </CardContent>
       </Card>

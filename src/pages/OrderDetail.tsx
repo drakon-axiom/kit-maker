@@ -800,7 +800,7 @@ const OrderDetail = () => {
 
   if (!order) {
     return (
-      <div className="p-6">
+      <div className="p-4 md:p-6">
         <div className="text-center py-12">
           <p className="text-muted-foreground">Order not found</p>
           <Button className="mt-4" onClick={() => navigate('/orders')}>
@@ -812,21 +812,21 @@ const OrderDetail = () => {
   }
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="sm" onClick={() => navigate('/orders')}>
+    <div className="p-4 md:p-6 space-y-4 md:space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+        <Button variant="ghost" size="sm" onClick={() => navigate('/orders')} className="self-start">
           <ArrowLeft className="h-4 w-4 mr-2" />
           Back
         </Button>
-        <div className="flex-1">
-          <h1 className="text-3xl font-bold tracking-tight font-mono">{order.human_uid}</h1>
-          <p className="text-muted-foreground mt-1">
+        <div className="flex-1 min-w-0">
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold tracking-tight font-mono truncate">{order.human_uid}</h1>
+          <p className="text-sm md:text-base text-muted-foreground mt-1 truncate">
             {order.is_internal 
               ? `Internal Order - ${order.brand?.name || 'No Brand'}`
               : order.customer?.name || 'No Customer'}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {userRole === 'admin' && order.status === 'awaiting_approval' && (
             <>
               <Button onClick={() => setApprovalDialogOpen(true)} className="bg-success hover:bg-success/90">

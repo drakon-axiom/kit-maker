@@ -152,8 +152,8 @@ const ProductionDisplay = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background p-8">
-      <div className="max-w-7xl mx-auto space-y-8">
+    <div className="min-h-screen bg-background p-4 md:p-8">
+      <div className="max-w-7xl mx-auto space-y-6 md:space-y-8">
         <div className="text-center space-y-2 relative">
           <Button
             asChild
@@ -169,18 +169,18 @@ const ProductionDisplay = () => {
             onClick={toggleFullscreen}
             variant="outline"
             size="icon"
-            className="absolute right-0 top-0"
+            className="absolute right-0 top-0 hidden md:flex"
           >
             {isFullscreen ? <Minimize className="h-5 w-5" /> : <Maximize className="h-5 w-5" />}
           </Button>
-          <h1 className="text-5xl font-bold text-foreground">Production Floor</h1>
-          <p className="text-2xl text-muted-foreground">Live Batch Queue</p>
+          <h1 className="text-2xl sm:text-3xl md:text-5xl font-bold text-foreground px-10 md:px-0">Production Floor</h1>
+          <p className="text-lg sm:text-xl md:text-2xl text-muted-foreground">Live Batch Queue</p>
         </div>
 
         {inProgressBatches.length > 0 && (
-          <div className="space-y-4">
-            <h2 className="text-3xl font-semibold text-foreground flex items-center gap-3">
-              <span className="w-3 h-3 bg-blue-500 rounded-full animate-pulse"></span>
+          <div className="space-y-3 md:space-y-4">
+            <h2 className="text-xl sm:text-2xl md:text-3xl font-semibold text-foreground flex items-center gap-2 md:gap-3">
+              <span className="w-2 h-2 md:w-3 md:h-3 bg-blue-500 rounded-full animate-pulse"></span>
               In Progress
             </h2>
             <div className="space-y-3">
@@ -209,54 +209,54 @@ const ProductionDisplay = () => {
                 return (
                   <div
                     key={batch.id}
-                    className={`${bgColor} border-2 ${borderColor} rounded-lg p-6 space-y-4 cursor-pointer hover:shadow-lg transition-shadow`}
+                    className={`${bgColor} border-2 ${borderColor} rounded-lg p-4 md:p-6 space-y-3 md:space-y-4 cursor-pointer hover:shadow-lg transition-shadow`}
                     onClick={() => setSelectedBatch({ batchId: batch.id, batchNumber: batch.human_uid, productCode: sku?.code || "N/A" })}
                   >
                     {(isWarning || isCritical) && (
-                      <Alert variant={isCritical ? "destructive" : "default"} className="mb-4">
+                      <Alert variant={isCritical ? "destructive" : "default"} className="mb-2 md:mb-4">
                         {isCritical ? (
                           <AlertCircle className="h-4 w-4" />
                         ) : (
                           <AlertTriangle className="h-4 w-4" />
                         )}
-                        <AlertDescription>
+                        <AlertDescription className="text-xs md:text-sm">
                           {isCritical 
-                            ? `CRITICAL: Batch has been running for ${elapsedHours} hours - significantly over expected time!`
-                            : `WARNING: Batch has been running for ${elapsedHours} hours - approaching time limit.`
+                            ? `CRITICAL: Batch running for ${elapsedHours}h - over time!`
+                            : `WARNING: Batch running for ${elapsedHours}h - approaching limit.`
                           }
                         </AlertDescription>
                       </Alert>
                     )}
-                    <div className="grid grid-cols-5 gap-6">
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-6">
                       <div>
-                        <div className="text-sm text-muted-foreground mb-1">Batch Number</div>
-                        <div className="text-3xl font-bold text-foreground">{batch.human_uid}</div>
+                        <div className="text-xs md:text-sm text-muted-foreground mb-1">Batch</div>
+                        <div className="text-lg sm:text-xl md:text-3xl font-bold text-foreground">{batch.human_uid}</div>
                       </div>
                       <div>
-                        <div className="text-sm text-muted-foreground mb-1">Product</div>
-                        <div className="text-2xl font-semibold text-foreground">
+                        <div className="text-xs md:text-sm text-muted-foreground mb-1">Product</div>
+                        <div className="text-base sm:text-lg md:text-2xl font-semibold text-foreground">
                           {sku?.code || "N/A"}
                         </div>
-                        <div className="text-lg text-muted-foreground">{sku?.description}</div>
+                        <div className="text-sm md:text-lg text-muted-foreground truncate">{sku?.description}</div>
                       </div>
                       <div>
-                        <div className="text-sm text-muted-foreground mb-1">Batch Size</div>
-                        <div className="text-3xl font-bold text-foreground">
-                          {batch.qty_bottle_planned} bottles
+                        <div className="text-xs md:text-sm text-muted-foreground mb-1">Size</div>
+                        <div className="text-lg sm:text-xl md:text-3xl font-bold text-foreground">
+                          {batch.qty_bottle_planned}
                         </div>
                       </div>
-                      <div>
-                        <div className="text-sm text-muted-foreground mb-1">Started At</div>
-                        <div className="text-xl font-semibold text-foreground">
+                      <div className="hidden md:block">
+                        <div className="text-xs md:text-sm text-muted-foreground mb-1">Started</div>
+                        <div className="text-base md:text-xl font-semibold text-foreground">
                           {startTime ? format(startTime, "h:mm a") : "N/A"}
                         </div>
-                        <div className="text-sm text-muted-foreground">
+                        <div className="text-xs md:text-sm text-muted-foreground">
                           {startTime ? format(startTime, "MMM d") : ""}
                         </div>
                       </div>
                       <div>
-                        <div className="text-sm text-muted-foreground mb-1">Elapsed Time</div>
-                        <div className={`text-2xl font-bold ${
+                        <div className="text-xs md:text-sm text-muted-foreground mb-1">Elapsed</div>
+                        <div className={`text-base sm:text-lg md:text-2xl font-bold ${
                           isCritical ? "text-red-500" : isWarning ? "text-yellow-500" : "text-blue-500"
                         }`}>
                           {elapsedTime || "N/A"}
@@ -298,14 +298,14 @@ const ProductionDisplay = () => {
           </div>
         )}
 
-        <div className="space-y-4">
-          <h2 className="text-3xl font-semibold text-foreground flex items-center gap-3">
-            <span className="w-3 h-3 bg-yellow-500 rounded-full"></span>
+        <div className="space-y-3 md:space-y-4">
+          <h2 className="text-xl sm:text-2xl md:text-3xl font-semibold text-foreground flex items-center gap-2 md:gap-3">
+            <span className="w-2 h-2 md:w-3 md:h-3 bg-yellow-500 rounded-full"></span>
             Up Next
           </h2>
           <div className="space-y-3">
             {queuedBatches.length === 0 ? (
-              <div className="text-center py-12 text-muted-foreground text-xl">
+              <div className="text-center py-8 md:py-12 text-muted-foreground text-base md:text-xl">
                 No batches queued
               </div>
             ) : (
@@ -314,30 +314,30 @@ const ProductionDisplay = () => {
                 return (
                   <div
                     key={batch.id}
-                    className="bg-card border border-border rounded-lg p-6 hover:border-primary/50 transition-colors cursor-pointer"
+                    className="bg-card border border-border rounded-lg p-4 md:p-6 hover:border-primary/50 transition-colors cursor-pointer"
                     onClick={() => setSelectedBatch({ batchId: batch.id, batchNumber: batch.human_uid, productCode: sku?.code || "N/A" })}
                   >
-                    <div className="grid grid-cols-4 gap-6 items-center">
-                      <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xl font-bold">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-6 items-center">
+                      <div className="flex items-center gap-2 md:gap-4">
+                        <div className="w-8 h-8 md:w-12 md:h-12 rounded-full bg-primary/10 text-primary flex items-center justify-center text-base md:text-xl font-bold shrink-0">
                           {index + 1}
                         </div>
-                        <div>
-                          <div className="text-xs text-muted-foreground mb-1">Batch Number</div>
-                          <div className="text-2xl font-bold text-foreground">{batch.human_uid}</div>
+                        <div className="min-w-0">
+                          <div className="text-xs text-muted-foreground mb-1">Batch</div>
+                          <div className="text-base sm:text-lg md:text-2xl font-bold text-foreground truncate">{batch.human_uid}</div>
                         </div>
                       </div>
-                      <div className="col-span-2">
+                      <div className="md:col-span-2 min-w-0">
                         <div className="text-xs text-muted-foreground mb-1">Product</div>
-                        <div className="text-xl font-semibold text-foreground">
+                        <div className="text-base md:text-xl font-semibold text-foreground truncate">
                           {sku?.code || "N/A"}
                         </div>
-                        <div className="text-base text-muted-foreground">{sku?.description}</div>
+                        <div className="text-sm md:text-base text-muted-foreground truncate">{sku?.description}</div>
                       </div>
                       <div>
-                        <div className="text-xs text-muted-foreground mb-1">Batch Size</div>
-                        <div className="text-2xl font-bold text-foreground">
-                          {batch.qty_bottle_planned} bottles
+                        <div className="text-xs text-muted-foreground mb-1">Size</div>
+                        <div className="text-base sm:text-lg md:text-2xl font-bold text-foreground">
+                          {batch.qty_bottle_planned}
                         </div>
                       </div>
                     </div>

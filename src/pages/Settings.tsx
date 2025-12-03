@@ -115,10 +115,10 @@ const Settings = () => {
 
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 md:p-6 space-y-4 md:space-y-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
-        <p className="text-muted-foreground mt-1">Configure system-wide settings</p>
+        <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Settings</h1>
+        <p className="text-sm md:text-base text-muted-foreground mt-1">Configure system-wide settings</p>
       </div>
 
       {loading ? (
@@ -126,7 +126,7 @@ const Settings = () => {
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
         </div>
       ) : (
-        <div className="grid gap-6 md:grid-cols-2">
+        <div className="grid gap-4 md:gap-6 sm:grid-cols-2">
           <Card>
             <CardHeader>
               <CardTitle>Company Name</CardTitle>

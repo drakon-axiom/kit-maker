@@ -511,20 +511,20 @@ const Orders = () => {
   };
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex justify-between items-center">
+    <div className="p-4 md:p-6 space-y-4 md:space-y-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Orders</h1>
-          <p className="text-muted-foreground mt-1">Manage sales orders and track progress</p>
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Orders</h1>
+          <p className="text-sm md:text-base text-muted-foreground mt-1">Manage sales orders and track progress</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2 w-full sm:w-auto">
           {selectedOrders.size > 0 && (
             <>
               <Dialog open={bulkEditOpen} onOpenChange={setBulkEditOpen}>
                 <DialogTrigger asChild>
-                  <Button variant="outline">
+                  <Button variant="outline" size="sm" className="flex-1 sm:flex-none">
                     <Edit className="mr-2 h-4 w-4" />
-                    Bulk Update ({selectedOrders.size})
+                    <span className="hidden sm:inline">Bulk Update</span> ({selectedOrders.size})
                   </Button>
                 </DialogTrigger>
                 <DialogContent>
@@ -576,9 +576,9 @@ const Orders = () => {
               
               <Dialog open={bulkPrintDialogOpen} onOpenChange={setBulkPrintDialogOpen}>
                 <DialogTrigger asChild>
-                  <Button variant="outline" onClick={handleBulkPrintSetup}>
+                  <Button variant="outline" size="sm" onClick={handleBulkPrintSetup} className="flex-1 sm:flex-none">
                     <Printer className="mr-2 h-4 w-4" />
-                    Bulk Print ({selectedOrders.size})
+                    <span className="hidden sm:inline">Print</span> ({selectedOrders.size})
                   </Button>
                 </DialogTrigger>
                 <DialogContent>
@@ -616,29 +616,29 @@ const Orders = () => {
               </Dialog>
             </>
           )}
-          <Button variant="outline" onClick={exportToCSV}>
+          <Button variant="outline" size="sm" onClick={exportToCSV} className="flex-1 sm:flex-none">
             <Download className="mr-2 h-4 w-4" />
-            Export CSV
+            <span className="hidden sm:inline">Export</span>
           </Button>
-          <Button onClick={() => navigate('/orders/new')}>
+          <Button size="sm" onClick={() => navigate('/orders/new')} className="flex-1 sm:flex-none">
             <Plus className="mr-2 h-4 w-4" />
-            New Order
+            <span className="hidden sm:inline">New Order</span>
           </Button>
         </div>
       </div>
 
       <Card>
-        <CardHeader>
+        <CardHeader className="p-4 md:p-6">
           <div className="space-y-4">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div>
-                <CardTitle>All Orders</CardTitle>
-                <CardDescription>
-                  Showing {paginatedOrders.length} of {sortedOrders.length} filtered order{sortedOrders.length !== 1 ? 's' : ''} ({orders.length} total)
+                <CardTitle className="text-lg md:text-xl">All Orders</CardTitle>
+                <CardDescription className="text-xs md:text-sm">
+                  {paginatedOrders.length} of {sortedOrders.length} filtered ({orders.length} total)
                 </CardDescription>
               </div>
-              <div className="flex gap-2">
-                <div className="relative w-64">
+              <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
+                <div className="relative flex-1 md:w-64">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
                     placeholder="Search orders..."
@@ -649,7 +649,7 @@ const Orders = () => {
                 </div>
                 <Popover>
                   <PopoverTrigger asChild>
-                    <Button variant="outline" className="relative">
+                    <Button variant="outline" size="sm" className="relative">
                       <Filter className="mr-2 h-4 w-4" />
                       Filters
                       {hasActiveFilters && (
@@ -756,20 +756,21 @@ const Orders = () => {
             </div>
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-2 md:p-6">
           {loading ? (
             <div className="flex justify-center py-8">
               <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
             </div>
           ) : sortedOrders.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
+            <div className="text-center py-8 text-muted-foreground text-sm md:text-base">
               {orders.length === 0 
-                ? "No orders yet. Click \"New Order\" to create your first one."
+                ? "No orders yet. Tap \"New Order\" to create your first one."
                 : "No orders match your filters."}
             </div>
           ) : (
             <>
-              <Table>
+              <div className="overflow-x-auto -mx-2 md:mx-0">
+              <Table className="min-w-[700px]">
                 <TableHeader>
                   <TableRow>
                     <TableHead className="w-12">
@@ -897,11 +898,12 @@ const Orders = () => {
                   ))}
                 </TableBody>
               </Table>
+              </div>
 
               {totalPages > 1 && (
-                <div className="flex items-center justify-between px-6 py-4 border-t">
-                  <div className="text-sm text-muted-foreground">
-                    Showing {startIndex + 1} to {Math.min(endIndex, sortedOrders.length)} of {sortedOrders.length} results
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-2 md:px-6 py-4 border-t">
+                  <div className="text-xs md:text-sm text-muted-foreground">
+                    {startIndex + 1}-{Math.min(endIndex, sortedOrders.length)} of {sortedOrders.length}
                   </div>
                   <div className="flex items-center gap-2">
                     <Button
@@ -911,7 +913,7 @@ const Orders = () => {
                       disabled={currentPage === 1}
                     >
                       <ChevronLeft className="h-4 w-4" />
-                      Previous
+                      <span className="hidden sm:inline">Previous</span>
                     </Button>
                     <div className="flex items-center gap-1">
                       {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
@@ -931,7 +933,7 @@ const Orders = () => {
                             variant={currentPage === pageNum ? 'default' : 'outline'}
                             size="sm"
                             onClick={() => goToPage(pageNum)}
-                            className="w-9"
+                            className="w-8 md:w-9"
                           >
                             {pageNum}
                           </Button>
@@ -944,7 +946,7 @@ const Orders = () => {
                       onClick={() => goToPage(currentPage + 1)}
                       disabled={currentPage === totalPages}
                     >
-                      Next
+                      <span className="hidden sm:inline">Next</span>
                       <ChevronRight className="h-4 w-4" />
                     </Button>
                   </div>

@@ -510,16 +510,16 @@ const Customers = () => {
   });
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex justify-between items-center">
+    <div className="p-4 md:p-6 space-y-4 md:space-y-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Customers</h1>
-          <p className="text-muted-foreground mt-1">Manage your customer database</p>
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Customers</h1>
+          <p className="text-sm md:text-base text-muted-foreground mt-1">Manage your customer database</p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={() => fileInputRef.current?.click()}>
+        <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+          <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} className="flex-1 sm:flex-none">
             <Upload className="mr-2 h-4 w-4" />
-            Import CSV
+            <span className="hidden sm:inline">Import</span>
           </Button>
           <input
             ref={fileInputRef}
@@ -533,9 +533,9 @@ const Customers = () => {
             if (!open) resetForm();
           }}>
             <DialogTrigger asChild>
-              <Button>
+              <Button size="sm" className="flex-1 sm:flex-none">
                 <Plus className="mr-2 h-4 w-4" />
-                Add Customer
+                <span className="hidden sm:inline">Add Customer</span>
               </Button>
             </DialogTrigger>
           <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
@@ -548,7 +548,7 @@ const Customers = () => {
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="space-y-4">
                 <h3 className="text-sm font-semibold">Basic Information</h3>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="name">Name *</Label>
                     <Input
@@ -751,15 +751,15 @@ const Customers = () => {
       </div>
 
       <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
+        <CardHeader className="p-4 md:p-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
-              <CardTitle>All Customers</CardTitle>
-              <CardDescription>
-                {filteredCustomers.length} of {customers.length} customer{customers.length !== 1 ? 's' : ''}
+              <CardTitle className="text-lg md:text-xl">All Customers</CardTitle>
+              <CardDescription className="text-xs md:text-sm">
+                {filteredCustomers.length} of {customers.length}
               </CardDescription>
             </div>
-            <div className="relative w-72">
+            <div className="relative w-full sm:w-72">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Search by name, email, phone..."
@@ -770,27 +770,28 @@ const Customers = () => {
             </div>
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-2 md:p-6">
           {loading ? (
             <div className="flex justify-center py-8">
               <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
             </div>
           ) : customers.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              No customers yet. Click "Add Customer" to get started.
+            <div className="text-center py-8 text-muted-foreground text-sm md:text-base">
+              No customers yet. Tap "Add Customer" to get started.
             </div>
           ) : filteredCustomers.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              No customers match your search "{searchQuery}"
+            <div className="text-center py-8 text-muted-foreground text-sm md:text-base">
+              No customers match "{searchQuery}"
             </div>
           ) : (
-            <Table>
+            <div className="overflow-x-auto -mx-2 md:mx-0">
+            <Table className="min-w-[600px]">
               <TableHeader>
                 <TableRow>
                   <TableHead>Name</TableHead>
                   <TableHead>Email</TableHead>
-                  <TableHead>Phone</TableHead>
-                  <TableHead>Default Terms</TableHead>
+                  <TableHead className="hidden md:table-cell">Phone</TableHead>
+                  <TableHead className="hidden lg:table-cell">Terms</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -798,9 +799,9 @@ const Customers = () => {
                 {filteredCustomers.map((customer) => (
                   <TableRow key={customer.id}>
                     <TableCell className="font-medium">{customer.name}</TableCell>
-                    <TableCell>{customer.email || '-'}</TableCell>
-                    <TableCell>{customer.phone || '-'}</TableCell>
-                    <TableCell className="max-w-xs truncate">{customer.default_terms || '-'}</TableCell>
+                    <TableCell className="max-w-[150px] truncate">{customer.email || '-'}</TableCell>
+                    <TableCell className="hidden md:table-cell">{customer.phone || '-'}</TableCell>
+                    <TableCell className="hidden lg:table-cell max-w-xs truncate">{customer.default_terms || '-'}</TableCell>
                     <TableCell className="text-right">
                       <div className="flex gap-1 justify-end">
                         <Button
@@ -836,6 +837,7 @@ const Customers = () => {
                 ))}
               </TableBody>
             </Table>
+            </div>
           )}
         </CardContent>
       </Card>
