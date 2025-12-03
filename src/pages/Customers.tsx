@@ -15,6 +15,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Checkbox } from '@/components/ui/checkbox';
 import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
+import { CustomerCard } from '@/components/mobile/CustomerCard';
 
 interface Customer {
   id: string;
@@ -784,60 +785,82 @@ const Customers = () => {
               No customers match "{searchQuery}"
             </div>
           ) : (
-            <div className="overflow-x-auto -mx-2 md:mx-0">
-            <Table className="min-w-[600px]">
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead className="hidden md:table-cell">Phone</TableHead>
-                  <TableHead className="hidden lg:table-cell">Terms</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+            <>
+              {/* Mobile Card View */}
+              <div className="md:hidden p-2">
                 {filteredCustomers.map((customer) => (
-                  <TableRow key={customer.id}>
-                    <TableCell className="font-medium">{customer.name}</TableCell>
-                    <TableCell className="max-w-[150px] truncate">{customer.email || '-'}</TableCell>
-                    <TableCell className="hidden md:table-cell">{customer.phone || '-'}</TableCell>
-                    <TableCell className="hidden lg:table-cell max-w-xs truncate">{customer.default_terms || '-'}</TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex gap-1 justify-end">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            setAccessCustomerId(customer.id);
-                            setAccessDialogOpen(true);
-                          }}
-                        >
-                          <Shield className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => openEditDialog(customer)}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            setCustomerToDelete(customer);
-                            setDeleteDialogOpen(true);
-                          }}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
+                  <CustomerCard
+                    key={customer.id}
+                    customer={customer}
+                    onEdit={openEditDialog}
+                    onDelete={(c) => {
+                      setCustomerToDelete(c);
+                      setDeleteDialogOpen(true);
+                    }}
+                    onManageAccess={(id) => {
+                      setAccessCustomerId(id);
+                      setAccessDialogOpen(true);
+                    }}
+                  />
                 ))}
-              </TableBody>
-            </Table>
-            </div>
+              </div>
+
+              {/* Desktop Table View */}
+              <div className="hidden md:block overflow-x-auto">
+              <Table className="min-w-[600px]">
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Email</TableHead>
+                    <TableHead className="hidden md:table-cell">Phone</TableHead>
+                    <TableHead className="hidden lg:table-cell">Terms</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredCustomers.map((customer) => (
+                    <TableRow key={customer.id}>
+                      <TableCell className="font-medium">{customer.name}</TableCell>
+                      <TableCell className="max-w-[150px] truncate">{customer.email || '-'}</TableCell>
+                      <TableCell className="hidden md:table-cell">{customer.phone || '-'}</TableCell>
+                      <TableCell className="hidden lg:table-cell max-w-xs truncate">{customer.default_terms || '-'}</TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex gap-1 justify-end">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              setAccessCustomerId(customer.id);
+                              setAccessDialogOpen(true);
+                            }}
+                          >
+                            <Shield className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => openEditDialog(customer)}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              setCustomerToDelete(customer);
+                              setDeleteDialogOpen(true);
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>

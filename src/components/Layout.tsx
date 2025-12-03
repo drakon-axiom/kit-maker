@@ -14,6 +14,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useSMSQuotaMonitor } from '@/hooks/useSMSQuotaMonitor';
+import MobileBottomNav from '@/components/MobileBottomNav';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -37,7 +38,7 @@ const Layout = ({ children }: LayoutProps) => {
               {currentBrand?.logo_url ? (
                 <img src={currentBrand.logo_url} alt={currentBrand.name} className="h-8" />
               ) : (
-                <h1 className="text-lg font-semibold">{currentBrand?.name || 'Production Manager'}</h1>
+                <h1 className="text-lg font-semibold hidden sm:block">{currentBrand?.name || 'Production Manager'}</h1>
               )}
             </div>
             <DropdownMenu>
@@ -64,11 +65,12 @@ const Layout = ({ children }: LayoutProps) => {
               </DropdownMenuContent>
             </DropdownMenu>
           </header>
-          <SidebarInset className="flex-1 overflow-auto">
+          <SidebarInset className="flex-1 overflow-auto pb-20 md:pb-0">
             {children}
           </SidebarInset>
         </div>
       </div>
+      <MobileBottomNav />
     </SidebarProvider>
   );
 };

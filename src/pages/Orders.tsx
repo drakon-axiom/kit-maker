@@ -19,6 +19,7 @@ import Papa from 'papaparse';
 import OrderLabel from '@/components/OrderLabel';
 import ShippingLabel from '@/components/ShippingLabel';
 import BatchLabel from '@/components/BatchLabel';
+import { OrderCard } from '@/components/mobile/OrderCard';
 
 interface Order {
   id: string;
@@ -769,7 +770,23 @@ const Orders = () => {
             </div>
           ) : (
             <>
-              <div className="overflow-x-auto -mx-2 md:mx-0">
+              {/* Mobile Card View */}
+              <div className="md:hidden p-4">
+                {paginatedOrders.map((order) => (
+                  <OrderCard
+                    key={order.id}
+                    order={order}
+                    selected={selectedOrders.has(order.id)}
+                    onSelect={toggleSelectOrder}
+                    onPrintLabel={handlePrintLabel}
+                    statusColors={statusColors}
+                    formatStatus={formatStatus}
+                  />
+                ))}
+              </div>
+
+              {/* Desktop Table View */}
+              <div className="hidden md:block overflow-x-auto">
               <Table className="min-w-[700px]">
                 <TableHeader>
                   <TableRow>

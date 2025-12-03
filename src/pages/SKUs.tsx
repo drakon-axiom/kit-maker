@@ -20,6 +20,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
+import { SKUCard } from '@/components/mobile/SKUCard';
 
 interface PricingTier {
   id?: string;
@@ -1260,8 +1261,29 @@ const SKUs = () => {
               No products match "{searchQuery}"
             </div>
           ) : (
-            <div className="overflow-x-auto -mx-2 md:mx-0">
-            <Table className="min-w-[700px]">
+            <>
+              {/* Mobile Card View */}
+              <div className="md:hidden p-2">
+                {filteredSKUs.map((sku) => (
+                  <SKUCard
+                    key={sku.id}
+                    sku={sku}
+                    selected={selectedSKUs.has(sku.id)}
+                    expanded={expandedRows.has(sku.id)}
+                    onSelect={toggleSelectSKU}
+                    onToggleExpand={toggleRow}
+                    onEdit={openEditDialog}
+                    onDelete={(s) => {
+                      setSKUToDelete(s);
+                      setDeleteDialogOpen(true);
+                    }}
+                  />
+                ))}
+              </div>
+
+              {/* Desktop Table View */}
+              <div className="hidden md:block overflow-x-auto">
+              <Table className="min-w-[700px]">
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-10">
@@ -1390,6 +1412,7 @@ const SKUs = () => {
               </TableBody>
             </Table>
             </div>
+            </>
           )}
         </CardContent>
       </Card>
