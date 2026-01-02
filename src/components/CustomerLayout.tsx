@@ -2,6 +2,7 @@ import React from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { SidebarProvider, SidebarTrigger, SidebarInset } from '@/components/ui/sidebar';
 import { CustomerSidebar } from '@/components/CustomerSidebar';
+import CustomerMobileBottomNav from '@/components/CustomerMobileBottomNav';
 import { Button } from '@/components/ui/button';
 import { LogOut, User } from 'lucide-react';
 import {
@@ -27,7 +28,7 @@ export const CustomerLayout = ({ children }: CustomerLayoutProps) => {
         <div className="flex-1 flex flex-col">
           <header className="h-14 border-b bg-card flex items-center justify-between px-4">
             <div className="flex items-center gap-2">
-              <SidebarTrigger />
+              <SidebarTrigger className="hidden md:flex" />
               <h1 className="text-lg font-semibold">Customer Portal</h1>
             </div>
             <DropdownMenu>
@@ -51,10 +52,11 @@ export const CustomerLayout = ({ children }: CustomerLayoutProps) => {
               </DropdownMenuContent>
             </DropdownMenu>
           </header>
-          <SidebarInset className="flex-1 overflow-auto">
+          <SidebarInset className="flex-1 overflow-auto pb-16 md:pb-0">
             {children}
           </SidebarInset>
         </div>
+        <CustomerMobileBottomNav />
       </div>
     </SidebarProvider>
   );
