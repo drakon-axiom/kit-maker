@@ -168,10 +168,9 @@ const Operator = () => {
         description: 'Batch loaded successfully',
       });
     } catch (error) {
-      // Error handled silently
       toast({
         title: 'Error',
-        description: error.message,
+        description: error instanceof Error ? error.message : 'Failed to load batch',
         variant: 'destructive',
       });
     } finally {
@@ -200,10 +199,9 @@ const Operator = () => {
         description: 'Step started',
       });
     } catch (error) {
-      // Error handled silently
       toast({
         title: 'Error',
-        description: error.message,
+        description: error instanceof Error ? error.message : 'Failed to start step',
         variant: 'destructive',
       });
     } finally {
@@ -229,10 +227,9 @@ const Operator = () => {
         description: 'Step completed',
       });
     } catch (error) {
-      // Error handled silently
       toast({
         title: 'Error',
-        description: error.message,
+        description: error instanceof Error ? error.message : 'Failed to complete step',
         variant: 'destructive',
       });
     } finally {
@@ -263,10 +260,9 @@ const Operator = () => {
         description: 'Quantities updated',
       });
     } catch (error) {
-      // Error handled silently
       toast({
         title: 'Error',
-        description: error.message,
+        description: error instanceof Error ? error.message : 'Failed to update quantities',
         variant: 'destructive',
       });
     } finally {
