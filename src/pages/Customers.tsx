@@ -338,7 +338,7 @@ const Customers = () => {
     } catch (error) {
       toast({
         title: 'Error checking existing customers',
-        description: error.message,
+        description: error instanceof Error ? error.message : 'An error occurred',
         variant: 'destructive',
       });
       return rows;
@@ -368,7 +368,7 @@ const Customers = () => {
         error: (error) => {
           toast({
             title: 'Error parsing CSV',
-            description: error.message,
+            description: error instanceof Error ? error.message : 'An error occurred',
             variant: 'destructive',
           });
         },
@@ -385,7 +385,7 @@ const Customers = () => {
         } catch (error) {
           toast({
             title: 'Error parsing Excel file',
-            description: error.message,
+            description: error instanceof Error ? error.message : 'An error occurred',
             variant: 'destructive',
           });
         }
@@ -465,7 +465,7 @@ const Customers = () => {
     } catch (error) {
       toast({
         title: 'Error importing customers',
-        description: error.message,
+        description: error instanceof Error ? error.message : 'An error occurred',
         variant: 'destructive',
       });
     } finally {

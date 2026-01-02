@@ -117,7 +117,7 @@ export const ProductionPhotoUpload = ({
       // Error handled silently
       toast({
         title: "Upload failed",
-        description: error.message,
+        description: error instanceof Error ? error.message : 'An error occurred',
         variant: "destructive",
       });
     } finally {

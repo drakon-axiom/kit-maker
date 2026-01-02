@@ -72,7 +72,7 @@ export const SMSTemplateEditor = () => {
     } catch (error) {
       toast({
         title: "Error loading templates",
-        description: error.message,
+        description: error instanceof Error ? error.message : 'An error occurred',
         variant: "destructive",
       });
     } finally {
@@ -118,7 +118,7 @@ export const SMSTemplateEditor = () => {
     } catch (error) {
       toast({
         title: "Error creating template",
-        description: error.message,
+        description: error instanceof Error ? error.message : 'An error occurred',
         variant: "destructive",
       });
     }
@@ -147,7 +147,7 @@ export const SMSTemplateEditor = () => {
     } catch (error) {
       toast({
         title: "Error updating template",
-        description: error.message,
+        description: error instanceof Error ? error.message : 'An error occurred',
         variant: "destructive",
       });
     }
@@ -168,7 +168,7 @@ export const SMSTemplateEditor = () => {
     } catch (error) {
       toast({
         title: "Error deleting template",
-        description: error.message,
+        description: error instanceof Error ? error.message : 'An error occurred',
         variant: "destructive",
       });
     }
@@ -239,7 +239,7 @@ export const SMSTemplateEditor = () => {
     } catch (error) {
       toast({
         title: "Error sending test SMS",
-        description: error.message,
+        description: error instanceof Error ? error.message : 'An error occurred',
         variant: "destructive",
       });
     } finally {

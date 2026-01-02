@@ -21,8 +21,8 @@ export async function downloadBrandedInvoice(invoiceId: string, invoiceNo: strin
     link.click();
     document.body.removeChild(link);
     window.URL.revokeObjectURL(url);
-  } catch (error: any) {
-    throw new Error(error.message || 'Failed to download invoice');
+  } catch (error) {
+    throw new Error(error instanceof Error ? error.message : 'Failed to download invoice');
   }
 }
 
@@ -47,7 +47,7 @@ export async function downloadBrandedReceipt(paymentId: string) {
     link.click();
     document.body.removeChild(link);
     window.URL.revokeObjectURL(url);
-  } catch (error: any) {
-    throw new Error(error.message || 'Failed to download receipt');
+  } catch (error) {
+    throw new Error(error instanceof Error ? error.message : 'Failed to download receipt');
   }
 }

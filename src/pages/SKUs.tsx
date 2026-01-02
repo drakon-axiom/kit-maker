@@ -543,7 +543,7 @@ const SKUs = () => {
     } catch (error) {
       toast({
         title: 'Error checking existing SKUs',
-        description: error.message,
+        description: error instanceof Error ? error.message : 'An error occurred',
         variant: 'destructive',
       });
       return rows;
@@ -572,7 +572,7 @@ const SKUs = () => {
         error: (error) => {
           toast({
             title: 'Error parsing CSV',
-            description: error.message,
+            description: error instanceof Error ? error.message : 'An error occurred',
             variant: 'destructive',
           });
         },
@@ -589,7 +589,7 @@ const SKUs = () => {
         } catch (error) {
           toast({
             title: 'Error parsing Excel file',
-            description: error.message,
+            description: error instanceof Error ? error.message : 'An error occurred',
             variant: 'destructive',
           });
         }
@@ -750,7 +750,7 @@ const SKUs = () => {
     } catch (error) {
       toast({
         title: 'Error importing SKUs',
-        description: error.message,
+        description: error instanceof Error ? error.message : 'An error occurred',
         variant: 'destructive',
       });
     } finally {

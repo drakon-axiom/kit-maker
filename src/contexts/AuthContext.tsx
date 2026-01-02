@@ -150,8 +150,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       return { error: null };
-    } catch (error: any) {
-      return { error };
+    } catch (error) {
+      return { error: error instanceof Error ? error : new Error('Sign up failed') };
     }
   };
 
