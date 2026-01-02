@@ -140,7 +140,7 @@ const UserManagement = () => {
       setNewUserRole('operator');
     },
     onError: (error: any) => {
-      toast.error(error.message || 'Failed to create user');
+      toast.error(error instanceof Error ? error.message : 'Failed to create user');
       // Error handled silently
     },
   });

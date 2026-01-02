@@ -68,7 +68,7 @@ const Notifications = () => {
       toast({
         variant: 'destructive',
         title: 'Error',
-        description: error.message,
+        description: error instanceof Error ? error.message : 'An error occurred',
       });
     } finally {
       setLoading(false);
@@ -100,7 +100,7 @@ const Notifications = () => {
       toast({
         variant: 'destructive',
         title: 'Error',
-        description: error.message,
+        description: error instanceof Error ? error.message : 'An error occurred',
       });
     } finally {
       setSaving(false);
@@ -164,7 +164,7 @@ const Notifications = () => {
       toast({
         variant: 'destructive',
         title: 'Error',
-        description: error.message,
+        description: error instanceof Error ? error.message : 'An error occurred',
       });
     } finally {
       setSendingTest(false);

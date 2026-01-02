@@ -220,7 +220,7 @@ export default function ManualPaymentRecording() {
       // Error handled silently
       toast({
         title: "Failed to record payment",
-        description: error.message || "An error occurred while recording the payment",
+        description: error instanceof Error ? error.message : "An error occurred while recording the payment",
         variant: "destructive",
       });
     } finally {

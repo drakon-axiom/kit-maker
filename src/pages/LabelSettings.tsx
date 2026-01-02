@@ -81,7 +81,7 @@ const LabelSettingsPage = () => {
     } catch (error) {
       toast({
         title: 'Error',
-        description: error.message,
+        description: error instanceof Error ? error.message : 'An error occurred',
         variant: 'destructive',
       });
     } finally {
@@ -123,7 +123,7 @@ const LabelSettingsPage = () => {
     } catch (error) {
       toast({
         title: 'Error',
-        description: error.message,
+        description: error instanceof Error ? error.message : 'An error occurred',
         variant: 'destructive',
       });
     } finally {
@@ -273,7 +273,7 @@ const LabelSettingsPage = () => {
     } catch (error) {
       toast({
         title: 'Upload failed',
-        description: error.message,
+        description: error instanceof Error ? error.message : 'An error occurred',
         variant: 'destructive',
       });
     } finally {
@@ -302,7 +302,7 @@ const LabelSettingsPage = () => {
     } catch (error) {
       toast({
         title: 'Delete failed',
-        description: error.message,
+        description: error instanceof Error ? error.message : 'An error occurred',
         variant: 'destructive',
       });
     }

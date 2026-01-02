@@ -117,7 +117,7 @@ export default function CustomerPaymentHistory() {
       toast.success('Receipt downloaded successfully');
     } catch (error) {
       // Error handled silently
-      toast.error(error.message || 'Failed to download receipt');
+      toast.error(error instanceof Error ? error.message : 'Failed to download receipt');
     } finally {
       setDownloadingId(null);
     }

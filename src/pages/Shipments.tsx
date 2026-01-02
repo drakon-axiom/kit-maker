@@ -330,7 +330,7 @@ const Shipments = () => {
       toast({ title: 'Tracking refreshed', description: `Updated ${data.updated} shipment(s)` });
       fetchShipments();
     } catch (error) {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      toast({ title: 'Error', description: error instanceof Error ? error.message : 'An error occurred', variant: 'destructive' });
     } finally {
       setRefreshingIds((prev) => { const copy = { ...prev }; delete copy[id]; return copy; });
     }
