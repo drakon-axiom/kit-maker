@@ -56,7 +56,7 @@ const hslToHex = (hsl: string): string => {
   // Match various HSL formats: "206 87% 73%" or "206° 87% 73%" or "206, 87%, 73%"
   const match = normalized.match(/(\d+\.?\d*)[,\s]+(\d+\.?\d*)\s*%?[,\s]+(\d+\.?\d*)\s*%?/);
   if (!match) {
-    console.error('Invalid HSL format:', hsl);
+    // Error handled silently
     return '#000000';
   }
   

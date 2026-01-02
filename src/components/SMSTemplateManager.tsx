@@ -38,7 +38,7 @@ export const SMSTemplateManager = () => {
       if (error) throw error;
       setTemplates(data || []);
     } catch (error) {
-      console.error("Error loading SMS templates:", error);
+      // Error handled silently
       toast({
         title: "Error",
         description: "Failed to load SMS templates",
@@ -67,7 +67,7 @@ export const SMSTemplateManager = () => {
         description: "SMS template updated successfully",
       });
     } catch (error) {
-      console.error("Error saving template:", error);
+      // Error handled silently
       toast({
         title: "Error",
         description: "Failed to save template",

@@ -117,10 +117,10 @@ const Customers = () => {
       );
 
       setCustomers(filteredCustomers as any);
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: 'Error',
-        description: error.message,
+        description: error instanceof Error ? error.message : 'An error occurred',
         variant: 'destructive',
       });
     } finally {
@@ -202,10 +202,10 @@ const Customers = () => {
       setDialogOpen(false);
       resetForm();
       fetchCustomers();
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: 'Error',
-        description: error.message,
+        description: error instanceof Error ? error.message : 'An error occurred',
         variant: 'destructive',
       });
     }
@@ -279,10 +279,10 @@ const Customers = () => {
       });
 
       fetchCustomers();
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: 'Error',
-        description: error.message,
+        description: error instanceof Error ? error.message : 'An error occurred',
         variant: 'destructive',
       });
     } finally {
@@ -335,7 +335,7 @@ const Customers = () => {
           existingId,
         };
       });
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: 'Error checking existing customers',
         description: error.message,
@@ -382,7 +382,7 @@ const Customers = () => {
           const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
           const jsonData = XLSX.utils.sheet_to_json(firstSheet);
           processData(jsonData);
-        } catch (error: any) {
+        } catch (error) {
           toast({
             title: 'Error parsing Excel file',
             description: error.message,
@@ -462,7 +462,7 @@ const Customers = () => {
         fileInputRef.current.value = '';
       }
       fetchCustomers();
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: 'Error importing customers',
         description: error.message,

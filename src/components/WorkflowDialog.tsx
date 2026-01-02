@@ -58,7 +58,7 @@ export const WorkflowDialog = ({ open, onOpenChange, batchId, batchNumber, produ
       fetch('/sop/lipo_c_bioboost_plus_sop_gui.json')
         .then(res => res.json())
         .then(data => setWorkflowData(data))
-        .catch(err => console.error('Failed to load workflow:', err));
+        .catch(() => { /* Workflow load error handled silently */ });
       
       // Reset timer and set start time when opening
       setElapsedSeconds(0);
@@ -75,7 +75,7 @@ export const WorkflowDialog = ({ open, onOpenChange, batchId, batchNumber, produ
           .eq('id', batchId);
         
         if (error) {
-          console.error('Error updating batch status:', error);
+          // Error handled silently
         }
       };
       updateBatchStatus();
@@ -147,7 +147,7 @@ export const WorkflowDialog = ({ open, onOpenChange, batchId, batchNumber, produ
 
       onOpenChange(false);
     } catch (error) {
-      console.error('Error saving workflow completion:', error);
+      // Error handled silently
       toast({
         title: "Error",
         description: "Failed to save workflow completion data",

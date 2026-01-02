@@ -172,8 +172,8 @@ const Orders = () => {
         settings[setting.label_type] = setting;
       });
       setLabelSettings(settings);
-    } catch (error: any) {
-      console.error('Error fetching label settings:', error);
+    } catch {
+      // Label settings fetch errors are non-critical
     }
   };
 
@@ -186,8 +186,8 @@ const Orders = () => {
 
       if (error) throw error;
       setCustomers(data || []);
-    } catch (error: any) {
-      console.error('Error fetching customers:', error);
+    } catch {
+      // Customer fetch errors are non-critical
     }
   };
 
@@ -203,10 +203,10 @@ const Orders = () => {
 
       if (error) throw error;
       setOrders(data as any || []);
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: 'Error',
-        description: error.message,
+        description: error instanceof Error ? error.message : 'An error occurred',
         variant: 'destructive',
       });
     } finally {
@@ -253,7 +253,7 @@ const Orders = () => {
         batches: batches || [],
         shipment: shipment || undefined,
       } as OrderWithDetails;
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: 'Error',
         description: error.message,
@@ -322,10 +322,10 @@ const Orders = () => {
       setSelectedOrders(new Set());
       setBulkStatus('');
       fetchOrders();
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: 'Error',
-        description: error.message,
+        description: error instanceof Error ? error.message : 'An error occurred',
         variant: 'destructive',
       });
     } finally {

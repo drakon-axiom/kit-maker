@@ -167,8 +167,8 @@ const Operator = () => {
         title: 'Success',
         description: 'Batch loaded successfully',
       });
-    } catch (error: any) {
-      console.error('Error loading batch:', error);
+    } catch (error) {
+      // Error handled silently
       toast({
         title: 'Error',
         description: error.message,
@@ -199,8 +199,8 @@ const Operator = () => {
         title: 'Success',
         description: 'Step started',
       });
-    } catch (error: any) {
-      console.error('Error starting step:', error);
+    } catch (error) {
+      // Error handled silently
       toast({
         title: 'Error',
         description: error.message,
@@ -228,8 +228,8 @@ const Operator = () => {
         title: 'Success',
         description: 'Step completed',
       });
-    } catch (error: any) {
-      console.error('Error completing step:', error);
+    } catch (error) {
+      // Error handled silently
       toast({
         title: 'Error',
         description: error.message,
@@ -262,8 +262,8 @@ const Operator = () => {
         title: 'Success',
         description: 'Quantities updated',
       });
-    } catch (error: any) {
-      console.error('Error updating quantities:', error);
+    } catch (error) {
+      // Error handled silently
       toast({
         title: 'Error',
         description: error.message,

@@ -121,10 +121,10 @@ const Shipments = () => {
 
       if (error) throw error;
       setShipments(data as any || []);
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: 'Error',
-        description: error.message,
+        description: error instanceof Error ? error.message : 'An error occurred',
         variant: 'destructive',
       });
     } finally {
@@ -147,8 +147,8 @@ const Shipments = () => {
 
       if (error) throw error;
       setOrders(data as any || []);
-    } catch (error: any) {
-      console.error('Error fetching orders:', error);
+    } catch {
+      // Order fetch errors are non-critical
     }
   };
 
@@ -258,10 +258,10 @@ const Shipments = () => {
 
       setDialogOpen(false);
       fetchShipments();
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: 'Error',
-        description: error.message,
+        description: error instanceof Error ? error.message : 'An error occurred',
         variant: 'destructive',
       });
     }
@@ -286,10 +286,10 @@ const Shipments = () => {
       setDeleteDialogOpen(false);
       setShipmentToDelete(null);
       fetchShipments();
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: 'Error',
-        description: error.message,
+        description: error instanceof Error ? error.message : 'An error occurred',
         variant: 'destructive',
       });
     }
@@ -309,10 +309,10 @@ const Shipments = () => {
 
       // Refresh the shipments list
       fetchShipments();
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: 'Error',
-        description: error.message,
+        description: error instanceof Error ? error.message : 'An error occurred',
         variant: 'destructive',
       });
     } finally {
@@ -329,7 +329,7 @@ const Shipments = () => {
       if (error) throw error;
       toast({ title: 'Tracking refreshed', description: `Updated ${data.updated} shipment(s)` });
       fetchShipments();
-    } catch (error: any) {
+    } catch (error) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
     } finally {
       setRefreshingIds((prev) => { const copy = { ...prev }; delete copy[id]; return copy; });
@@ -409,8 +409,8 @@ const Shipments = () => {
                 status: 'In Transit',
               },
             });
-          } catch (emailError) {
-            console.error('Error sending notification:', emailError);
+          } catch {
+            // Email notification errors are non-critical
           }
         }
       }
@@ -425,10 +425,10 @@ const Shipments = () => {
       setBulkNotes('');
       setSelectedShipments(new Set());
       fetchShipments();
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: 'Error',
-        description: error.message,
+        description: error instanceof Error ? error.message : 'An error occurred',
         variant: 'destructive',
       });
     }

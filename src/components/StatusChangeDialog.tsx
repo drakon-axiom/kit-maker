@@ -69,7 +69,7 @@ export function StatusChangeDialog({
 
       setValidation(data as unknown as ValidationResult);
     } catch (error) {
-      console.error("Error validating transition:", error);
+      // Error handled silently
       toast({
         title: "Validation failed",
         description: "Could not validate status transition",
@@ -106,7 +106,7 @@ export function StatusChangeDialog({
       await onConfirm(overrideNote.trim() || undefined);
       onOpenChange(false);
     } catch (error) {
-      console.error("Error changing status:", error);
+      // Error handled silently
     } finally {
       setSubmitting(false);
     }

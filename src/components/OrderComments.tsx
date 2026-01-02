@@ -72,8 +72,8 @@ const OrderComments = ({ orderId }: OrderCommentsProps) => {
 
       if (error) throw error;
       setComments(data as any || []);
-    } catch (error: any) {
-      console.error('Error fetching comments:', error);
+    } catch (error) {
+      // Error handled silently
     } finally {
       setLoading(false);
     }
@@ -98,9 +98,9 @@ const OrderComments = ({ orderId }: OrderCommentsProps) => {
       setNewComment('');
       toast.success('Comment added');
       fetchComments();
-    } catch (error: any) {
+    } catch (error) {
       toast.error('Failed to add comment');
-      console.error(error);
+      // Error handled silently
     } finally {
       setSubmitting(false);
     }

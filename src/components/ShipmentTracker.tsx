@@ -39,8 +39,8 @@ const ShipmentTracker = ({ shipment, onUpdate }: ShipmentTrackerProps) => {
 
       toast.success('Tracking information updated');
       onUpdate?.();
-    } catch (error: any) {
-      console.error('Refresh tracking error:', error);
+    } catch (error) {
+      // Error handled silently
       toast.error('Failed to refresh tracking information');
     } finally {
       setRefreshing(false);

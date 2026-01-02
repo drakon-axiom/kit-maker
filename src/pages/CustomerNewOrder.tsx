@@ -73,7 +73,7 @@ export default function CustomerNewOrder() {
         setHasRequestedAccess(!!request);
       }
     } catch (error) {
-      console.error('Error checking access request:', error);
+      // Error handled silently
     }
   };
 
@@ -94,9 +94,9 @@ export default function CustomerNewOrder() {
       } = await supabase.from('skus').select('id, code, description, price_per_kit, price_per_piece, pack_size').eq('active', true);
       if (error) throw error;
       setSKUs(skusData || []);
-    } catch (error: any) {
+    } catch (error) {
       toast.error('Failed to load products');
-      console.error(error);
+      // Error handled silently
     } finally {
       setLoading(false);
     }
@@ -119,8 +119,8 @@ export default function CustomerNewOrder() {
         toast.success('Access request submitted! Administrators have been notified.');
         setHasRequestedAccess(true);
       }
-    } catch (error: any) {
-      console.error('Error requesting access:', error);
+    } catch (error) {
+      // Error handled silently
       toast.error('Failed to submit access request');
     } finally {
       setRequestingAccess(false);
@@ -206,9 +206,9 @@ export default function CustomerNewOrder() {
       if (linesError) throw linesError;
       toast.success('Order placed successfully!');
       navigate('/customer');
-    } catch (error: any) {
+    } catch (error) {
       toast.error('Failed to place order');
-      console.error(error);
+      // Error handled silently
     } finally {
       setSubmitting(false);
     }

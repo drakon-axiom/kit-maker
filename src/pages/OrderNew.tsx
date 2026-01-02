@@ -89,7 +89,7 @@ const OrderNew = () => {
       
       if (kitSizeSetting) setKitSize(parseInt(kitSizeSetting.value));
       if (depositSetting) setDepositPercent(parseInt(depositSetting.value));
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: 'Error',
         description: error.message,
@@ -318,7 +318,7 @@ const OrderNew = () => {
       });
 
       navigate(`/orders/${orderData.id}`);
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: 'Error',
         description: error.message,

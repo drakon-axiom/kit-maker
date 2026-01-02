@@ -87,8 +87,8 @@ export default function CustomerProfile() {
           billing_country: customer.billing_country || 'USA',
         });
       }
-    } catch (error: any) {
-      console.error(error);
+    } catch (error) {
+      // Error handled silently
     } finally {
       setLoading(false);
     }
@@ -141,9 +141,9 @@ export default function CustomerProfile() {
 
       toast.success('Profile saved successfully');
       navigate('/customer/orders/new');
-    } catch (error: any) {
+    } catch (error) {
       toast.error('Failed to save profile');
-      console.error(error);
+      // Error handled silently
     } finally {
       setSaving(false);
     }

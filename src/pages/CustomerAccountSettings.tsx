@@ -116,8 +116,8 @@ export default function CustomerAccountSettings() {
           email_marketing: prefsData.email_marketing,
         });
       }
-    } catch (error: any) {
-      console.error('Error fetching account data:', error);
+    } catch (error) {
+      // Error handled silently
       toast.error('Failed to load account settings');
     } finally {
       setLoading(false);
@@ -148,8 +148,8 @@ export default function CustomerAccountSettings() {
       setShowAddressDialog(false);
       setEditingAddress(null);
       resetAddressForm();
-    } catch (error: any) {
-      console.error('Error saving address:', error);
+    } catch (error) {
+      // Error handled silently
       toast.error('Failed to save address');
     }
   };
@@ -159,8 +159,8 @@ export default function CustomerAccountSettings() {
       await supabase.from('saved_addresses').delete().eq('id', id);
       toast.success('Address deleted');
       await fetchAccountData();
-    } catch (error: any) {
-      console.error('Error deleting address:', error);
+    } catch (error) {
+      // Error handled silently
       toast.error('Failed to delete address');
     }
   };
@@ -181,8 +181,8 @@ export default function CustomerAccountSettings() {
 
       if (error) throw error;
       toast.success('Preferences updated');
-    } catch (error: any) {
-      console.error('Error updating preferences:', error);
+    } catch (error) {
+      // Error handled silently
       toast.error('Failed to update preferences');
       setPreferences(preferences); // Revert on error
     }
@@ -210,8 +210,8 @@ export default function CustomerAccountSettings() {
       setShowPasswordDialog(false);
       setNewPassword('');
       setConfirmPassword('');
-    } catch (error: any) {
-      console.error('Error changing password:', error);
+    } catch (error) {
+      // Error handled silently
       toast.error('Failed to change password');
     }
   };

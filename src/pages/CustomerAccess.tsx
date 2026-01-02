@@ -73,8 +73,8 @@ export default function CustomerAccess() {
       );
 
       setRequests(filteredRequests);
-    } catch (error: any) {
-      console.error('Error fetching requests:', error);
+    } catch (error) {
+      // Error handled silently
       toast.error('Failed to load access requests');
     } finally {
       setLoading(false);
@@ -93,8 +93,8 @@ export default function CustomerAccess() {
       toast.success('Request approved');
       setSelectedCustomerId(customerId);
       fetchAccessRequests();
-    } catch (error: any) {
-      console.error('Error approving request:', error);
+    } catch (error) {
+      // Error handled silently
       toast.error('Failed to approve request');
     }
   };
@@ -110,8 +110,8 @@ export default function CustomerAccess() {
 
       toast.success('Request rejected');
       fetchAccessRequests();
-    } catch (error: any) {
-      console.error('Error rejecting request:', error);
+    } catch (error) {
+      // Error handled silently
       toast.error('Failed to reject request');
     }
   };

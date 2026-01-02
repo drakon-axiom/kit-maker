@@ -109,7 +109,7 @@ export const SendCustomSMS = ({
       setMessage("");
       setOpen(false);
     } catch (error) {
-      console.error("Error sending SMS:", error);
+      // Error handled silently
       toast({
         title: "Error",
         description: "Failed to send SMS",
