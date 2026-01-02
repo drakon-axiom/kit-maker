@@ -66,32 +66,28 @@ if (session?.user) {
 }
 ```
 
-### 8. QueryClient Not Configured
+### 8. ~~QueryClient Not Configured~~ ✅ FIXED
 **File:** `src/App.tsx:49`
-**Issue:** QueryClient is created with no configuration options.
-```tsx
-const queryClient = new QueryClient();
-```
-**Recommendation:** Add default options for staleTime, cacheTime, retry logic, and error handling.
+**Issue:** QueryClient was created with no configuration options.
+**Status:** Added sensible defaults: 5-minute staleTime, single retry, disabled refetchOnWindowFocus.
 
 ---
 
 ## Code Quality Issues
 
-### 9. Excessive Console Statements (93 instances)
-Console.log/error/warn statements found in production code:
+### 9. Excessive Console Statements (~80 remaining)
+Console.log/error/warn statements found in production code.
+**Partially Fixed:** Removed console statements from core files (AuthContext, BrandContext, Auth, NotFound).
 
-| File | Count |
-|------|-------|
-| `src/contexts/AuthContext.tsx` | 8 |
-| `src/pages/OrderDetail.tsx` | 9 |
-| `src/pages/Customers.tsx` | 5 |
-| `src/pages/SKUs.tsx` | 10 |
-| `src/pages/Shipments.tsx` | 6 |
-| `src/components/SMSNotificationSettings.tsx` | 3 |
-| Other files | 52+ |
+| File | Status |
+|------|--------|
+| `src/contexts/AuthContext.tsx` | ✅ Cleaned |
+| `src/contexts/BrandContext.tsx` | ✅ Cleaned |
+| `src/pages/Auth.tsx` | ✅ Cleaned |
+| `src/pages/NotFound.tsx` | ✅ Cleaned |
+| Other files | ~80 remaining |
 
-**Recommendation:** Replace with a proper logging system (e.g., a custom logger that can be disabled in production).
+**Recommendation:** Replace remaining with a proper logging system.
 
 ### 10. Excessive `any` Type Usage (~170 instances)
 Heavy use of `any` type throughout the codebase:
@@ -113,27 +109,15 @@ Heavy use of `any` type throughout the codebase:
 
 ## Bugs
 
-### 11. Auth.tsx Missing isRedirecting Dependency
+### 11. ~~Auth.tsx Missing isRedirecting Dependency~~ ✅ FIXED
 **File:** `src/pages/Auth.tsx:71`
-**Issue:** useEffect dependency array missing `isRedirecting` despite using it in the condition.
-```tsx
-useEffect(() => {
-  const checkUserRole = async () => {
-    if (user && !isRedirecting) {  // Uses isRedirecting
-      // ...
-    }
-  };
-  checkUserRole();
-}, [user, navigate]);  // isRedirecting not in dependencies
-```
+**Issue:** useEffect dependency array was missing `isRedirecting` and `toast`.
+**Status:** Added missing dependencies to the array.
 
-### 12. NotFound Page Logging in Production
+### 12. ~~NotFound Page Logging in Production~~ ✅ FIXED
 **File:** `src/pages/NotFound.tsx:12`
-**Issue:** Logs 404 errors to console on every navigation mistake.
-```tsx
-console.error("404 Error: User attempted to access non-existent route:", location.pathname);
-```
-**Recommendation:** Use proper analytics/logging instead.
+**Issue:** Was logging 404 errors to console on every navigation mistake.
+**Status:** Removed console.error, added comment for optional analytics tracking.
 
 ---
 
@@ -164,21 +148,24 @@ console.error("404 Error: User attempted to access non-existent route:", locatio
 |----------|-------|-------|
 | Critical Issues | 3 | 3 ✅ |
 | Security Issues | 2 | 1 ✅ |
-| Performance Issues | 3 | 0 |
-| Code Quality Issues | 2 | 0 |
-| Bugs | 2 | 0 |
-| Total | 12 | 4 |
+| Performance Issues | 3 | 1 ✅ |
+| Code Quality Issues | 2 | 1 (partial) |
+| Bugs | 2 | 2 ✅ |
+| Total | 12 | 8 |
 
 **Lines of Code Reviewed:** ~33,000
 **Files Reviewed:** 139 TypeScript/TSX files
-**Console Statements:** 93 (recommend removing)
+**Console Statements:** ~80 remaining (core files cleaned)
 **Any Type Usage:** ~170 instances (recommend proper typing)
 
 ---
 
 ## Changes Made
 
-1. **src/App.tsx** - Removed duplicate `/quote-approval` route
+1. **src/App.tsx** - Removed duplicate `/quote-approval` route, configured QueryClient with sensible defaults
 2. **src/hooks/useSMSQuotaMonitor.ts** - Fixed stale closure bug using refs and useCallback
 3. **src/components/ProtectedRoute.tsx** - Implemented role hierarchy for proper access control
-4. **src/contexts/BrandContext.tsx** - Added Secure flag for cookies over HTTPS
+4. **src/contexts/BrandContext.tsx** - Added Secure flag for cookies, removed console statements
+5. **src/contexts/AuthContext.tsx** - Removed console.log/error statements
+6. **src/pages/Auth.tsx** - Fixed useEffect dependencies, removed console statements
+7. **src/pages/NotFound.tsx** - Removed console.error logging

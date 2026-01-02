@@ -84,7 +84,6 @@ export const BrandProvider = ({ children }: { children: React.ReactNode }) => {
       .order('is_default', { ascending: false });
 
     if (error) {
-      console.error('Error fetching brands:', error);
       return [];
     }
     return data as Brand[];

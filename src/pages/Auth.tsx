@@ -59,8 +59,7 @@ const Auth = () => {
           } else {
             navigate('/');
           }
-        } catch (error) {
-          console.error('Error checking role:', error);
+        } catch {
           navigate('/');
         }
       } else if (!user) {
@@ -68,7 +67,7 @@ const Auth = () => {
       }
     };
     checkUserRole();
-  }, [user, navigate]);
+  }, [user, navigate, isRedirecting, toast]);
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
