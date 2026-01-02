@@ -82,7 +82,7 @@ const UserManagement = () => {
     },
     onError: (error) => {
       toast.error('Failed to update role');
-      console.error('Error updating role:', error);
+      // Error handled silently
     },
   });
 
@@ -101,7 +101,7 @@ const UserManagement = () => {
     },
     onError: (error) => {
       toast.error('Failed to remove role');
-      console.error('Error removing role:', error);
+      // Error handled silently
     },
   });
 
@@ -141,7 +141,7 @@ const UserManagement = () => {
     },
     onError: (error: any) => {
       toast.error(error.message || 'Failed to create user');
-      console.error('Error creating user:', error);
+      // Error handled silently
     },
   });
 

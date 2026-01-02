@@ -101,8 +101,8 @@ const WholesaleSignup = () => {
         billing_country: 'USA',
         billing_same_as_shipping: true,
       });
-    } catch (error: any) {
-      console.error('Error submitting application:', error);
+    } catch (error) {
+      // Error handled silently
       toast.error('Failed to submit application. Please try again.');
     } finally {
       setLoading(false);

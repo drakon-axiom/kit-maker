@@ -114,7 +114,7 @@ export const ProductionPhotoUpload = ({
       setCaption("");
       onUploadComplete?.();
     } catch (error) {
-      console.error("Upload error:", error);
+      // Error handled silently
       toast({
         title: "Upload failed",
         description: error.message,

@@ -52,7 +52,7 @@ export const SMSNotificationSettings = ({ customerId }: SMSNotificationSettingsP
         });
       }
     } catch (error) {
-      console.error("Error loading SMS settings:", error);
+      // Error handled silently
     } finally {
       setLoading(false);
     }
@@ -77,7 +77,7 @@ export const SMSNotificationSettings = ({ customerId }: SMSNotificationSettingsP
         description: "Your SMS notification preferences have been updated",
       });
     } catch (error) {
-      console.error("Error saving SMS settings:", error);
+      // Error handled silently
       toast({
         title: "Error",
         description: "Failed to save settings",
@@ -117,7 +117,7 @@ export const SMSNotificationSettings = ({ customerId }: SMSNotificationSettingsP
         description: "Check your phone for the test message",
       });
     } catch (error) {
-      console.error("Error sending test SMS:", error);
+      // Error handled silently
       toast({
         title: "Error",
         description: "Failed to send test SMS. Please check your phone number and try again.",

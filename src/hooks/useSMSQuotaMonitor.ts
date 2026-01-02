@@ -61,7 +61,6 @@ export const useSMSQuotaMonitor = () => {
       const { data, error } = await supabase.functions.invoke("get-textbelt-quota");
 
       if (error) {
-        console.error("Error fetching quota:", error);
         return;
       }
 
@@ -84,8 +83,8 @@ export const useSMSQuotaMonitor = () => {
           lastNotificationTimeRef.current = now;
         }
       }
-    } catch (error) {
-      console.error("Error checking SMS quota:", error);
+    } catch {
+      // Quota check errors are non-critical
     }
   }, [showNotification]);
 

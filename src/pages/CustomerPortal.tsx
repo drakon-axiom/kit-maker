@@ -100,9 +100,9 @@ export default function CustomerPortal() {
         if (error) throw error;
         setOrders(ordersData || []);
       }
-    } catch (error: any) {
+    } catch (error) {
       toast.error('Failed to load orders');
-      console.error(error);
+      // Error handled silently
     } finally {
       setLoading(false);
     }
@@ -174,8 +174,8 @@ export default function CustomerPortal() {
       setTimeout(() => {
         navigate(`/customer/orders/${newOrder.id}`);
       }, 1000);
-    } catch (error: any) {
-      console.error('Error reordering:', error);
+    } catch (error) {
+      // Error handled silently
       toast.error('Failed to create reorder');
     } finally {
       setReorderingId(null);
@@ -251,7 +251,7 @@ export default function CustomerPortal() {
       setCancelDialogOpen(false);
       setOrderToCancel(null);
     } catch (error) {
-      console.error('Error requesting cancellation:', error);
+      // Error handled silently
       toast.error('Failed to submit cancellation request');
     }
   };

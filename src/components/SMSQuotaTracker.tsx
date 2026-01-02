@@ -103,7 +103,7 @@ export const SMSQuotaTracker = () => {
         });
       }
     } catch (error) {
-      console.error("Error fetching quota and usage:", error);
+      // Error handled silently
       toast({
         title: "Error",
         description: "Failed to fetch SMS quota and usage data",

@@ -87,7 +87,7 @@ export default function ManualPaymentRecording() {
 
       setEligibleOrders(eligible);
     } catch (error) {
-      console.error("Error fetching eligible orders:", error);
+      // Error handled silently
       toast({
         title: "Failed to load orders",
         description: "Could not fetch eligible orders",
@@ -127,13 +127,13 @@ export default function ManualPaymentRecording() {
         .eq("so_id", order.id);
 
       if (invoiceError) {
-        console.error("Error fetching invoices:", invoiceError);
+        // Error handled silently
       }
 
       setOrderDetails(order);
       setInvoices(invoiceData || []);
     } catch (error) {
-      console.error("Error loading order:", error);
+      // Error handled silently
       toast({
         title: "Failed to load order",
         description: "Could not fetch order details",
@@ -200,7 +200,7 @@ export default function ManualPaymentRecording() {
             window.URL.revokeObjectURL(url);
           }
         } catch (receiptErr) {
-          console.error("Error generating receipt:", receiptErr);
+          // Error handled silently
           // Don't fail the whole operation if receipt generation fails
         }
       }
@@ -216,8 +216,8 @@ export default function ManualPaymentRecording() {
       setOrderDetails(null);
       setInvoices([]);
       setOrderNumber("");
-    } catch (error: any) {
-      console.error("Error recording payment:", error);
+    } catch (error) {
+      // Error handled silently
       toast({
         title: "Failed to record payment",
         description: error.message || "An error occurred while recording the payment",

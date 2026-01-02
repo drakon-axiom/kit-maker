@@ -127,7 +127,7 @@ const OrderEdit = () => {
         bottle_qty: line.bottle_qty,
       }));
       setLines(loadedLines);
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: 'Error',
         description: error.message,
@@ -353,7 +353,7 @@ const OrderEdit = () => {
       });
 
       navigate(`/orders/${id}`);
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: 'Error',
         description: error.message,

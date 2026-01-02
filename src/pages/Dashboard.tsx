@@ -51,7 +51,7 @@ const Dashboard = () => {
 
       setStats(stats);
     } catch (error) {
-      console.error('Error fetching stats:', error);
+      // Error handled silently
     } finally {
       setLoading(false);
     }

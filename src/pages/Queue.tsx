@@ -123,7 +123,7 @@ const Queue = () => {
       if (activeBatchError) throw activeBatchError;
       setActiveBatches(activeBatchData as any || []);
 
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: 'Error',
         description: error.message,

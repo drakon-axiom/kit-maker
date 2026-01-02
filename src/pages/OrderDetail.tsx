@@ -182,10 +182,10 @@ const OrderDetail = () => {
 
       if (error) throw error;
       setOrder(data as any);
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: 'Error',
-        description: error.message,
+        description: error instanceof Error ? error.message : 'Failed to load order',
         variant: 'destructive',
       });
     } finally {
@@ -203,8 +203,8 @@ const OrderDetail = () => {
 
       if (error) throw error;
       setBatches(data || []);
-    } catch (error: any) {
-      console.error('Error fetching batches:', error);
+    } catch {
+      // Batch fetch errors are non-critical
     }
   };
 
@@ -218,11 +218,11 @@ const OrderDetail = () => {
 
       if (batchesErr) throw batchesErr;
 
-      const batchIds = (batchRows || []).map((b: any) => b.id);
+      const batchIds = (batchRows || []).map((b) => b.id);
 
       // Build a map of planned bottles per SKU prefix from existing batches
       const plannedByPrefix: Record<string, number> = {};
-      (batchRows || []).forEach((b: any) => {
+      (batchRows || []).forEach((b) => {
         const prefix = (b.human_uid || '').split('-')[0];
         if (!prefix) return;
         plannedByPrefix[prefix] = (plannedByPrefix[prefix] || 0) + (b.qty_bottle_planned || 0);
@@ -239,7 +239,7 @@ const OrderDetail = () => {
 
         if (itemsErr) throw itemsErr;
 
-        (itemsRows || []).forEach((item: any) => {
+        (itemsRows || []).forEach((item) => {
           const lineId = item.so_line_id;
           allocations[lineId] = (allocations[lineId] || 0) + (item.bottle_qty_allocated || 0);
         });
@@ -261,8 +261,7 @@ const OrderDetail = () => {
       }
 
       setBatchAllocations(allocations);
-    } catch (error: any) {
-      console.error('Error fetching batch allocations:', error);
+    } catch {
       setBatchAllocations({});
     }
   };
@@ -338,10 +337,10 @@ const OrderDetail = () => {
 
         navigate('/orders');
       }
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: 'Error',
-        description: error.message,
+        description: error instanceof Error ? error.message : 'Delete failed',
         variant: 'destructive',
       });
     } finally {
@@ -386,10 +385,10 @@ const OrderDetail = () => {
       });
 
       fetchOrder();
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: 'Error',
-        description: error.message,
+        description: error instanceof Error ? error.message : 'Status update failed',
         variant: 'destructive',
       });
     } finally {
@@ -432,9 +431,7 @@ const OrderDetail = () => {
         },
       });
 
-      if (emailError) {
-        console.error('Failed to send notification email:', emailError);
-      }
+      // Email errors are logged but not shown to user
 
       // Log the action
       await supabase.from('audit_log').insert({
@@ -457,10 +454,10 @@ const OrderDetail = () => {
       setRejectionDialogOpen(false);
       setRejectionReason('');
       fetchOrder();
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: 'Error',
-        description: error.message,
+        description: error instanceof Error ? error.message : 'Approval failed',
         variant: 'destructive',
       });
     } finally {
@@ -513,10 +510,10 @@ const OrderDetail = () => {
 
       await fetchBatches();
       await fetchBatchAllocations();
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: 'Error',
-        description: error.message,
+        description: error instanceof Error ? error.message : 'Delete failed',
         variant: 'destructive',
       });
     } finally {
@@ -602,11 +599,10 @@ const OrderDetail = () => {
       // Refresh data
       await fetchBatches();
       await fetchBatchAllocations();
-    } catch (error: any) {
-      console.error('Error creating batches:', error);
+    } catch (error) {
       toast({
         title: 'Error',
-        description: error.message,
+        description: error instanceof Error ? error.message : 'Batch creation failed',
         variant: 'destructive',
       });
       throw error;
@@ -630,10 +626,10 @@ const OrderDetail = () => {
       });
 
       fetchBatches();
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: 'Error',
-        description: error.message,
+        description: error instanceof Error ? error.message : 'Scheduling failed',
         variant: 'destructive',
       });
     }
@@ -734,10 +730,10 @@ const OrderDetail = () => {
 
       fetchBatches();
       fetchBatchAllocations();
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: 'Error',
-        description: error.message,
+        description: error instanceof Error ? error.message : 'Split failed',
         variant: 'destructive',
       });
     }
@@ -777,10 +773,10 @@ const OrderDetail = () => {
       });
 
       fetchBatches();
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: 'Error',
-        description: error.message,
+        description: error instanceof Error ? error.message : 'Merge failed',
         variant: 'destructive',
       });
     }
@@ -1048,10 +1044,10 @@ const OrderDetail = () => {
                               });
                               
                               fetchOrder();
-                            } catch (error: any) {
+                            } catch (error) {
                               toast({
                                 title: 'Error',
-                                description: error.message,
+                                description: error instanceof Error ? error.message : 'Update failed',
                                 variant: 'destructive',
                               });
                             }
@@ -1078,10 +1074,10 @@ const OrderDetail = () => {
                               });
 
                               fetchOrder();
-                            } catch (error: any) {
+                            } catch (error) {
                               toast({
                                 title: 'Error',
-                                description: error.message,
+                                description: error instanceof Error ? error.message : 'Renewal failed',
                                 variant: 'destructive',
                               });
                             }
@@ -1487,11 +1483,10 @@ const OrderDetail = () => {
               });
               setQuotePreviewOpen(false);
               fetchOrder();
-            } catch (error: any) {
-              console.error("Error generating quote:", error);
+            } catch (error) {
               toast({
                 title: "Error",
-                description: "Failed to generate quote: " + error.message,
+                description: error instanceof Error ? `Failed to generate quote: ${error.message}` : "Failed to generate quote",
                 variant: "destructive",
               });
             } finally {

@@ -60,8 +60,8 @@ export default function CustomerQuoteManagement() {
 
       if (error) throw error;
       setQuotes(data || []);
-    } catch (error: any) {
-      console.error('Error fetching quotes:', error);
+    } catch (error) {
+      // Error handled silently
       toast.error('Failed to load quotes');
     } finally {
       setLoading(false);
@@ -144,8 +144,8 @@ export default function CustomerQuoteManagement() {
       setSelectedQuote(null);
       setActionType(null);
       setNotes('');
-    } catch (error: any) {
-      console.error('Error processing quote action:', error);
+    } catch (error) {
+      // Error handled silently
       toast.error('Failed to process quote action');
     } finally {
       setActionLoading(false);

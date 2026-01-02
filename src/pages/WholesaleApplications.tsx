@@ -58,8 +58,8 @@ const WholesaleApplications = () => {
 
       if (error) throw error;
       setApplications(data || []);
-    } catch (error: any) {
-      console.error('Error fetching applications:', error);
+    } catch (error) {
+      // Error handled silently
       toast.error('Failed to load applications');
     } finally {
       setLoading(false);
@@ -103,12 +103,12 @@ const WholesaleApplications = () => {
         });
 
         if (functionError) {
-          console.error('Error in approval function:', functionError);
+          // Error handled silently
           toast.error('Application approved but failed to create account. Please contact support.');
           return;
         }
 
-        console.log('Account created:', data);
+        // Debug log removed
         toast.success(`Application approved! Login credentials sent to ${applications.find(a => a.id === appId)?.email}`);
       } else {
         toast.success('Application rejected');
@@ -117,8 +117,8 @@ const WholesaleApplications = () => {
       setSelectedApp(null);
       setReviewNotes('');
       fetchApplications();
-    } catch (error: any) {
-      console.error('Error updating application:', error);
+    } catch (error) {
+      // Error handled silently
       toast.error('Failed to update application');
     } finally {
       setActionLoading(false);

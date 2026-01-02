@@ -50,7 +50,7 @@ const AdminAuth = () => {
             setIsRedirecting(false);
           }
         } catch (error) {
-          console.error('Error checking role:', error);
+          // Error handled silently
           setIsRedirecting(false);
         }
       } else if (!user) {

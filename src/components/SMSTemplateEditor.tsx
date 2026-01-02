@@ -69,7 +69,7 @@ export const SMSTemplateEditor = () => {
 
       if (error) throw error;
       setTemplates(data || []);
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: "Error loading templates",
         description: error.message,
@@ -115,7 +115,7 @@ export const SMSTemplateEditor = () => {
         available_variables: COMMON_VARIABLES,
       });
       loadTemplates();
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: "Error creating template",
         description: error.message,
@@ -144,7 +144,7 @@ export const SMSTemplateEditor = () => {
 
       setEditingTemplate(null);
       loadTemplates();
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: "Error updating template",
         description: error.message,
@@ -165,7 +165,7 @@ export const SMSTemplateEditor = () => {
       });
 
       loadTemplates();
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: "Error deleting template",
         description: error.message,
@@ -236,7 +236,7 @@ export const SMSTemplateEditor = () => {
       setTestDialogOpen(false);
       setTestPhoneNumber("");
       setTestTemplate(null);
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: "Error sending test SMS",
         description: error.message,
