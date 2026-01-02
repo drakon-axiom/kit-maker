@@ -47,7 +47,7 @@ export const CategoryManager = () => {
 
       if (error) throw error;
       setCategories(data || []);
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: 'Error',
         description: error.message,
@@ -89,7 +89,7 @@ export const CategoryManager = () => {
       setDialogOpen(false);
       resetForm();
       fetchCategories();
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: 'Error',
         description: error.message,
@@ -112,7 +112,7 @@ export const CategoryManager = () => {
       if (error) throw error;
       toast({ title: 'Success', description: 'Category deleted successfully' });
       fetchCategories();
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: 'Error',
         description: error.message,

@@ -47,8 +47,8 @@ const PaymentCard = ({ type, amount, status, orderId, orderNumber }: PaymentCard
         window.open(data.url, '_blank');
         toast.success('Opening payment checkout...');
       }
-    } catch (error: any) {
-      console.error('Payment error:', error);
+    } catch (error) {
+      // Error handled silently
       toast.error('Failed to initiate payment. Please try again.');
     } finally {
       setIsProcessing(false);

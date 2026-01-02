@@ -94,8 +94,8 @@ export default function CustomerPaymentHistory() {
         depositCount: deposits,
         finalCount: finals,
       });
-    } catch (error: any) {
-      console.error('Error fetching payment history:', error);
+    } catch (error) {
+      // Error handled silently
       toast.error('Failed to load payment history');
     } finally {
       setLoading(false);
@@ -115,8 +115,8 @@ export default function CustomerPaymentHistory() {
     try {
       await downloadBrandedReceipt(transactionId);
       toast.success('Receipt downloaded successfully');
-    } catch (error: any) {
-      console.error('Error downloading receipt:', error);
+    } catch (error) {
+      // Error handled silently
       toast.error(error.message || 'Failed to download receipt');
     } finally {
       setDownloadingId(null);

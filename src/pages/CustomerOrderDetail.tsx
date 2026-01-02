@@ -108,9 +108,9 @@ export default function CustomerOrderDetail() {
       setOrder(orderData);
       setLines(linesData || []);
       setShipment(shipmentData);
-    } catch (error: any) {
+    } catch (error) {
       toast.error('Failed to load order details');
-      console.error(error);
+      // Error handled silently
       navigate('/customer');
     } finally {
       setLoading(false);
@@ -166,9 +166,9 @@ export default function CustomerOrderDetail() {
       setModificationRequest('');
       setModificationDialogOpen(false);
       setRequestHistoryKey(prev => prev + 1);
-    } catch (error: any) {
+    } catch (error) {
       toast.error('Failed to submit modification request');
-      console.error(error);
+      // Error handled silently
     } finally {
       setSubmittingModification(false);
     }
@@ -230,7 +230,7 @@ export default function CustomerOrderDetail() {
       }
       toast.success('PDF downloaded successfully');
     } catch (error) {
-      console.error('PDF generation error:', error);
+      // Error handled silently
       toast.error('Failed to generate PDF');
     } finally {
       setDownloadingPdf(false);

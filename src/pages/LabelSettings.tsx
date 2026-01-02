@@ -78,7 +78,7 @@ const LabelSettingsPage = () => {
         if (setting.label_type === 'shipping') setShippingSettings(setting as LabelSettings);
         if (setting.label_type === 'batch') setBatchSettings(setting as LabelSettings);
       });
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: 'Error',
         description: error.message,
@@ -120,7 +120,7 @@ const LabelSettingsPage = () => {
         title: 'Success',
         description: 'Label settings saved successfully',
       });
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: 'Error',
         description: error.message,
@@ -270,7 +270,7 @@ const LabelSettingsPage = () => {
         title: 'Logo uploaded',
         description: 'Your logo has been uploaded successfully',
       });
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: 'Upload failed',
         description: error.message,
@@ -299,7 +299,7 @@ const LabelSettingsPage = () => {
         title: 'Logo deleted',
         description: 'Your logo has been removed',
       });
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: 'Delete failed',
         description: error.message,

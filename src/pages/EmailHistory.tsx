@@ -81,7 +81,7 @@ const EmailHistory = () => {
       }
 
       setEmails(filtered);
-    } catch (error: any) {
+    } catch (error) {
       toast({
         variant: 'destructive',
         title: 'Error',

@@ -46,8 +46,8 @@ export default function OrderRequestHistory({ orderId, onRequestChange }: OrderR
 
       if (error) throw error;
       setRequests(data || []);
-    } catch (error: any) {
-      console.error('Failed to load request history:', error);
+    } catch (error) {
+      // Error handled silently
     } finally {
       setLoading(false);
     }
@@ -66,9 +66,9 @@ export default function OrderRequestHistory({ orderId, onRequestChange }: OrderR
       toast.success('Request cancelled successfully');
       await fetchRequests();
       onRequestChange?.();
-    } catch (error: any) {
+    } catch (error) {
       toast.error('Failed to cancel request');
-      console.error(error);
+      // Error handled silently
     } finally {
       setDeletingId(null);
     }

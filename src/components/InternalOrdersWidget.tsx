@@ -108,7 +108,7 @@ const InternalOrdersWidget = () => {
       if (error) throw error;
       setOrders(data || []);
     } catch (error) {
-      console.error('Error fetching internal orders:', error);
+      // Error handled silently
     } finally {
       setLoading(false);
     }

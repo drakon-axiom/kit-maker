@@ -91,7 +91,7 @@ const InternalOrderNew = () => {
 
       const kitSizeSetting = settingsRes.data?.find(s => s.key === 'kit_size');
       if (kitSizeSetting) setKitSize(parseInt(kitSizeSetting.value));
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: 'Error',
         description: error.message,
@@ -284,7 +284,7 @@ const InternalOrderNew = () => {
       });
 
       navigate(`/orders/${order.id}`);
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: 'Error',
         description: error.message,

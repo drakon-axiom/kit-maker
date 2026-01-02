@@ -152,8 +152,8 @@ const SKUs = () => {
         .order('name');
       if (error) throw error;
       setCategories(data || []);
-    } catch (error: any) {
-      console.error('Error fetching categories:', error);
+    } catch {
+      // Category fetch errors are non-critical
     }
   };
 
@@ -176,10 +176,10 @@ const SKUs = () => {
         sizes: sku.sizes?.sort((a: any, b: any) => a.size_ml - b.size_ml) || []
       }));
       setSKUs(skusWithTiers);
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: 'Error',
-        description: error.message,
+        description: error instanceof Error ? error.message : 'An error occurred',
         variant: 'destructive',
       });
     } finally {
@@ -283,10 +283,10 @@ const SKUs = () => {
       setDialogOpen(false);
       resetForm();
       fetchSKUs();
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: 'Error',
-        description: error.message,
+        description: error instanceof Error ? error.message : 'An error occurred',
         variant: 'destructive',
       });
     } finally {
@@ -364,10 +364,10 @@ const SKUs = () => {
         category_id: '',
       });
       fetchSKUs();
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: 'Error',
-        description: error.message,
+        description: error instanceof Error ? error.message : 'An error occurred',
         variant: 'destructive',
       });
     } finally {
@@ -540,7 +540,7 @@ const SKUs = () => {
           existingId,
         };
       });
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: 'Error checking existing SKUs',
         description: error.message,
@@ -586,7 +586,7 @@ const SKUs = () => {
           const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
           const jsonData = XLSX.utils.sheet_to_json(firstSheet);
           await processData(jsonData);
-        } catch (error: any) {
+        } catch (error) {
           toast({
             title: 'Error parsing Excel file',
             description: error.message,
@@ -747,7 +747,7 @@ const SKUs = () => {
         fileInputRef.current.value = '';
       }
       fetchSKUs();
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: 'Error importing SKUs',
         description: error.message,
@@ -966,10 +966,10 @@ const SKUs = () => {
       });
 
       fetchSKUs();
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: 'Error',
-        description: error.message,
+        description: error instanceof Error ? error.message : 'An error occurred',
         variant: 'destructive',
       });
     } finally {

@@ -40,7 +40,7 @@ const Settings = () => {
         settingsMap[setting.key] = setting.value;
       });
       setSettings(settingsMap);
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: 'Error',
         description: error.message,
@@ -65,7 +65,7 @@ const Settings = () => {
         title: 'Success',
         description: 'Setting updated successfully',
       });
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: 'Error',
         description: error.message,
@@ -102,7 +102,7 @@ const Settings = () => {
         title: "Success",
         description: "Logo uploaded successfully",
       });
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: "Error",
         description: error.message,

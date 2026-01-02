@@ -70,9 +70,9 @@ export default function OrderRequestManagement() {
 
       if (error) throw error;
       setRequests(data || []);
-    } catch (error: any) {
+    } catch (error) {
       toast.error('Failed to load requests');
-      console.error(error);
+      // Error handled silently
     } finally {
       setLoading(false);
     }
@@ -115,9 +115,9 @@ export default function OrderRequestManagement() {
       toast.success(`Request ${action} successfully`);
       setDialogOpen(false);
       fetchRequests();
-    } catch (error: any) {
+    } catch (error) {
       toast.error(`Failed to ${action} request`);
-      console.error(error);
+      // Error handled silently
     } finally {
       setProcessing(false);
     }

@@ -25,8 +25,8 @@ const OrderDocuments = ({ orderId, orderNumber, status, hasQuote, hasInvoice }: 
         return;
       }
       toast.info('Download coming soon!');
-    } catch (error: any) {
-      console.error('Download error:', error);
+    } catch (error) {
+      // Error handled silently
       toast.error('Failed to download document');
     }
   };

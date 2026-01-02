@@ -78,7 +78,7 @@ export const CustomerAccessManager = ({ initialCustomerId }: CustomerAccessManag
       setCustomers(filteredCustomers);
       setCategories(categoriesRes.data || []);
       setSKUs(skusRes.data || []);
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: 'Error',
         description: error.message,
@@ -109,7 +109,7 @@ export const CustomerAccessManager = ({ initialCustomerId }: CustomerAccessManag
 
       setCategoryAccess(categoryRes.data || []);
       setProductAccess(productRes.data || []);
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: 'Error',
         description: error.message,
@@ -130,7 +130,7 @@ export const CustomerAccessManager = ({ initialCustomerId }: CustomerAccessManag
       if (error) throw error;
       toast({ title: 'Success', description: 'Category access granted' });
       fetchCustomerAccess();
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: 'Error',
         description: error.message,
@@ -153,7 +153,7 @@ export const CustomerAccessManager = ({ initialCustomerId }: CustomerAccessManag
       if (error) throw error;
       toast({ title: 'Success', description: 'Product access granted' });
       fetchCustomerAccess();
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: 'Error',
         description: error.message,
@@ -172,7 +172,7 @@ export const CustomerAccessManager = ({ initialCustomerId }: CustomerAccessManag
       if (error) throw error;
       toast({ title: 'Success', description: 'Access removed' });
       fetchCustomerAccess();
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: 'Error',
         description: error.message,

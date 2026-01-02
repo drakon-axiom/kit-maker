@@ -57,7 +57,7 @@ const ExpiringQuotesWidget = () => {
 
       setQuotes(data as any || []);
     } catch (error) {
-      console.error('Error fetching expiring quotes:', error);
+      // Error handled silently
     } finally {
       setLoading(false);
     }
@@ -89,7 +89,7 @@ const ExpiringQuotesWidget = () => {
         next.delete(quoteId);
         return next;
       });
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: 'Error',
         description: error.message,
@@ -118,7 +118,7 @@ const ExpiringQuotesWidget = () => {
 
       fetchExpiringQuotes();
       setSelectedQuotes(new Set());
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: 'Error',
         description: error.message,

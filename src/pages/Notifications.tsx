@@ -50,8 +50,8 @@ const Notifications = () => {
 
       if (error) throw error;
       if (data?.value) setCompanyName(data.value);
-    } catch (error: any) {
-      console.error('Error fetching company name:', error);
+    } catch (error) {
+      // Error handled silently
     }
   };
 
@@ -64,7 +64,7 @@ const Notifications = () => {
 
       if (error) throw error;
       setTemplates(data || []);
-    } catch (error: any) {
+    } catch (error) {
       toast({
         variant: 'destructive',
         title: 'Error',
@@ -96,7 +96,7 @@ const Notifications = () => {
       });
 
       fetchTemplates();
-    } catch (error: any) {
+    } catch (error) {
       toast({
         variant: 'destructive',
         title: 'Error',
@@ -160,7 +160,7 @@ const Notifications = () => {
         title: 'Success',
         description: `Test email sent to ${user.email}`,
       });
-    } catch (error: any) {
+    } catch (error) {
       toast({
         variant: 'destructive',
         title: 'Error',
