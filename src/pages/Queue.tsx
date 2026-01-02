@@ -121,12 +121,18 @@ const Queue = () => {
         .limit(10);
 
       if (activeBatchError) throw activeBatchError;
-      setActiveBatches(activeBatchData as any || []);
+
+      // Transform the data to handle nested Supabase response
+      const transformedBatches = (activeBatchData || []).map((batch: any) => ({
+        ...batch,
+        sales_order: batch.sales_order || batch.sales_orders || null,
+      }));
+      setActiveBatches(transformedBatches);
 
     } catch (error) {
       toast({
         title: 'Error',
-        description: error.message,
+        description: error instanceof Error ? error.message : 'Failed to load dashboard data',
         variant: 'destructive',
       });
     } finally {

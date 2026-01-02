@@ -180,7 +180,7 @@ const Auth = () => {
     } catch (error) {
       toast({
         title: 'Error',
-        description: error.message,
+        description: error instanceof Error ? error.message : 'Password change failed',
         variant: 'destructive'
       });
     } finally {
