@@ -49,7 +49,9 @@ const getBrandCookie = (): string | null => {
 
 const setBrandCookie = (slug: string) => {
   const maxAge = 365 * 24 * 60 * 60; // 1 year
-  document.cookie = `${BRAND_COOKIE_NAME}=${encodeURIComponent(slug)}; path=/; max-age=${maxAge}; SameSite=Lax`;
+  const isSecure = window.location.protocol === 'https:';
+  const securePart = isSecure ? '; Secure' : '';
+  document.cookie = `${BRAND_COOKIE_NAME}=${encodeURIComponent(slug)}; path=/; max-age=${maxAge}; SameSite=Lax${securePart}`;
 };
 
 export const BrandProvider = ({ children }: { children: React.ReactNode }) => {
