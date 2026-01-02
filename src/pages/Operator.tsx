@@ -168,10 +168,9 @@ const Operator = () => {
         description: 'Batch loaded successfully',
       });
     } catch (error) {
-      // Error handled silently
       toast({
         title: 'Error',
-        description: error.message,
+        description: error instanceof Error ? error.message : 'Failed to load batch',
         variant: 'destructive',
       });
     } finally {
@@ -180,8 +179,8 @@ const Operator = () => {
   };
 
   const startStep = async (stepId: string) => {
-    if (!user) return;
-    
+    if (!user || !batch) return;
+
     setUpdatingStep(stepId);
     try {
       const { error } = await supabase
@@ -195,15 +194,39 @@ const Operator = () => {
 
       if (error) throw error;
 
+      // Update batch status to 'wip' if it's currently 'queued'
+      if (batch.status === 'queued') {
+        const { error: batchError } = await supabase
+          .from('production_batches')
+          .update({
+            status: 'wip',
+            actual_start: new Date().toISOString(),
+          })
+          .eq('id', batch.id);
+
+        if (batchError) throw batchError;
+
+        // Update local state
+        setBatch(prev => prev ? { ...prev, status: 'wip', actual_start: new Date().toISOString() } : null);
+      }
+
+      // Update local workflow steps state
+      setWorkflowSteps(prev =>
+        prev.map(step =>
+          step.id === stepId
+            ? { ...step, status: 'wip', started_at: new Date().toISOString(), operator_id: user.id }
+            : step
+        )
+      );
+
       toast({
         title: 'Success',
         description: 'Step started',
       });
     } catch (error) {
-      // Error handled silently
       toast({
         title: 'Error',
-        description: error.message,
+        description: error instanceof Error ? error.message : 'Failed to start step',
         variant: 'destructive',
       });
     } finally {
@@ -212,6 +235,8 @@ const Operator = () => {
   };
 
   const completeStep = async (stepId: string) => {
+    if (!batch) return;
+
     setUpdatingStep(stepId);
     try {
       const { error } = await supabase
@@ -224,15 +249,44 @@ const Operator = () => {
 
       if (error) throw error;
 
-      toast({
-        title: 'Success',
-        description: 'Step completed',
-      });
+      // Check if all steps are now complete
+      const updatedSteps = workflowSteps.map(step =>
+        step.id === stepId ? { ...step, status: 'done' } : step
+      );
+      const allStepsComplete = updatedSteps.every(step => step.status === 'done');
+
+      if (allStepsComplete) {
+        // Update batch status to complete
+        const { error: batchError } = await supabase
+          .from('production_batches')
+          .update({
+            status: 'complete',
+            actual_finish: new Date().toISOString(),
+          })
+          .eq('id', batch.id);
+
+        if (batchError) throw batchError;
+
+        toast({
+          title: 'Batch Complete!',
+          description: `All steps completed for batch ${batch.human_uid}`,
+        });
+
+        // Update local state
+        setBatch(prev => prev ? { ...prev, status: 'complete' } : null);
+      } else {
+        toast({
+          title: 'Success',
+          description: 'Step completed',
+        });
+      }
+
+      // Update local workflow steps state
+      setWorkflowSteps(updatedSteps);
     } catch (error) {
-      // Error handled silently
       toast({
         title: 'Error',
-        description: error.message,
+        description: error instanceof Error ? error.message : 'Failed to complete step',
         variant: 'destructive',
       });
     } finally {
@@ -263,10 +317,9 @@ const Operator = () => {
         description: 'Quantities updated',
       });
     } catch (error) {
-      // Error handled silently
       toast({
         title: 'Error',
-        description: error.message,
+        description: error instanceof Error ? error.message : 'Failed to update quantities',
         variant: 'destructive',
       });
     } finally {
