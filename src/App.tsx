@@ -46,7 +46,15 @@ import Layout from "./components/Layout";
 import { CustomerLayout } from "./components/CustomerLayout";
 import NotFound from "./pages/NotFound";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 1000 * 60 * 5, // 5 minutes
+      retry: 1,
+      refetchOnWindowFocus: false,
+    },
+  },
+});
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -335,7 +343,6 @@ const App = () => (
                 </ProtectedRoute>
               }
             />
-            <Route path="/quote-approval" element={<QuoteApproval />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>

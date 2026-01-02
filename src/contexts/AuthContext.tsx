@@ -26,8 +26,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
-        console.log('Auth state change:', event, session?.user?.id);
-        
         if (event === 'SIGNED_OUT') {
           setSession(null);
           setUser(null);
@@ -68,14 +66,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         .maybeSingle();
       
       if (error) {
-        console.error('Error fetching user role:', error);
         setUserRole(null);
       } else {
-        console.log('User role fetched:', data?.role);
         setUserRole(data?.role || null);
       }
-    } catch (err) {
-      console.error('Error in fetchUserRole:', err);
+    } catch {
       setUserRole(null);
     }
   };
@@ -129,9 +124,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             full_name: fullName,
           });
 
-        if (profileError) {
-          console.error('Error creating profile:', profileError);
-        }
+        // Profile creation errors are non-critical
 
         // Create customer role
         const { error: roleError } = await supabase
@@ -141,9 +134,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             role: 'customer',
           });
 
-        if (roleError) {
-          console.error('Error creating role:', roleError);
-        }
+        // Role creation errors are non-critical
 
         // Create customer record with brand
         const { error: customerError } = await supabase
@@ -155,9 +146,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             brand_id: brandId,
           });
 
-        if (customerError) {
-          console.error('Error creating customer:', customerError);
-        }
+        // Customer creation errors are non-critical
       }
 
       return { error: null };
@@ -173,14 +162,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(null);
       setSession(null);
       
-      const { error } = await supabase.auth.signOut({ scope: 'global' });
-      if (error) {
-        console.error('Sign out error:', error);
-      }
-      
+      await supabase.auth.signOut({ scope: 'global' });
       navigate('/auth', { replace: true });
-    } catch (err) {
-      console.error('Sign out exception:', err);
+    } catch {
+      // Sign out errors are non-critical, user is already being redirected
     } finally {
       setLoading(false);
     }
