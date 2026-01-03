@@ -411,27 +411,15 @@ const InternalOrderNew = () => {
                         value={line.sku_id}
                         onValueChange={(value) => updateLine(index, 'sku_id', value)}
                       >
-                        <SelectTrigger className="w-[280px]">
+                        <SelectTrigger className="w-[200px]">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent className="max-h-[300px] overflow-y-auto bg-background z-50">
-                          {skus.map(sku => {
-                            const bottleSize = sku.default_bottle_size_ml || 10;
-                            const sizeLabel = bottleSize >= 1000 ? `${bottleSize / 1000}L` : `${bottleSize}ml`;
-                            return (
-                              <SelectItem key={sku.id} value={sku.id}>
-                                <span className="flex items-center gap-2">
-                                  <span>{sku.code}</span>
-                                  <span className="text-muted-foreground text-xs px-1.5 py-0.5 bg-muted rounded">
-                                    {sizeLabel}
-                                  </span>
-                                  <span className="text-muted-foreground truncate max-w-[120px]">
-                                    {sku.description}
-                                  </span>
-                                </span>
-                              </SelectItem>
-                            );
-                          })}
+                          {skus.map(sku => (
+                            <SelectItem key={sku.id} value={sku.id}>
+                              {sku.code} - {sku.description}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     </TableCell>
