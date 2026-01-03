@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -55,11 +55,7 @@ export const SMSTemplateEditor = () => {
   const [sendingTest, setSendingTest] = useState(false);
   const { toast } = useToast();
 
-  useEffect(() => {
-    loadTemplates();
-  }, []);
-
-  const loadTemplates = async () => {
+  const loadTemplates = useCallback(async () => {
     setLoading(true);
     try {
       const { data, error } = await supabase
@@ -78,7 +74,11 @@ export const SMSTemplateEditor = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
+
+  useEffect(() => {
+    loadTemplates();
+  }, [loadTemplates]);
 
   const handleCreate = async () => {
     if (!newTemplate.name || !newTemplate.template_type || !newTemplate.message_template) {
