@@ -88,7 +88,7 @@ export const SKUCard = ({
             </div>
             {sku.sizes && sku.sizes.length > 0 && (
               <div className="text-xs text-muted-foreground mt-1">
-                Sizes: {sku.sizes.map(s => `${s.size_ml}ml`).join(', ')}
+                Sizes: {sku.sizes.map(s => s.size_ml >= 1000 ? `${s.size_ml / 1000}L` : `${s.size_ml}ml`).join(', ')}
               </div>
             )}
           </div>

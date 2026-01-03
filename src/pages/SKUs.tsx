@@ -411,7 +411,7 @@ const SKUs = () => {
       const sizeStr = row.sizes.toString().trim();
       if (sizeStr) {
         const sizes = sizeStr.split(',').map((s: string) => parseInt(s.trim()));
-        const validSizes = [3, 5, 10, 20, 30, 50, 100];
+        const validSizes = [3, 5, 10, 20, 30, 50, 100, 1000];
         for (const size of sizes) {
           if (isNaN(size) || !validSizes.includes(size)) {
             errors.push(`Invalid size: ${size}. Must be one of: 3, 5, 10, 20, 30, 50, 100`);
@@ -1080,7 +1080,7 @@ const SKUs = () => {
               <div className="space-y-2">
                 <Label>Size Variants (ml)</Label>
                 <div className="grid grid-cols-4 gap-2">
-                  {[3, 5, 10, 20, 30, 50, 100].map((size) => (
+                  {[3, 5, 10, 20, 30, 50, 100, 1000].map((size) => (
                     <div key={size} className="flex items-center space-x-2">
                       <Checkbox
                         id={`size-${size}`}
@@ -1088,7 +1088,7 @@ const SKUs = () => {
                         onCheckedChange={() => toggleSize(size)}
                       />
                       <Label htmlFor={`size-${size}`} className="cursor-pointer">
-                        {size} ml
+                        {size >= 1000 ? `${size / 1000}L` : `${size}ml`}
                       </Label>
                     </div>
                   ))}
@@ -1328,7 +1328,7 @@ const SKUs = () => {
                           <div className="flex flex-wrap gap-1">
                             {sku.sizes.map((size) => (
                               <Badge key={size.id} variant="outline" className="text-xs">
-                                {size.size_ml}ml
+                                {size.size_ml >= 1000 ? `${size.size_ml / 1000}L` : `${size.size_ml}ml`}
                               </Badge>
                             ))}
                           </div>
@@ -1634,7 +1634,7 @@ const SKUs = () => {
             <div className="space-y-2">
               <Label>Size Variants (ml)</Label>
               <div className="flex flex-wrap gap-2">
-                {[3, 5, 10, 20, 30, 50, 100].map((size) => (
+                {[3, 5, 10, 20, 30, 50, 100, 1000].map((size) => (
                   <Button
                     key={size}
                     type="button"
@@ -1647,7 +1647,7 @@ const SKUs = () => {
                       setBulkFormData({ ...bulkFormData, sizes: newSizes });
                     }}
                   >
-                    {size}ml
+                    {size >= 1000 ? `${size / 1000}L` : `${size}ml`}
                   </Button>
                 ))}
               </div>
