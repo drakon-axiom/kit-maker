@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,11 +26,7 @@ export const SMSNotificationSettings = ({ customerId }: SMSNotificationSettingsP
   });
   const { toast } = useToast();
 
-  useEffect(() => {
-    loadSettings();
-  }, [customerId]);
-
-  const loadSettings = async () => {
+  const loadSettings = useCallback(async () => {
     setLoading(true);
     try {
       const { data, error } = await supabase
@@ -56,7 +52,11 @@ export const SMSNotificationSettings = ({ customerId }: SMSNotificationSettingsP
     } finally {
       setLoading(false);
     }
-  };
+  }, [customerId]);
+
+  useEffect(() => {
+    loadSettings();
+  }, [loadSettings]);
 
   const handleSave = async () => {
     setSaving(true);

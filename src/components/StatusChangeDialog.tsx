@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Database } from "@/integrations/supabase/types";
 import {
@@ -50,14 +50,7 @@ export function StatusChangeDialog({
   const [validation, setValidation] = useState<ValidationResult | null>(null);
   const [overrideNote, setOverrideNote] = useState("");
 
-  useEffect(() => {
-    if (open) {
-      validateTransition();
-      setOverrideNote("");
-    }
-  }, [open, orderId, newStatus]);
-
-  const validateTransition = async () => {
+  const validateTransition = useCallback(async () => {
     setValidating(true);
     try {
       const { data, error } = await supabase.rpc("validate_order_status_transition", {
@@ -78,7 +71,14 @@ export function StatusChangeDialog({
     } finally {
       setValidating(false);
     }
-  };
+  }, [orderId, newStatus, toast]);
+
+  useEffect(() => {
+    if (open) {
+      validateTransition();
+      setOverrideNote("");
+    }
+  }, [open, validateTransition]);
 
   const handleConfirm = async () => {
     // Check if override note is required

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -31,11 +31,7 @@ export default function OrderRequestHistory({ orderId, onRequestChange }: OrderR
   const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetchRequests();
-  }, [orderId]);
-
-  const fetchRequests = async () => {
+  const fetchRequests = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from('order_comments')
@@ -51,7 +47,11 @@ export default function OrderRequestHistory({ orderId, onRequestChange }: OrderR
     } finally {
       setLoading(false);
     }
-  };
+  }, [orderId]);
+
+  useEffect(() => {
+    fetchRequests();
+  }, [fetchRequests]);
 
   const handleCancelRequest = async (requestId: string) => {
     setDeletingId(requestId);

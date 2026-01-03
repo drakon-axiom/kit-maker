@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
@@ -45,17 +45,7 @@ export const CustomerAccessManager = ({ initialCustomerId }: CustomerAccessManag
   const [saving, setSaving] = useState(false);
   const { toast } = useToast();
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  useEffect(() => {
-    if (selectedCustomer) {
-      fetchCustomerAccess();
-    }
-  }, [selectedCustomer]);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       const [customersRes, categoriesRes, skusRes, rolesRes] = await Promise.all([
         supabase.from('customers').select('id, name, user_id').order('name'),
@@ -87,9 +77,9 @@ export const CustomerAccessManager = ({ initialCustomerId }: CustomerAccessManag
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
 
-  const fetchCustomerAccess = async () => {
+  const fetchCustomerAccess = useCallback(async () => {
     if (!selectedCustomer) return;
 
     try {
@@ -116,7 +106,17 @@ export const CustomerAccessManager = ({ initialCustomerId }: CustomerAccessManag
         variant: 'destructive',
       });
     }
-  };
+  }, [selectedCustomer, toast]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  useEffect(() => {
+    if (selectedCustomer) {
+      fetchCustomerAccess();
+    }
+  }, [selectedCustomer, fetchCustomerAccess]);
 
   const addCategoryAccess = async (categoryId: string) => {
     if (!selectedCustomer) return;

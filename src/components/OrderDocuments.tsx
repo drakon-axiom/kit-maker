@@ -53,7 +53,9 @@ const OrderDocuments = ({ orderId, orderNumber, status, hasQuote, hasInvoice }: 
         (doc as any).save(filename);
         return;
       }
-    } catch (e) {}
+    } catch {
+      // Fallback to blob URL method if save fails
+    }
     try {
       const blobUrl = typeof (doc as any).output === 'function' ? (doc as any).output('bloburl') : '';
       if (blobUrl) {
@@ -68,7 +70,9 @@ const OrderDocuments = ({ orderId, orderNumber, status, hasQuote, hasInvoice }: 
         }
         return;
       }
-    } catch (e) {}
+    } catch {
+      // Fallback to throwing error if all methods fail
+    }
     throw new Error('PDF download blocked');
   };
 

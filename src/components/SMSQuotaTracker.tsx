@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Progress } from "@/components/ui/progress";
@@ -37,16 +37,7 @@ export const SMSQuotaTracker = () => {
   const [chartView, setChartView] = useState<"daily" | "weekly" | "monthly">("daily");
   const { toast } = useToast();
 
-  useEffect(() => {
-    fetchQuotaAndUsage();
-    
-    // Check notification permission
-    if ("Notification" in window) {
-      setNotificationPermission(Notification.permission);
-    }
-  }, []);
-
-  const fetchQuotaAndUsage = async () => {
+  const fetchQuotaAndUsage = useCallback(async () => {
     try {
       setLoading(true);
 
@@ -112,7 +103,16 @@ export const SMSQuotaTracker = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [chartView, toast]);
+
+  useEffect(() => {
+    fetchQuotaAndUsage();
+
+    // Check notification permission
+    if ("Notification" in window) {
+      setNotificationPermission(Notification.permission);
+    }
+  }, [fetchQuotaAndUsage]);
 
   const prepareChartData = (logs: any[], view: "daily" | "weekly" | "monthly") => {
     const now = new Date();
@@ -184,10 +184,6 @@ export const SMSQuotaTracker = () => {
 
     setChartData(chartData);
   };
-
-  useEffect(() => {
-    fetchQuotaAndUsage();
-  }, [chartView]);
 
   const isLowBalance = quota && quota.quotaRemaining < 100;
   const isCriticalBalance = quota && quota.quotaRemaining < 50;
