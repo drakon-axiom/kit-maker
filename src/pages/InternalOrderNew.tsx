@@ -46,6 +46,7 @@ interface OrderLine {
   sku_code: string;
   sku_description: string;
   sell_mode: 'kit' | 'piece';
+  volume_unit: 'bottle' | 'ml' | 'L' | '2L' | '5L' | '10L';
   qty_entered: number;
   unit_price: number;
   line_subtotal: number;
@@ -118,6 +119,31 @@ const InternalOrderNew = () => {
     return costPerKit / packSize;
   };
 
+  // Get volume in ml for a given unit
+  const getVolumeMultiplier = (unit: OrderLine['volume_unit']): number => {
+    switch (unit) {
+      case 'bottle': return 1; // 1 bottle
+      case 'ml': return 1; // 1ml per unit entered
+      case 'L': return 1000;
+      case '2L': return 2000;
+      case '5L': return 5000;
+      case '10L': return 10000;
+      default: return 1;
+    }
+  };
+
+  // Calculate bottles from volume entry (assumes bottle size in ml from SKU)
+  const calculateBottlesFromVolume = (qtyEntered: number, volumeUnit: OrderLine['volume_unit'], bottleSizeMl: number): number => {
+    if (volumeUnit === 'bottle') return qtyEntered;
+    const totalMl = qtyEntered * getVolumeMultiplier(volumeUnit);
+    return Math.ceil(totalMl / bottleSizeMl);
+  };
+
+  // Get default bottle size (ml) - could be from SKU sizes, default to 10ml
+  const getDefaultBottleSizeMl = (): number => {
+    return 10; // Default 10ml bottles
+  };
+
   const addLine = () => {
     if (skus.length === 0) return;
     
@@ -128,6 +154,7 @@ const InternalOrderNew = () => {
       sku_code: defaultSKU.code,
       sku_description: defaultSKU.description,
       sell_mode: 'kit',
+      volume_unit: 'bottle',
       qty_entered: 1,
       unit_price: costPerKit,
       line_subtotal: costPerKit,
@@ -139,6 +166,7 @@ const InternalOrderNew = () => {
   const updateLine = (index: number, field: keyof OrderLine, value: any) => {
     const newLines = [...lines];
     const line = newLines[index];
+    const bottleSizeMl = getDefaultBottleSizeMl();
 
     if (field === 'sku_id') {
       const sku = skus.find(s => s.id === value);
@@ -146,42 +174,54 @@ const InternalOrderNew = () => {
         line.sku_id = sku.id;
         line.sku_code = sku.code;
         line.sku_description = sku.description;
-        const costPerKit = getCostPerKit(sku);
-        line.unit_price = costPerKit;
-        line.line_subtotal = line.qty_entered * costPerKit;
+        recalculateLine(line, sku, bottleSizeMl);
       }
     } else if (field === 'qty_entered') {
-      const qty = parseInt(value) || 0;
+      const qty = parseFloat(value) || 0;
       line.qty_entered = qty;
-      
       const sku = skus.find(s => s.id === line.sku_id);
       if (sku) {
-        const cost = line.sell_mode === 'kit' ? getCostPerKit(sku) : getCostPerPiece(sku);
-        line.unit_price = cost;
-        line.line_subtotal = qty * cost;
-      }
-      
-      if (line.sell_mode === 'kit') {
-        line.bottle_qty = qty * kitSize;
-      } else {
-        line.bottle_qty = qty;
+        recalculateLine(line, sku, bottleSizeMl);
       }
     } else if (field === 'sell_mode') {
       line.sell_mode = value;
+      // Reset volume unit when switching modes
+      if (value === 'kit') {
+        line.volume_unit = 'bottle';
+      }
       const sku = skus.find(s => s.id === line.sku_id);
       if (sku) {
-        if (value === 'kit') {
-          line.unit_price = getCostPerKit(sku);
-          line.bottle_qty = line.qty_entered * kitSize;
-        } else {
-          line.unit_price = getCostPerPiece(sku);
-          line.bottle_qty = line.qty_entered;
-        }
-        line.line_subtotal = line.qty_entered * line.unit_price;
+        recalculateLine(line, sku, bottleSizeMl);
+      }
+    } else if (field === 'volume_unit') {
+      line.volume_unit = value;
+      const sku = skus.find(s => s.id === line.sku_id);
+      if (sku) {
+        recalculateLine(line, sku, bottleSizeMl);
       }
     }
 
     setLines(newLines);
+  };
+
+  const recalculateLine = (line: OrderLine, sku: SKU, bottleSizeMl: number) => {
+    if (line.sell_mode === 'kit') {
+      line.unit_price = getCostPerKit(sku);
+      line.bottle_qty = line.qty_entered * kitSize;
+      line.line_subtotal = line.qty_entered * line.unit_price;
+    } else {
+      // Piece mode with volume unit
+      const costPerPiece = getCostPerPiece(sku);
+      
+      if (line.volume_unit === 'bottle') {
+        line.bottle_qty = Math.round(line.qty_entered);
+      } else {
+        line.bottle_qty = calculateBottlesFromVolume(line.qty_entered, line.volume_unit, bottleSizeMl);
+      }
+      
+      line.unit_price = costPerPiece;
+      line.line_subtotal = line.bottle_qty * costPerPiece;
+    }
   };
 
   const removeLine = (index: number) => {
@@ -354,6 +394,7 @@ const InternalOrderNew = () => {
                 <TableRow>
                   <TableHead>SKU</TableHead>
                   <TableHead>Mode</TableHead>
+                  <TableHead>Unit</TableHead>
                   <TableHead>Quantity</TableHead>
                   <TableHead>My Cost</TableHead>
                   <TableHead>Bottles</TableHead>
@@ -396,9 +437,32 @@ const InternalOrderNew = () => {
                       </Select>
                     </TableCell>
                     <TableCell>
+                      {line.sell_mode === 'piece' ? (
+                        <Select
+                          value={line.volume_unit}
+                          onValueChange={(value) => updateLine(index, 'volume_unit', value)}
+                        >
+                          <SelectTrigger className="w-[90px]">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent className="bg-background z-50">
+                            <SelectItem value="bottle">Bottles</SelectItem>
+                            <SelectItem value="ml">ml</SelectItem>
+                            <SelectItem value="L">L</SelectItem>
+                            <SelectItem value="2L">2L</SelectItem>
+                            <SelectItem value="5L">5L</SelectItem>
+                            <SelectItem value="10L">10L</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <span className="text-muted-foreground text-sm">—</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
                       <Input
                         type="number"
-                        min="1"
+                        min={line.volume_unit === 'ml' ? '1' : '0.1'}
+                        step={line.volume_unit === 'ml' || line.volume_unit === 'bottle' ? '1' : '0.1'}
                         value={line.qty_entered}
                         onChange={(e) => updateLine(index, 'qty_entered', e.target.value)}
                         className="w-20"
