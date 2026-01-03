@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -50,13 +50,7 @@ export default function CustomerProfile() {
 
   const billingSameAsShipping = watch('billing_same_as_shipping');
 
-  useEffect(() => {
-    if (user) {
-      fetchCustomerData();
-    }
-  }, [user]);
-
-  const fetchCustomerData = async () => {
+  const fetchCustomerData = useCallback(async () => {
     try {
       const { data: customer, error } = await supabase
         .from('customers')
@@ -92,7 +86,13 @@ export default function CustomerProfile() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user, reset]);
+
+  useEffect(() => {
+    if (user) {
+      fetchCustomerData();
+    }
+  }, [user, fetchCustomerData]);
 
   const onSubmit = async (data: CustomerFormData) => {
     setSaving(true);

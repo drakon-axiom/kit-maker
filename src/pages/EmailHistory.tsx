@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -36,7 +36,7 @@ const EmailHistory = () => {
   const [dateToFilter, setDateToFilter] = useState('');
   const { toast } = useToast();
 
-  const fetchEmails = async () => {
+  const fetchEmails = useCallback(async () => {
     setLoading(true);
     try {
       let query = supabase
@@ -90,11 +90,11 @@ const EmailHistory = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [recipientFilter, templateFilter, dateFromFilter, dateToFilter, toast]);
 
   useEffect(() => {
     fetchEmails();
-  }, []);
+  }, [fetchEmails]);
 
   const handleClearFilters = () => {
     setRecipientFilter('');

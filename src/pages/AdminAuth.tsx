@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -24,41 +24,42 @@ const AdminAuth = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  useEffect(() => {
-    const checkUserRole = async () => {
-      if (user && !isRedirecting) {
-        try {
-          setIsRedirecting(true);
-          
-          const { data: roleData } = await supabase
-            .from('user_roles')
-            .select('role')
-            .eq('user_id', user.id)
-            .maybeSingle();
-          
-          // Only allow admin and operator roles
-          if (roleData?.role === 'admin' || roleData?.role === 'operator') {
-            navigate('/');
-          } else {
-            // Not an admin/operator, sign them out
-            await supabase.auth.signOut();
-            toast({
-              title: 'Access Denied',
-              description: 'This portal is for administrators only. Please use the wholesale customer portal.',
-              variant: 'destructive'
-            });
-            setIsRedirecting(false);
-          }
-        } catch (error) {
-          // Error handled silently
+  const checkUserRole = useCallback(async () => {
+    if (user && !isRedirecting) {
+      try {
+        setIsRedirecting(true);
+
+        const { data: roleData } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+        // Only allow admin and operator roles
+        if (roleData?.role === 'admin' || roleData?.role === 'operator') {
+          navigate('/');
+        } else {
+          // Not an admin/operator, sign them out
+          await supabase.auth.signOut();
+          toast({
+            title: 'Access Denied',
+            description: 'This portal is for administrators only. Please use the wholesale customer portal.',
+            variant: 'destructive'
+          });
           setIsRedirecting(false);
         }
-      } else if (!user) {
+      } catch (error) {
+        // Error handled silently
         setIsRedirecting(false);
       }
-    };
+    } else if (!user) {
+      setIsRedirecting(false);
+    }
+  }, [user, isRedirecting, navigate, toast]);
+
+  useEffect(() => {
     checkUserRole();
-  }, [user, navigate]);
+  }, [checkUserRole]);
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();

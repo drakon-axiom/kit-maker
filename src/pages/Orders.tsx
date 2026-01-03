@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
@@ -153,13 +153,7 @@ const Orders = () => {
     contentRef: bulkPrintRef,
   });
 
-  useEffect(() => {
-    fetchOrders();
-    fetchCustomers();
-    fetchLabelSettings();
-  }, []);
-
-  const fetchLabelSettings = async () => {
+  const fetchLabelSettings = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from('label_settings')
@@ -175,9 +169,9 @@ const Orders = () => {
     } catch {
       // Label settings fetch errors are non-critical
     }
-  };
+  }, []);
 
-  const fetchCustomers = async () => {
+  const fetchCustomers = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from('customers')
@@ -189,9 +183,9 @@ const Orders = () => {
     } catch {
       // Customer fetch errors are non-critical
     }
-  };
+  }, []);
 
-  const fetchOrders = async () => {
+  const fetchOrders = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from('sales_orders')
@@ -212,7 +206,13 @@ const Orders = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
+
+  useEffect(() => {
+    fetchOrders();
+    fetchCustomers();
+    fetchLabelSettings();
+  }, [fetchOrders, fetchCustomers, fetchLabelSettings]);
 
   const fetchOrderDetails = async (orderId: string) => {
     try {

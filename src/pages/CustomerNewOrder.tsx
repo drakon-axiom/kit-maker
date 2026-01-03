@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -45,14 +45,8 @@ export default function CustomerNewOrder() {
   const [submitting, setSubmitting] = useState(false);
   const [requestingAccess, setRequestingAccess] = useState(false);
   const [hasRequestedAccess, setHasRequestedAccess] = useState(false);
-  useEffect(() => {
-    if (user) {
-      fetchData();
-      checkAccessRequest();
-    }
-  }, [user]);
 
-  const checkAccessRequest = async () => {
+  const checkAccessRequest = useCallback(async () => {
     if (!user) return;
 
     try {
@@ -75,9 +69,9 @@ export default function CustomerNewOrder() {
     } catch (error) {
       // Error handled silently
     }
-  };
+  }, [user]);
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       const {
         data: customer
@@ -100,7 +94,14 @@ export default function CustomerNewOrder() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user, navigate]);
+
+  useEffect(() => {
+    if (user) {
+      fetchData();
+      checkAccessRequest();
+    }
+  }, [user, fetchData, checkAccessRequest]);
 
   const handleRequestAccess = async () => {
     if (!customerId) return;

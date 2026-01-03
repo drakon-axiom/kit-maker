@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
@@ -138,12 +138,7 @@ const SKUs = () => {
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const { toast } = useToast();
 
-  useEffect(() => {
-    fetchSKUs();
-    fetchCategories();
-  }, []);
-
-  const fetchCategories = async () => {
+  const fetchCategories = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from('categories')
@@ -155,9 +150,9 @@ const SKUs = () => {
     } catch {
       // Category fetch errors are non-critical
     }
-  };
+  }, []);
 
-  const fetchSKUs = async () => {
+  const fetchSKUs = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from('skus')
@@ -185,7 +180,12 @@ const SKUs = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
+
+  useEffect(() => {
+    fetchSKUs();
+    fetchCategories();
+  }, [fetchSKUs, fetchCategories]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

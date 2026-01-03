@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -72,13 +72,7 @@ export default function CustomerOrderDetail() {
   const [requestHistoryKey, setRequestHistoryKey] = useState(0);
   const [downloadingPdf, setDownloadingPdf] = useState(false);
 
-  useEffect(() => {
-    if (user && id) {
-      fetchOrderDetails();
-    }
-  }, [user, id]);
-
-  const fetchOrderDetails = async () => {
+  const fetchOrderDetails = useCallback(async () => {
     try {
       const { data: orderData, error: orderError } = await supabase
         .from('sales_orders')
@@ -115,7 +109,13 @@ export default function CustomerOrderDetail() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id, navigate]);
+
+  useEffect(() => {
+    if (user && id) {
+      fetchOrderDetails();
+    }
+  }, [user, id, fetchOrderDetails]);
 
   const getStatusColor = (status: string) => {
     const statusColors: Record<string, string> = {

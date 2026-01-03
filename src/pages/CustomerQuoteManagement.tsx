@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -35,13 +35,7 @@ export default function CustomerQuoteManagement() {
   const [actionType, setActionType] = useState<'accept' | 'reject' | null>(null);
   const [notes, setNotes] = useState('');
 
-  useEffect(() => {
-    if (user) {
-      fetchQuotes();
-    }
-  }, [user]);
-
-  const fetchQuotes = async () => {
+  const fetchQuotes = useCallback(async () => {
     try {
       const { data: customerData } = await supabase
         .from('customers')
@@ -66,7 +60,13 @@ export default function CustomerQuoteManagement() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
+
+  useEffect(() => {
+    if (user) {
+      fetchQuotes();
+    }
+  }, [user, fetchQuotes]);
 
   const getTimeRemaining = (expiresAt: string | null) => {
     if (!expiresAt) return null;

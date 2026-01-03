@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -61,11 +61,7 @@ const OrderEdit = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  useEffect(() => {
-    fetchData();
-  }, [id]);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       const [customersRes, skusRes, settingsRes, orderRes] = await Promise.all([
         supabase.from('customers').select('id, name').order('name'),
@@ -108,7 +104,7 @@ const OrderEdit = () => {
       setSelectedCustomer(order.customer_id);
       setDepositRequired(order.deposit_required);
       setLabelRequired(order.label_required);
-      
+
       if (order.deposit_required && order.subtotal > 0) {
         const percent = Math.round((order.deposit_amount / order.subtotal) * 100);
         setDepositPercent(percent);
@@ -137,7 +133,11 @@ const OrderEdit = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id, toast, navigate]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   const getPriceForQuantity = (sku: SKU, quantity: number): number => {
     if (!sku.use_tier_pricing || !sku.pricing_tiers || sku.pricing_tiers.length === 0) {

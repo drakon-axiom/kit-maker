@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
@@ -63,11 +63,7 @@ const InternalOrderNew = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       const [brandsRes, skusRes, settingsRes] = await Promise.all([
         supabase.from('brands').select('id, name, slug').eq('active', true).order('name'),
@@ -98,7 +94,11 @@ const InternalOrderNew = () => {
         variant: 'destructive',
       });
     }
-  };
+  }, [toast]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   // Calculate total cost (sum of all bundle components) for internal orders
   const getCostPerKit = (sku: SKU): number => {

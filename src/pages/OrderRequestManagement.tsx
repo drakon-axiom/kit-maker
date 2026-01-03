@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -42,15 +42,11 @@ export default function OrderRequestManagement() {
   const [processing, setProcessing] = useState(false);
   const [activeTab, setActiveTab] = useState<'pending' | 'resolved'>('pending');
 
-  useEffect(() => {
-    fetchRequests();
-  }, [activeTab]);
-
-  const fetchRequests = async () => {
+  const fetchRequests = useCallback(async () => {
     setLoading(true);
     try {
       const status = activeTab === 'pending' ? 'pending' : ['approved', 'rejected'];
-      
+
       const { data, error } = await supabase
         .from('order_comments')
         .select(`
@@ -76,7 +72,11 @@ export default function OrderRequestManagement() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [activeTab]);
+
+  useEffect(() => {
+    fetchRequests();
+  }, [fetchRequests]);
 
   const handleRequestAction = (request: OrderRequest) => {
     setSelectedRequest(request);

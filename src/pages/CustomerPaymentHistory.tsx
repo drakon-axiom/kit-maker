@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -38,13 +38,7 @@ export default function CustomerPaymentHistory() {
     finalCount: 0,
   });
 
-  useEffect(() => {
-    if (user) {
-      fetchPaymentHistory();
-    }
-  }, [user]);
-
-  const fetchPaymentHistory = async () => {
+  const fetchPaymentHistory = useCallback(async () => {
     try {
       // Get customer ID
       const { data: customerData } = await supabase
@@ -100,7 +94,13 @@ export default function CustomerPaymentHistory() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
+
+  useEffect(() => {
+    if (user) {
+      fetchPaymentHistory();
+    }
+  }, [user, fetchPaymentHistory]);
 
   const formatPaymentType = (type: string) => {
     return type === 'deposit' ? 'Deposit' : 'Final Payment';

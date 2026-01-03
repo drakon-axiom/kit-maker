@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './AuthContext';
 import { useLocation } from 'react-router-dom';
@@ -62,7 +62,7 @@ export const BrandProvider = ({ children }: { children: React.ReactNode }) => {
   const { user } = useAuth();
   const location = useLocation();
 
-  const applyBrandTheme = (brand: Brand) => {
+  const applyBrandTheme = useCallback((brand: Brand) => {
     const root = document.documentElement;
     root.style.setProperty('--primary', brand.primary_color);
     root.style.setProperty('--primary-foreground', brand.primary_foreground);
@@ -74,9 +74,9 @@ export const BrandProvider = ({ children }: { children: React.ReactNode }) => {
     root.style.setProperty('--foreground', brand.foreground_color);
     root.style.setProperty('--card', brand.card_color);
     root.style.setProperty('--muted', brand.muted_color);
-  };
+  }, []);
 
-  const fetchBrands = async () => {
+  const fetchBrands = useCallback(async () => {
     const { data, error } = await supabase
       .from('brands')
       .select('*')
@@ -87,9 +87,9 @@ export const BrandProvider = ({ children }: { children: React.ReactNode }) => {
       return [];
     }
     return data as Brand[];
-  };
+  }, []);
 
-  const fetchUserBrand = async () => {
+  const fetchUserBrand = useCallback(async () => {
     if (!user) return null;
 
     const { data: customer } = await supabase
@@ -104,17 +104,17 @@ export const BrandProvider = ({ children }: { children: React.ReactNode }) => {
         .select('*')
         .eq('id', customer.brand_id)
         .single();
-      
+
       return brand as Brand;
     }
 
     return null;
-  };
+  }, [user]);
 
-  const refreshBrands = async () => {
+  const refreshBrands = useCallback(async () => {
     const brands = await fetchBrands();
     setAllBrands(brands);
-  };
+  }, [fetchBrands]);
 
   useEffect(() => {
     const initializeBrand = async () => {
@@ -185,7 +185,7 @@ export const BrandProvider = ({ children }: { children: React.ReactNode }) => {
     };
 
     initializeBrand();
-  }, [user, location.pathname]);
+  }, [user, location.pathname, fetchBrands, fetchUserBrand, applyBrandTheme]);
 
   const setCurrentBrandById = (brandId: string) => {
     const brand = allBrands.find(b => b.id === brandId);

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -37,11 +37,7 @@ export default function ManualPaymentRecording() {
   const [orderDetails, setOrderDetails] = useState<any>(null);
   const [invoices, setInvoices] = useState<any[]>([]);
 
-  useEffect(() => {
-    fetchEligibleOrders();
-  }, []);
-
-  const fetchEligibleOrders = async () => {
+  const fetchEligibleOrders = useCallback(async () => {
     setLoadingOrders(true);
     try {
       // Fetch all orders with their customers
@@ -96,7 +92,11 @@ export default function ManualPaymentRecording() {
     } finally {
       setLoadingOrders(false);
     }
-  };
+  }, [toast]);
+
+  useEffect(() => {
+    fetchEligibleOrders();
+  }, [fetchEligibleOrders]);
 
   const handleOrderSelect = async (selectedOrderNumber: string) => {
     setOrderNumber(selectedOrderNumber);

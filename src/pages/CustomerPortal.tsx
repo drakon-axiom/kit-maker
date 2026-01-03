@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -38,11 +38,40 @@ export default function CustomerPortal() {
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [orderToCancel, setOrderToCancel] = useState<string | null>(null);
 
+  const fetchCustomerData = useCallback(async () => {
+    try {
+      const { data: customer } = await supabase
+        .from('customers')
+        .select('id, name')
+        .eq('user_id', user?.id)
+        .single();
+
+      if (customer) {
+        setCustomerName(customer.name);
+        setCustomerId(customer.id);
+
+        const { data: ordersData, error } = await supabase
+          .from('sales_orders')
+          .select('id, human_uid, status, subtotal, created_at, promised_date')
+          .eq('customer_id', customer.id)
+          .order('created_at', { ascending: false });
+
+        if (error) throw error;
+        setOrders(ordersData || []);
+      }
+    } catch (error) {
+      toast.error('Failed to load orders');
+      // Error handled silently
+    } finally {
+      setLoading(false);
+    }
+  }, [user]);
+
   useEffect(() => {
     if (user) {
       fetchCustomerData();
     }
-  }, [user]);
+  }, [user, fetchCustomerData]);
 
   useEffect(() => {
     // Apply search and filters
@@ -78,35 +107,6 @@ export default function CustomerPortal() {
 
     setFilteredOrders(filtered);
   }, [orders, searchTerm, statusFilter, sortBy]);
-
-  const fetchCustomerData = async () => {
-    try {
-      const { data: customer } = await supabase
-        .from('customers')
-        .select('id, name')
-        .eq('user_id', user?.id)
-        .single();
-
-      if (customer) {
-        setCustomerName(customer.name);
-        setCustomerId(customer.id);
-        
-        const { data: ordersData, error } = await supabase
-          .from('sales_orders')
-          .select('id, human_uid, status, subtotal, created_at, promised_date')
-          .eq('customer_id', customer.id)
-          .order('created_at', { ascending: false });
-
-        if (error) throw error;
-        setOrders(ordersData || []);
-      }
-    } catch (error) {
-      toast.error('Failed to load orders');
-      // Error handled silently
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleReorder = async (orderId: string) => {
     setReorderingId(orderId);
