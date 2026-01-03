@@ -39,6 +39,7 @@ interface SKU {
   bundle_overhead_price: number | null;
   bundle_packaging_price: number | null;
   bundle_inserts_price: number | null;
+  default_bottle_size_ml: number | null;
 }
 
 interface OrderLine {
@@ -139,9 +140,9 @@ const InternalOrderNew = () => {
     return Math.ceil(totalMl / bottleSizeMl);
   };
 
-  // Get default bottle size (ml) - could be from SKU sizes, default to 10ml
-  const getDefaultBottleSizeMl = (): number => {
-    return 10; // Default 10ml bottles
+  // Get bottle size from SKU or use default
+  const getBottleSizeForSku = (sku: SKU): number => {
+    return sku.default_bottle_size_ml || 10;
   };
 
   const addLine = () => {
@@ -166,7 +167,6 @@ const InternalOrderNew = () => {
   const updateLine = (index: number, field: keyof OrderLine, value: any) => {
     const newLines = [...lines];
     const line = newLines[index];
-    const bottleSizeMl = getDefaultBottleSizeMl();
 
     if (field === 'sku_id') {
       const sku = skus.find(s => s.id === value);
@@ -174,14 +174,14 @@ const InternalOrderNew = () => {
         line.sku_id = sku.id;
         line.sku_code = sku.code;
         line.sku_description = sku.description;
-        recalculateLine(line, sku, bottleSizeMl);
+        recalculateLine(line, sku);
       }
     } else if (field === 'qty_entered') {
       const qty = parseFloat(value) || 0;
       line.qty_entered = qty;
       const sku = skus.find(s => s.id === line.sku_id);
       if (sku) {
-        recalculateLine(line, sku, bottleSizeMl);
+        recalculateLine(line, sku);
       }
     } else if (field === 'sell_mode') {
       line.sell_mode = value;
@@ -191,20 +191,21 @@ const InternalOrderNew = () => {
       }
       const sku = skus.find(s => s.id === line.sku_id);
       if (sku) {
-        recalculateLine(line, sku, bottleSizeMl);
+        recalculateLine(line, sku);
       }
     } else if (field === 'volume_unit') {
       line.volume_unit = value;
       const sku = skus.find(s => s.id === line.sku_id);
       if (sku) {
-        recalculateLine(line, sku, bottleSizeMl);
+        recalculateLine(line, sku);
       }
     }
 
     setLines(newLines);
   };
 
-  const recalculateLine = (line: OrderLine, sku: SKU, bottleSizeMl: number) => {
+  const recalculateLine = (line: OrderLine, sku: SKU) => {
+    const bottleSizeMl = getBottleSizeForSku(sku);
     if (line.sell_mode === 'kit') {
       line.unit_price = getCostPerKit(sku);
       line.bottle_qty = line.qty_entered * kitSize;
