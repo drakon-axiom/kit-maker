@@ -137,6 +137,7 @@ const SKUs = () => {
   ]);
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [customSizeInput, setCustomSizeInput] = useState('');
+  const [customSizeUnit, setCustomSizeUnit] = useState<'ml' | 'L'>('ml');
   const { toast } = useToast();
 
   useEffect(() => {
@@ -1096,31 +1097,62 @@ const SKUs = () => {
                 <div className="flex items-center gap-2 mt-2">
                   <Input
                     type="number"
-                    placeholder="Custom size (ml)"
+                    placeholder={`Custom size (${customSizeUnit})`}
                     value={customSizeInput}
                     onChange={(e) => setCustomSizeInput(e.target.value)}
-                    className="w-32"
-                    min="1"
-                    max="10000"
+                    className="w-28"
+                    min={customSizeUnit === 'L' ? '0.001' : '1'}
+                    max={customSizeUnit === 'L' ? '10' : '10000'}
+                    step={customSizeUnit === 'L' ? '0.1' : '1'}
                   />
+                  <div className="flex border rounded-md overflow-hidden">
+                    <Button
+                      type="button"
+                      variant={customSizeUnit === 'ml' ? 'default' : 'ghost'}
+                      size="sm"
+                      className="rounded-none px-3 h-9"
+                      onClick={() => setCustomSizeUnit('ml')}
+                    >
+                      ml
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={customSizeUnit === 'L' ? 'default' : 'ghost'}
+                      size="sm"
+                      className="rounded-none px-3 h-9"
+                      onClick={() => setCustomSizeUnit('L')}
+                    >
+                      L
+                    </Button>
+                  </div>
                   <Button
                     type="button"
                     variant="outline"
                     size="sm"
                     onClick={() => {
-                      const size = parseInt(customSizeInput);
-                      if (isNaN(size) || size < 1 || size > 10000) {
+                      const inputValue = parseFloat(customSizeInput);
+                      if (isNaN(inputValue) || inputValue <= 0) {
                         toast({
                           title: 'Invalid size',
-                          description: 'Size must be between 1 and 10000 ml',
+                          description: 'Please enter a valid positive number',
                           variant: 'destructive',
                         });
                         return;
                       }
-                      if (!formData.sizes.includes(size)) {
+                      // Convert to ml for storage
+                      const sizeInMl = customSizeUnit === 'L' ? Math.round(inputValue * 1000) : Math.round(inputValue);
+                      if (sizeInMl < 1 || sizeInMl > 10000) {
+                        toast({
+                          title: 'Invalid size',
+                          description: 'Size must be between 1ml and 10L',
+                          variant: 'destructive',
+                        });
+                        return;
+                      }
+                      if (!formData.sizes.includes(sizeInMl)) {
                         setFormData({
                           ...formData,
-                          sizes: [...formData.sizes, size].sort((a, b) => a - b),
+                          sizes: [...formData.sizes, sizeInMl].sort((a, b) => a - b),
                         });
                       }
                       setCustomSizeInput('');
