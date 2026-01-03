@@ -52,6 +52,7 @@ interface SKU {
   bundle_overhead_price?: number;
   inserts_optional: boolean;
   categories?: { id: string; name: string };
+  default_bottle_size_ml: number;
 }
 
 interface ImportRow {
@@ -127,6 +128,7 @@ const SKUs = () => {
     bundle_labor_price: '',
     bundle_overhead_price: '',
     inserts_optional: true,
+    default_bottle_size_ml: 10,
   });
   const [pricingTiers, setPricingTiers] = useState<PricingTier[]>([
     { min_quantity: 5, max_quantity: 10, price_per_kit: 0 },
@@ -212,6 +214,7 @@ const SKUs = () => {
         bundle_labor_price: parseFloat(formData.bundle_labor_price) || 0,
         bundle_overhead_price: parseFloat(formData.bundle_overhead_price) || 0,
         inserts_optional: formData.inserts_optional,
+        default_bottle_size_ml: formData.default_bottle_size_ml,
       };
 
       let skuId = editingSKU?.id;
@@ -843,6 +846,7 @@ const SKUs = () => {
       bundle_labor_price: '',
       bundle_overhead_price: '',
       inserts_optional: true,
+      default_bottle_size_ml: 10,
     });
     setPricingTiers([
       { min_quantity: 5, max_quantity: 10, price_per_kit: 0 },
@@ -875,6 +879,7 @@ const SKUs = () => {
       bundle_labor_price: sku.bundle_labor_price?.toString() || '',
       bundle_overhead_price: sku.bundle_overhead_price?.toString() || '',
       inserts_optional: sku.inserts_optional,
+      default_bottle_size_ml: sku.default_bottle_size_ml || 10,
     });
     
     // Load pricing tiers or use defaults
@@ -1173,6 +1178,32 @@ const SKUs = () => {
                 )}
                 <p className="text-xs text-muted-foreground">
                   Select preset sizes or add custom sizes
+                </p>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="default_bottle_size_ml">Default Bottle Size (ml)</Label>
+                <Select
+                  value={formData.default_bottle_size_ml.toString()}
+                  onValueChange={(value) => setFormData({ ...formData, default_bottle_size_ml: parseInt(value) })}
+                >
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Select size" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-background z-50">
+                    <SelectItem value="3">3ml</SelectItem>
+                    <SelectItem value="5">5ml</SelectItem>
+                    <SelectItem value="10">10ml</SelectItem>
+                    <SelectItem value="20">20ml</SelectItem>
+                    <SelectItem value="30">30ml</SelectItem>
+                    <SelectItem value="50">50ml</SelectItem>
+                    <SelectItem value="100">100ml</SelectItem>
+                    <SelectItem value="500">500ml</SelectItem>
+                    <SelectItem value="1000">1L (1000ml)</SelectItem>
+                    <SelectItem value="2000">2L (2000ml)</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  Used for volume calculations in internal orders
                 </p>
               </div>
               <div className="grid grid-cols-2 gap-4">

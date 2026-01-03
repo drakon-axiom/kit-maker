@@ -1350,6 +1350,7 @@ export type Database = {
           category_id: string | null
           code: string
           created_at: string
+          default_bottle_size_ml: number | null
           description: string
           id: string
           inserts_optional: boolean | null
@@ -1373,6 +1374,7 @@ export type Database = {
           category_id?: string | null
           code: string
           created_at?: string
+          default_bottle_size_ml?: number | null
           description: string
           id?: string
           inserts_optional?: boolean | null
@@ -1396,6 +1398,7 @@ export type Database = {
           category_id?: string | null
           code?: string
           created_at?: string
+          default_bottle_size_ml?: number | null
           description?: string
           id?: string
           inserts_optional?: boolean | null
