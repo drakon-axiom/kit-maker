@@ -136,6 +136,7 @@ const SKUs = () => {
     { min_quantity: 100, max_quantity: null, price_per_kit: 0 },
   ]);
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+  const [customSizeInput, setCustomSizeInput] = useState('');
   const { toast } = useToast();
 
   useEffect(() => {
@@ -411,10 +412,9 @@ const SKUs = () => {
       const sizeStr = row.sizes.toString().trim();
       if (sizeStr) {
         const sizes = sizeStr.split(',').map((s: string) => parseInt(s.trim()));
-        const validSizes = [3, 5, 10, 20, 30, 50, 100, 1000];
         for (const size of sizes) {
-          if (isNaN(size) || !validSizes.includes(size)) {
-            errors.push(`Invalid size: ${size}. Must be one of: 3, 5, 10, 20, 30, 50, 100`);
+          if (isNaN(size) || size < 1 || size > 10000) {
+            errors.push(`Invalid size: ${size}. Must be between 1 and 10000 ml`);
           } else {
             sizesArray.push(size);
           }
@@ -1079,8 +1079,8 @@ const SKUs = () => {
               
               <div className="space-y-2">
                 <Label>Size Variants (ml)</Label>
-                <div className="grid grid-cols-4 gap-2">
-                  {[3, 5, 10, 20, 30, 50, 100, 1000].map((size) => (
+                <div className="grid grid-cols-5 gap-2">
+                  {[3, 5, 10, 20, 30, 50, 100, 500, 1000, 2000].map((size) => (
                     <div key={size} className="flex items-center space-x-2">
                       <Checkbox
                         id={`size-${size}`}
@@ -1093,8 +1093,54 @@ const SKUs = () => {
                     </div>
                   ))}
                 </div>
+                <div className="flex items-center gap-2 mt-2">
+                  <Input
+                    type="number"
+                    placeholder="Custom size (ml)"
+                    value={customSizeInput}
+                    onChange={(e) => setCustomSizeInput(e.target.value)}
+                    className="w-32"
+                    min="1"
+                    max="10000"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const size = parseInt(customSizeInput);
+                      if (isNaN(size) || size < 1 || size > 10000) {
+                        toast({
+                          title: 'Invalid size',
+                          description: 'Size must be between 1 and 10000 ml',
+                          variant: 'destructive',
+                        });
+                        return;
+                      }
+                      if (!formData.sizes.includes(size)) {
+                        setFormData({
+                          ...formData,
+                          sizes: [...formData.sizes, size].sort((a, b) => a - b),
+                        });
+                      }
+                      setCustomSizeInput('');
+                    }}
+                  >
+                    Add
+                  </Button>
+                </div>
+                {formData.sizes.filter(s => ![3, 5, 10, 20, 30, 50, 100, 500, 1000, 2000].includes(s)).length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-2">
+                    <span className="text-xs text-muted-foreground">Custom:</span>
+                    {formData.sizes.filter(s => ![3, 5, 10, 20, 30, 50, 100, 500, 1000, 2000].includes(s)).map(size => (
+                      <Badge key={size} variant="secondary" className="text-xs cursor-pointer" onClick={() => toggleSize(size)}>
+                        {size >= 1000 ? `${size / 1000}L` : `${size}ml`} ×
+                      </Badge>
+                    ))}
+                  </div>
+                )}
                 <p className="text-xs text-muted-foreground">
-                  Select one or more size variants for this product
+                  Select preset sizes or add custom sizes
                 </p>
               </div>
               <div className="grid grid-cols-2 gap-4">
@@ -1634,7 +1680,7 @@ const SKUs = () => {
             <div className="space-y-2">
               <Label>Size Variants (ml)</Label>
               <div className="flex flex-wrap gap-2">
-                {[3, 5, 10, 20, 30, 50, 100, 1000].map((size) => (
+                {[3, 5, 10, 20, 30, 50, 100, 500, 1000, 2000].map((size) => (
                   <Button
                     key={size}
                     type="button"
