@@ -224,7 +224,7 @@ const OrderDetail = () => {
       });
 
       // Start with allocations from explicit batch items if present
-      let allocations: Record<string, number> = {};
+      const allocations: Record<string, number> = {};
 
       if (batchIds.length > 0) {
         const { data: itemsRows, error: itemsErr } = await supabase
