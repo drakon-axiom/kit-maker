@@ -7,7 +7,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { Separator } from '@/components/ui/separator';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Loader2, Plus, Trash2, Edit2, Check } from 'lucide-react';
@@ -53,7 +52,6 @@ export default function CustomerAccountSettings() {
     email_marketing: false,
   });
   
-  // Address dialog state
   const [showAddressDialog, setShowAddressDialog] = useState(false);
   const [editingAddress, setEditingAddress] = useState<SavedAddress | null>(null);
   const [addressForm, setAddressForm] = useState({
@@ -68,7 +66,6 @@ export default function CustomerAccountSettings() {
     is_default: false,
   });
 
-  // Password change state
   const [showPasswordDialog, setShowPasswordDialog] = useState(false);
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -90,7 +87,6 @@ export default function CustomerAccountSettings() {
       if (!customerData) return;
       setCustomerId(customerData.id);
 
-      // Fetch saved addresses
       const { data: addressData } = await supabase
         .from('saved_addresses')
         .select('*')
@@ -99,7 +95,6 @@ export default function CustomerAccountSettings() {
 
       setAddresses(addressData || []);
 
-      // Fetch notification preferences
       const { data: prefsData } = await supabase
         .from('notification_preferences')
         .select('*')
@@ -117,7 +112,6 @@ export default function CustomerAccountSettings() {
         });
       }
     } catch (error) {
-      // Error handled silently
       toast.error('Failed to load account settings');
     } finally {
       setLoading(false);
@@ -149,7 +143,6 @@ export default function CustomerAccountSettings() {
       setEditingAddress(null);
       resetAddressForm();
     } catch (error) {
-      // Error handled silently
       toast.error('Failed to save address');
     }
   };
@@ -160,7 +153,6 @@ export default function CustomerAccountSettings() {
       toast.success('Address deleted');
       await fetchAccountData();
     } catch (error) {
-      // Error handled silently
       toast.error('Failed to delete address');
     }
   };
@@ -182,9 +174,8 @@ export default function CustomerAccountSettings() {
       if (error) throw error;
       toast.success('Preferences updated');
     } catch (error) {
-      // Error handled silently
       toast.error('Failed to update preferences');
-      setPreferences(preferences); // Revert on error
+      setPreferences(preferences);
     }
   };
 
@@ -211,7 +202,6 @@ export default function CustomerAccountSettings() {
       setNewPassword('');
       setConfirmPassword('');
     } catch (error) {
-      // Error handled silently
       toast.error('Failed to change password');
     }
   };
@@ -239,7 +229,7 @@ export default function CustomerAccountSettings() {
   }
 
   return (
-    <div className="p-6 max-w-4xl mx-auto space-y-6">
+    <div className="p-4 md:p-6 max-w-4xl mx-auto space-y-4 md:space-y-6">
       {/* Breadcrumb Navigation */}
       <Breadcrumb>
         <BreadcrumbList>
@@ -256,298 +246,298 @@ export default function CustomerAccountSettings() {
       </Breadcrumb>
 
       <div>
-        <h1 className="text-3xl font-bold">Account Settings</h1>
-        <p className="text-muted-foreground mt-1">
-          Manage your addresses, notifications, and security
+        <h1 className="text-2xl md:text-3xl font-bold">Account Settings</h1>
+        <p className="text-sm text-muted-foreground mt-1">
+          Manage your addresses and notifications
         </p>
       </div>
 
-        {/* Saved Addresses */}
-        <Card>
-          <CardHeader>
-            <div className="flex justify-between items-center">
-              <div>
-                <CardTitle>Saved Addresses</CardTitle>
-                <CardDescription>Manage your shipping and billing addresses</CardDescription>
-              </div>
-              <Button
-                onClick={() => {
-                  resetAddressForm();
-                  setEditingAddress(null);
-                  setShowAddressDialog(true);
-                }}
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Add Address
-              </Button>
+      {/* Saved Addresses */}
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
+            <div>
+              <CardTitle className="text-lg">Saved Addresses</CardTitle>
+              <CardDescription className="text-sm">Manage your shipping and billing addresses</CardDescription>
             </div>
-          </CardHeader>
-          <CardContent>
-            {addresses.length === 0 ? (
-              <p className="text-center text-muted-foreground py-8">
-                No saved addresses yet
-              </p>
-            ) : (
-              <div className="space-y-4">
-                {addresses.map((address) => (
-                  <div
-                    key={address.id}
-                    className="flex justify-between items-start p-4 border rounded-lg"
-                  >
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        <span className="font-semibold">{address.label}</span>
-                        {address.is_default && (
-                          <span className="text-xs bg-primary text-primary-foreground px-2 py-1 rounded">
-                            <Check className="h-3 w-3 inline mr-1" />
-                            Default
-                          </span>
-                        )}
-                        <span className="text-xs bg-muted px-2 py-1 rounded capitalize">
-                          {address.address_type}
-                        </span>
-                      </div>
-                      <p className="text-sm text-muted-foreground">
-                        {address.address_line1}
-                        {address.address_line2 && `, ${address.address_line2}`}
-                        <br />
-                        {address.city}, {address.state} {address.zip}
-                        <br />
-                        {address.country}
-                      </p>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          setEditingAddress(address);
-                          setAddressForm({
-                            label: address.label,
-                            address_type: address.address_type as any,
-                            address_line1: address.address_line1,
-                            address_line2: address.address_line2 || '',
-                            city: address.city,
-                            state: address.state,
-                            zip: address.zip,
-                            country: address.country,
-                            is_default: address.is_default,
-                          });
-                          setShowAddressDialog(true);
-                        }}
-                      >
-                        <Edit2 className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleDeleteAddress(address.id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Notification Preferences */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Notification Preferences</CardTitle>
-            <CardDescription>Choose which emails you'd like to receive</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {Object.entries({
-              email_order_status: 'Order status updates',
-              email_payment_received: 'Payment confirmations',
-              email_shipment_updates: 'Shipping notifications',
-              email_quote_approved: 'Quote approvals',
-              email_quote_expiring: 'Quote expiration reminders',
-              email_marketing: 'Marketing and promotions',
-            }).map(([key, label]) => (
-              <div key={key} className="flex items-center justify-between">
-                <Label htmlFor={key} className="cursor-pointer">
-                  {label}
-                </Label>
-                <Switch
-                  id={key}
-                  checked={preferences[key as keyof NotificationPreferences]}
-                  onCheckedChange={(checked) =>
-                    handleUpdatePreferences(key as keyof NotificationPreferences, checked)
-                  }
-                />
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-
-        {/* SMS Notifications */}
-        {customerId && <SMSNotificationSettings customerId={customerId} />}
-
-        {/* Security */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Security</CardTitle>
-            <CardDescription>Manage your password and security settings</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button onClick={() => setShowPasswordDialog(true)}>
-              Change Password
+            <Button
+              size="sm"
+              onClick={() => {
+                resetAddressForm();
+                setEditingAddress(null);
+                setShowAddressDialog(true);
+              }}
+              className="w-full sm:w-auto"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Add Address
             </Button>
-          </CardContent>
-        </Card>
-
-        {/* Address Dialog */}
-        <Dialog open={showAddressDialog} onOpenChange={setShowAddressDialog}>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>
-                {editingAddress ? 'Edit Address' : 'Add New Address'}
-              </DialogTitle>
-              <DialogDescription>
-                Enter your address details below
-              </DialogDescription>
-            </DialogHeader>
-
-            <div className="grid gap-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="label">Address Label *</Label>
-                  <Input
-                    id="label"
-                    placeholder="e.g., Home, Office"
-                    value={addressForm.label}
-                    onChange={(e) => setAddressForm({ ...addressForm, label: e.target.value })}
-                  />
+          </div>
+        </CardHeader>
+        <CardContent>
+          {addresses.length === 0 ? (
+            <p className="text-center text-muted-foreground py-8 text-sm">
+              No saved addresses yet
+            </p>
+          ) : (
+            <div className="space-y-3">
+              {addresses.map((address) => (
+                <div
+                  key={address.id}
+                  className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3 p-4 border rounded-lg"
+                >
+                  <div className="flex-1 min-w-0">
+                    <div className="flex flex-wrap items-center gap-2 mb-2">
+                      <span className="font-semibold text-sm">{address.label}</span>
+                      {address.is_default && (
+                        <span className="text-xs bg-primary text-primary-foreground px-2 py-0.5 rounded">
+                          <Check className="h-3 w-3 inline mr-1" />
+                          Default
+                        </span>
+                      )}
+                      <span className="text-xs bg-muted px-2 py-0.5 rounded capitalize">
+                        {address.address_type}
+                      </span>
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      {address.address_line1}
+                      {address.address_line2 && `, ${address.address_line2}`}
+                      <br />
+                      {address.city}, {address.state} {address.zip}
+                    </p>
+                  </div>
+                  <div className="flex gap-2 self-end sm:self-start">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setEditingAddress(address);
+                        setAddressForm({
+                          label: address.label,
+                          address_type: address.address_type as any,
+                          address_line1: address.address_line1,
+                          address_line2: address.address_line2 || '',
+                          city: address.city,
+                          state: address.state,
+                          zip: address.zip,
+                          country: address.country,
+                          is_default: address.is_default,
+                        });
+                        setShowAddressDialog(true);
+                      }}
+                    >
+                      <Edit2 className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleDeleteAddress(address.id)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="address_type">Address Type *</Label>
-                  <Select
-                    value={addressForm.address_type}
-                    onValueChange={(value: any) => setAddressForm({ ...addressForm, address_type: value })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="shipping">Shipping</SelectItem>
-                      <SelectItem value="billing">Billing</SelectItem>
-                      <SelectItem value="both">Both</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
+      {/* Notification Preferences */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-lg">Notification Preferences</CardTitle>
+          <CardDescription className="text-sm">Choose which emails you'd like to receive</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {Object.entries({
+            email_order_status: 'Order status updates',
+            email_payment_received: 'Payment confirmations',
+            email_shipment_updates: 'Shipping notifications',
+            email_quote_approved: 'Quote approvals',
+            email_quote_expiring: 'Quote expiration reminders',
+            email_marketing: 'Marketing and promotions',
+          }).map(([key, label]) => (
+            <div key={key} className="flex items-center justify-between">
+              <Label htmlFor={key} className="cursor-pointer text-sm">
+                {label}
+              </Label>
+              <Switch
+                id={key}
+                checked={preferences[key as keyof NotificationPreferences]}
+                onCheckedChange={(checked) =>
+                  handleUpdatePreferences(key as keyof NotificationPreferences, checked)
+                }
+              />
+            </div>
+          ))}
+        </CardContent>
+      </Card>
+
+      {/* SMS Notifications */}
+      {customerId && <SMSNotificationSettings customerId={customerId} />}
+
+      {/* Security */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-lg">Security</CardTitle>
+          <CardDescription className="text-sm">Manage your password</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button onClick={() => setShowPasswordDialog(true)} className="w-full sm:w-auto">
+            Change Password
+          </Button>
+        </CardContent>
+      </Card>
+
+      {/* Address Dialog */}
+      <Dialog open={showAddressDialog} onOpenChange={setShowAddressDialog}>
+        <DialogContent className="max-w-[90vw] sm:max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              {editingAddress ? 'Edit Address' : 'Add New Address'}
+            </DialogTitle>
+            <DialogDescription>
+              Enter your address details below
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="grid gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="address_line1">Address Line 1 *</Label>
+                <Label htmlFor="label" className="text-sm">Address Label *</Label>
                 <Input
-                  id="address_line1"
-                  value={addressForm.address_line1}
-                  onChange={(e) => setAddressForm({ ...addressForm, address_line1: e.target.value })}
+                  id="label"
+                  placeholder="e.g., Home, Office"
+                  value={addressForm.label}
+                  onChange={(e) => setAddressForm({ ...addressForm, label: e.target.value })}
                 />
               </div>
-
               <div className="space-y-2">
-                <Label htmlFor="address_line2">Address Line 2</Label>
-                <Input
-                  id="address_line2"
-                  value={addressForm.address_line2}
-                  onChange={(e) => setAddressForm({ ...addressForm, address_line2: e.target.value })}
-                />
-              </div>
-
-              <div className="grid grid-cols-3 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="city">City *</Label>
-                  <Input
-                    id="city"
-                    value={addressForm.city}
-                    onChange={(e) => setAddressForm({ ...addressForm, city: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="state">State *</Label>
-                  <Input
-                    id="state"
-                    value={addressForm.state}
-                    onChange={(e) => setAddressForm({ ...addressForm, state: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="zip">ZIP Code *</Label>
-                  <Input
-                    id="zip"
-                    value={addressForm.zip}
-                    onChange={(e) => setAddressForm({ ...addressForm, zip: e.target.value })}
-                  />
-                </div>
-              </div>
-
-              <div className="flex items-center space-x-2">
-                <Switch
-                  id="is_default"
-                  checked={addressForm.is_default}
-                  onCheckedChange={(checked) => setAddressForm({ ...addressForm, is_default: checked })}
-                />
-                <Label htmlFor="is_default">Set as default address</Label>
+                <Label htmlFor="address_type" className="text-sm">Address Type *</Label>
+                <Select
+                  value={addressForm.address_type}
+                  onValueChange={(value: any) => setAddressForm({ ...addressForm, address_type: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="shipping">Shipping</SelectItem>
+                    <SelectItem value="billing">Billing</SelectItem>
+                    <SelectItem value="both">Both</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setShowAddressDialog(false)}>
-                Cancel
-              </Button>
-              <Button onClick={handleSaveAddress}>
-                {editingAddress ? 'Update Address' : 'Add Address'}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+            <div className="space-y-2">
+              <Label htmlFor="address_line1" className="text-sm">Address Line 1 *</Label>
+              <Input
+                id="address_line1"
+                value={addressForm.address_line1}
+                onChange={(e) => setAddressForm({ ...addressForm, address_line1: e.target.value })}
+              />
+            </div>
 
-        {/* Password Dialog */}
-        <Dialog open={showPasswordDialog} onOpenChange={setShowPasswordDialog}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Change Password</DialogTitle>
-              <DialogDescription>
-                Enter your new password below
-              </DialogDescription>
-            </DialogHeader>
+            <div className="space-y-2">
+              <Label htmlFor="address_line2" className="text-sm">Address Line 2</Label>
+              <Input
+                id="address_line2"
+                value={addressForm.address_line2}
+                onChange={(e) => setAddressForm({ ...addressForm, address_line2: e.target.value })}
+              />
+            </div>
 
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="new_password">New Password</Label>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              <div className="space-y-2 col-span-2 sm:col-span-1">
+                <Label htmlFor="city" className="text-sm">City *</Label>
                 <Input
-                  id="new_password"
-                  type="password"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
+                  id="city"
+                  value={addressForm.city}
+                  onChange={(e) => setAddressForm({ ...addressForm, city: e.target.value })}
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="confirm_password">Confirm Password</Label>
+                <Label htmlFor="state" className="text-sm">State *</Label>
                 <Input
-                  id="confirm_password"
-                  type="password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  id="state"
+                  value={addressForm.state}
+                  onChange={(e) => setAddressForm({ ...addressForm, state: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="zip" className="text-sm">ZIP *</Label>
+                <Input
+                  id="zip"
+                  value={addressForm.zip}
+                  onChange={(e) => setAddressForm({ ...addressForm, zip: e.target.value })}
                 />
               </div>
             </div>
 
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setShowPasswordDialog(false)}>
-                Cancel
-              </Button>
-              <Button onClick={handleChangePassword}>
-                Change Password
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+            <div className="flex items-center space-x-2">
+              <Switch
+                id="is_default"
+                checked={addressForm.is_default}
+                onCheckedChange={(checked) => setAddressForm({ ...addressForm, is_default: checked })}
+              />
+              <Label htmlFor="is_default" className="text-sm">Set as default address</Label>
+            </div>
+          </div>
+
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button variant="outline" onClick={() => setShowAddressDialog(false)} className="w-full sm:w-auto">
+              Cancel
+            </Button>
+            <Button onClick={handleSaveAddress} className="w-full sm:w-auto">
+              Save Address
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Password Dialog */}
+      <Dialog open={showPasswordDialog} onOpenChange={setShowPasswordDialog}>
+        <DialogContent className="max-w-[90vw] sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Change Password</DialogTitle>
+            <DialogDescription>
+              Enter your new password below
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="newPassword" className="text-sm">New Password</Label>
+              <Input
+                id="newPassword"
+                type="password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="confirmPassword" className="text-sm">Confirm Password</Label>
+              <Input
+                id="confirmPassword"
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+              />
+            </div>
+          </div>
+
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button variant="outline" onClick={() => setShowPasswordDialog(false)} className="w-full sm:w-auto">
+              Cancel
+            </Button>
+            <Button onClick={handleChangePassword} className="w-full sm:w-auto">
+              Update Password
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

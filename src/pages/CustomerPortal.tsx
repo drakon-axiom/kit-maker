@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Plus, Package, Loader2, Eye, RefreshCw, Search, Filter, Download, XCircle, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface Order {
   id: string;
@@ -24,6 +25,7 @@ interface Order {
 export default function CustomerPortal() {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
   const [orders, setOrders] = useState<Order[]>([]);
   const [filteredOrders, setFilteredOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
@@ -102,7 +104,6 @@ export default function CustomerPortal() {
       }
     } catch (error) {
       toast.error('Failed to load orders');
-      // Error handled silently
     } finally {
       setLoading(false);
     }
@@ -111,7 +112,6 @@ export default function CustomerPortal() {
   const handleReorder = async (orderId: string) => {
     setReorderingId(orderId);
     try {
-      // Fetch the order lines from the original order
       const { data: orderLines, error: linesError } = await supabase
         .from('sales_order_lines')
         .select(`
@@ -131,7 +131,6 @@ export default function CustomerPortal() {
         return;
       }
 
-      // Create a new order
       const newOrderUid = `ORD-${Date.now()}`;
       const { data: newOrder, error: orderError } = await supabase
         .from('sales_orders')
@@ -148,7 +147,6 @@ export default function CustomerPortal() {
 
       if (orderError) throw orderError;
 
-      // Insert the order lines
       const newOrderLines = orderLines.map(line => ({
         so_id: newOrder.id,
         sku_id: line.sku_id,
@@ -167,15 +165,12 @@ export default function CustomerPortal() {
 
       toast.success('Order duplicated successfully! Redirecting...');
       
-      // Refresh orders list
       await fetchCustomerData();
       
-      // Navigate to the new order
       setTimeout(() => {
         navigate(`/customer/orders/${newOrder.id}`);
       }, 1000);
     } catch (error) {
-      // Error handled silently
       toast.error('Failed to create reorder');
     } finally {
       setReorderingId(null);
@@ -251,7 +246,6 @@ export default function CustomerPortal() {
       setCancelDialogOpen(false);
       setOrderToCancel(null);
     } catch (error) {
-      // Error handled silently
       toast.error('Failed to submit cancellation request');
     }
   };
@@ -268,55 +262,122 @@ export default function CustomerPortal() {
     );
   }
 
-  return (
-    <div className="p-6 space-y-6">
-      <div className="flex justify-between items-start">
-        <div>
-          <h1 className="text-3xl font-bold">Welcome, {customerName}</h1>
-          <p className="text-muted-foreground mt-1">Manage your orders and place new ones</p>
+  // Mobile Order Card Component
+  const OrderCard = ({ order }: { order: Order }) => (
+    <Card className="mb-3">
+      <CardContent className="p-4">
+        <div className="flex items-start justify-between mb-3">
+          <div className="min-w-0 flex-1">
+            <p className="font-semibold text-sm truncate">{order.human_uid}</p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              {new Date(order.created_at).toLocaleDateString()}
+            </p>
+          </div>
+          <Badge className={`${getStatusColor(order.status)} text-xs shrink-0`}>
+            {formatStatus(order.status)}
+          </Badge>
         </div>
-        <div className="flex gap-2">
-          <Button onClick={() => navigate('/customer/new-order')}>
-            <Plus className="h-4 w-4 mr-2" />
-            New Order
+        
+        <div className="flex items-center justify-between mb-3">
+          <span className="text-lg font-bold">${order.subtotal.toFixed(2)}</span>
+          {order.promised_date && (
+            <span className="text-xs text-muted-foreground">
+              Due: {new Date(order.promised_date).toLocaleDateString()}
+            </span>
+          )}
+        </div>
+        
+        <div className="flex gap-2 pt-3 border-t">
+          <Button
+            size="sm"
+            variant="outline"
+            className="flex-1"
+            onClick={() => navigate(`/customer/orders/${order.id}`)}
+          >
+            <Eye className="h-4 w-4 mr-1" />
+            View
           </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => handleReorder(order.id)}
+            disabled={reorderingId === order.id}
+          >
+            {reorderingId === order.id ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <RefreshCw className="h-4 w-4" />
+            )}
+          </Button>
+          {canRequestCancellation(order.status) && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                setOrderToCancel(order.id);
+                setCancelDialogOpen(true);
+              }}
+            >
+              <XCircle className="h-4 w-4" />
+            </Button>
+          )}
         </div>
+      </CardContent>
+    </Card>
+  );
+
+  return (
+    <div className="p-4 md:p-6 space-y-4 md:space-y-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3">
+        <div className="min-w-0">
+          <h1 className="text-2xl md:text-3xl font-bold truncate">Welcome, {customerName}</h1>
+          <p className="text-sm text-muted-foreground mt-1">Manage your orders</p>
+        </div>
+        <Button onClick={() => navigate('/customer/new-order')} className="w-full sm:w-auto shrink-0">
+          <Plus className="h-4 w-4 mr-2" />
+          New Order
+        </Button>
       </div>
 
-        <Card>
-          <CardHeader>
-            <div className="flex justify-between items-start">
-              <div>
-                <CardTitle>Your Orders</CardTitle>
-                <CardDescription>View and track all your orders</CardDescription>
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleExportOrders}
-                disabled={filteredOrders.length === 0}
-              >
-                <Download className="h-4 w-4 mr-2" />
-                Export
-              </Button>
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2">
+            <div>
+              <CardTitle className="text-lg">Your Orders</CardTitle>
+              <CardDescription className="text-sm">View and track all your orders</CardDescription>
             </div>
-          </CardHeader>
-          <CardContent>
-            {/* Search and Filter Controls */}
-            <div className="flex flex-col md:flex-row gap-4 mb-6">
-              <div className="flex-1 relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search by order number..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-9"
-                />
-              </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExportOrders}
+              disabled={filteredOrders.length === 0}
+              className="w-full sm:w-auto"
+            >
+              <Download className="h-4 w-4 mr-2" />
+              Export
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {/* Search and Filter Controls */}
+          <div className="flex flex-col gap-3 mb-4">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search by order number..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-9"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-2">
               <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-full md:w-[180px]">
-                  <Filter className="h-4 w-4 mr-2" />
-                  <SelectValue placeholder="Filter by status" />
+                <SelectTrigger>
+                  <Filter className="h-4 w-4 mr-2 shrink-0" />
+                  <span className="truncate">
+                    {statusFilter === 'all' ? 'All Status' : formatStatus(statusFilter)}
+                  </span>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Statuses</SelectItem>
@@ -331,8 +392,10 @@ export default function CustomerPortal() {
                 </SelectContent>
               </Select>
               <Select value={sortBy} onValueChange={setSortBy}>
-                <SelectTrigger className="w-full md:w-[180px]">
-                  <SelectValue placeholder="Sort by" />
+                <SelectTrigger>
+                  <span className="truncate">
+                    {sortBy === 'newest' ? 'Newest' : sortBy === 'oldest' ? 'Oldest' : sortBy === 'highest' ? 'Highest' : 'Lowest'}
+                  </span>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="newest">Newest First</SelectItem>
@@ -342,137 +405,146 @@ export default function CustomerPortal() {
                 </SelectContent>
               </Select>
             </div>
+          </div>
 
-            {filteredOrders.length === 0 ? (
-              <div className="text-center py-12">
-                {orders.length === 0 ? (
-                  <>
-                    <Package className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                    <h3 className="text-lg font-semibold mb-2">No orders yet</h3>
-                    <p className="text-muted-foreground mb-4">Get started by placing your first order</p>
-                    <Button onClick={() => navigate('/customer/new-order')}>
-                      <Plus className="h-4 w-4 mr-2" />
-                      Place Order
-                    </Button>
-                  </>
-                ) : (
-                  <>
-                    <Search className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                    <h3 className="text-lg font-semibold mb-2">No orders found</h3>
-                    <p className="text-muted-foreground mb-4">Try adjusting your search or filters</p>
-                    <Button
-                      variant="outline"
-                      onClick={() => {
-                        setSearchTerm('');
-                        setStatusFilter('all');
-                      }}
-                    >
-                      Clear Filters
-                    </Button>
-                  </>
-                )}
-              </div>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Order #</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Subtotal</TableHead>
-                    <TableHead>Order Date</TableHead>
-                    <TableHead>Promised Date</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredOrders.map((order) => (
-                    <TableRow key={order.id}>
-                      <TableCell className="font-medium">{order.human_uid}</TableCell>
-                      <TableCell>
-                        <Badge className={getStatusColor(order.status)}>
-                          {formatStatus(order.status)}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>${order.subtotal.toFixed(2)}</TableCell>
-                      <TableCell>{new Date(order.created_at).toLocaleDateString()}</TableCell>
-                      <TableCell>
-                        {order.promised_date ? new Date(order.promised_date).toLocaleDateString() : '-'}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex gap-2 justify-end">
-                          {canRequestCancellation(order.status) && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => {
-                                setOrderToCancel(order.id);
-                                setCancelDialogOpen(true);
-                              }}
-                              title="Request order cancellation"
-                            >
-                              <XCircle className="h-4 w-4 mr-2" />
-                              Cancel
-                            </Button>
-                          )}
+          {filteredOrders.length === 0 ? (
+            <div className="text-center py-12">
+              {orders.length === 0 ? (
+                <>
+                  <Package className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                  <h3 className="text-lg font-semibold mb-2">No orders yet</h3>
+                  <p className="text-muted-foreground mb-4">Get started by placing your first order</p>
+                  <Button onClick={() => navigate('/customer/new-order')}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Place Order
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Search className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                  <h3 className="text-lg font-semibold mb-2">No orders found</h3>
+                  <p className="text-muted-foreground mb-4">Try adjusting your search or filters</p>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setSearchTerm('');
+                      setStatusFilter('all');
+                    }}
+                  >
+                    Clear Filters
+                  </Button>
+                </>
+              )}
+            </div>
+          ) : isMobile ? (
+            // Mobile Card View
+            <div>
+              {filteredOrders.map((order) => (
+                <OrderCard key={order.id} order={order} />
+              ))}
+            </div>
+          ) : (
+            // Desktop Table View
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Order #</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Subtotal</TableHead>
+                  <TableHead>Order Date</TableHead>
+                  <TableHead>Promised Date</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredOrders.map((order) => (
+                  <TableRow key={order.id}>
+                    <TableCell className="font-medium">{order.human_uid}</TableCell>
+                    <TableCell>
+                      <Badge className={getStatusColor(order.status)}>
+                        {formatStatus(order.status)}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>${order.subtotal.toFixed(2)}</TableCell>
+                    <TableCell>{new Date(order.created_at).toLocaleDateString()}</TableCell>
+                    <TableCell>
+                      {order.promised_date ? new Date(order.promised_date).toLocaleDateString() : '-'}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex gap-2 justify-end">
+                        {canRequestCancellation(order.status) && (
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => handleReorder(order.id)}
-                            disabled={reorderingId === order.id}
-                            title="Create a new order with the same items"
+                            onClick={() => {
+                              setOrderToCancel(order.id);
+                              setCancelDialogOpen(true);
+                            }}
+                            title="Request order cancellation"
                           >
-                            {reorderingId === order.id ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <>
-                                <RefreshCw className="h-4 w-4 mr-2" />
-                                Reorder
-                              </>
-                            )}
+                            <XCircle className="h-4 w-4 mr-2" />
+                            Cancel
                           </Button>
-                          <Button
-                            size="sm"
-                            onClick={() => navigate(`/customer/orders/${order.id}`)}
-                          >
-                            <Eye className="h-4 w-4 mr-2" />
-                            View
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
-          </CardContent>
-        </Card>
+                        )}
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleReorder(order.id)}
+                          disabled={reorderingId === order.id}
+                          title="Create a new order with the same items"
+                        >
+                          {reorderingId === order.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <>
+                              <RefreshCw className="h-4 w-4 mr-2" />
+                              Reorder
+                            </>
+                          )}
+                        </Button>
+                        <Button
+                          size="sm"
+                          onClick={() => navigate(`/customer/orders/${order.id}`)}
+                        >
+                          <Eye className="h-4 w-4 mr-2" />
+                          View
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
 
-        <AlertDialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Request Order Cancellation</AlertDialogTitle>
-              <AlertDialogDescription className="space-y-2">
-                <div className="flex items-start gap-2">
-                  <AlertCircle className="h-5 w-5 text-yellow-500 mt-0.5 flex-shrink-0" />
-                  <p>
-                    Are you sure you want to request cancellation for this order? Our team will review your request and contact you shortly.
-                  </p>
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  Note: Orders in later stages of production may not be eligible for cancellation.
+      <AlertDialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
+        <AlertDialogContent className="max-w-[90vw] sm:max-w-lg">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Request Order Cancellation</AlertDialogTitle>
+            <AlertDialogDescription className="space-y-2">
+              <div className="flex items-start gap-2">
+                <AlertCircle className="h-5 w-5 text-yellow-500 mt-0.5 flex-shrink-0" />
+                <p>
+                  Are you sure you want to request cancellation for this order? Our team will review your request and contact you shortly.
                 </p>
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel onClick={() => setOrderToCancel(null)}>
-                Keep Order
-              </AlertDialogCancel>
-              <AlertDialogAction onClick={handleCancelRequest}>
-                Request Cancellation
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Note: Orders in later stages of production may not be eligible for cancellation.
+              </p>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+            <AlertDialogCancel onClick={() => setOrderToCancel(null)} className="w-full sm:w-auto">
+              Keep Order
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={handleCancelRequest} className="w-full sm:w-auto">
+              Request Cancellation
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

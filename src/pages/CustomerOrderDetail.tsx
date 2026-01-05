@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { ArrowLeft, Loader2, Package, AlertCircle, Edit, Download, FileText } from 'lucide-react';
+import { ArrowLeft, Loader2, Package, AlertCircle, Edit, Download } from 'lucide-react';
 import { toast } from 'sonner';
 import OrderTimeline from '@/components/OrderTimeline';
 import OrderComments from '@/components/OrderComments';
@@ -20,6 +20,7 @@ import { format } from 'date-fns';
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from '@/components/ui/breadcrumb';
 import { Link } from 'react-router-dom';
 import { ProductionPhotosGallery } from '@/components/ProductionPhotosGallery';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface Order {
   id: string;
@@ -62,6 +63,7 @@ export default function CustomerOrderDetail() {
   const { id } = useParams();
   const { user } = useAuth();
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
   const [order, setOrder] = useState<Order | null>(null);
   const [lines, setLines] = useState<OrderLine[]>([]);
   const [shipment, setShipment] = useState<Shipment | null>(null);
@@ -98,7 +100,6 @@ export default function CustomerOrderDetail() {
 
       if (linesError) throw linesError;
 
-      // Fetch shipment if exists
       const { data: shipmentData } = await supabase
         .from('shipments')
         .select('*')
@@ -110,7 +111,6 @@ export default function CustomerOrderDetail() {
       setShipment(shipmentData);
     } catch (error) {
       toast.error('Failed to load order details');
-      // Error handled silently
       navigate('/customer');
     } finally {
       setLoading(false);
@@ -168,7 +168,6 @@ export default function CustomerOrderDetail() {
       setRequestHistoryKey(prev => prev + 1);
     } catch (error) {
       toast.error('Failed to submit modification request');
-      // Error handled silently
     } finally {
       setSubmittingModification(false);
     }
@@ -181,7 +180,6 @@ export default function CustomerOrderDetail() {
       const JsPDFCtor = (jsPDFModule as any).default || (jsPDFModule as any).jsPDF;
       const doc = new JsPDFCtor();
       
-      // Header
       doc.setFontSize(20);
       doc.text('Order Confirmation', 20, 20);
       doc.setFontSize(10);
@@ -189,7 +187,6 @@ export default function CustomerOrderDetail() {
       doc.text(`Date: ${order?.created_at ? format(new Date(order.created_at), 'MMM dd, yyyy') : ''}`, 20, 36);
       doc.text(`Status: ${order?.status.replace(/_/g, ' ').toUpperCase()}`, 20, 42);
       
-      // Line items
       doc.setFontSize(12);
       doc.text('Order Items', 20, 55);
       doc.setFontSize(10);
@@ -203,7 +200,6 @@ export default function CustomerOrderDetail() {
         yPos += 25;
       });
       
-      // Total
       yPos += 10;
       doc.setFontSize(12);
       doc.text(`Total: $${order?.subtotal.toFixed(2)}`, 20, yPos);
@@ -230,12 +226,28 @@ export default function CustomerOrderDetail() {
       }
       toast.success('PDF downloaded successfully');
     } catch (error) {
-      // Error handled silently
       toast.error('Failed to generate PDF');
     } finally {
       setDownloadingPdf(false);
     }
   };
+
+  // Mobile Line Item Card
+  const LineItemCard = ({ line }: { line: OrderLine }) => (
+    <div className="flex items-start justify-between py-3 border-b last:border-b-0">
+      <div className="min-w-0 flex-1">
+        <p className="font-medium text-sm">{line.skus.code}</p>
+        <p className="text-xs text-muted-foreground truncate">{line.skus.description}</p>
+        <p className="text-xs text-muted-foreground mt-1">
+          {line.qty_entered} {line.sell_mode === 'kit' ? 'kits' : 'pcs'} × ${line.unit_price.toFixed(2)}
+        </p>
+      </div>
+      <div className="text-right shrink-0 ml-2">
+        <p className="font-bold">${line.line_subtotal.toFixed(2)}</p>
+        <p className="text-xs text-muted-foreground">{line.bottle_qty} bottles</p>
+      </div>
+    </div>
+  );
 
   if (loading) {
     return (
@@ -260,7 +272,7 @@ export default function CustomerOrderDetail() {
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 md:p-6 space-y-4 md:space-y-6">
       {/* Breadcrumb Navigation */}
       <Breadcrumb>
         <BreadcrumbList>
@@ -271,75 +283,70 @@ export default function CustomerOrderDetail() {
           </BreadcrumbItem>
           <BreadcrumbSeparator />
           <BreadcrumbItem>
-            <BreadcrumbLink asChild>
-              <Link to="/customer">My Orders</Link>
-            </BreadcrumbLink>
-          </BreadcrumbItem>
-          <BreadcrumbSeparator />
-          <BreadcrumbItem>
-            <BreadcrumbPage>Order #{order.human_uid}</BreadcrumbPage>
+            <BreadcrumbPage className="truncate max-w-[120px]">#{order.human_uid}</BreadcrumbPage>
           </BreadcrumbItem>
         </BreadcrumbList>
       </Breadcrumb>
 
-      <div className="flex justify-between items-start">
-        <div>
-          <h1 className="text-3xl font-bold">Order {order.human_uid}</h1>
-          <p className="text-muted-foreground mt-1">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3">
+        <div className="min-w-0">
+          <h1 className="text-xl md:text-3xl font-bold truncate">Order {order.human_uid}</h1>
+          <p className="text-sm text-muted-foreground mt-1">
             Placed on {new Date(order.created_at).toLocaleDateString()}
           </p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={() => navigate('/customer')}>
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Back
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" size="sm" onClick={() => navigate('/customer')}>
+            <ArrowLeft className="mr-1 h-4 w-4" />
+            <span className="hidden sm:inline">Back</span>
           </Button>
           {(order.status === 'quoted' || order.status === 'deposit_due' || ['in_queue', 'in_production', 'packed', 'shipped', 'awaiting_payment', 'awaiting_invoice'].includes(order.status)) && (
-            <Button variant="outline" onClick={handleDownloadPdf} disabled={downloadingPdf}>
+            <Button variant="outline" size="sm" onClick={handleDownloadPdf} disabled={downloadingPdf}>
               {downloadingPdf ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
-                <Download className="mr-2 h-4 w-4" />
+                <>
+                  <Download className="mr-1 h-4 w-4" />
+                  <span className="hidden sm:inline">PDF</span>
+                </>
               )}
-              Download PDF
             </Button>
-           )}
+          )}
           {canRequestModification(order.status) && (
             <Dialog open={modificationDialogOpen} onOpenChange={setModificationDialogOpen}>
               <DialogTrigger asChild>
-                <Button variant="outline">
-                  <Edit className="h-4 w-4 mr-2" />
-                  Request Modification
+                <Button variant="outline" size="sm">
+                  <Edit className="h-4 w-4 sm:mr-1" />
+                  <span className="hidden sm:inline">Modify</span>
                 </Button>
               </DialogTrigger>
-              <DialogContent>
+              <DialogContent className="max-w-[90vw] sm:max-w-md">
                 <DialogHeader>
-                  <DialogTitle>Request Order Modification</DialogTitle>
+                  <DialogTitle>Request Modification</DialogTitle>
                   <DialogDescription>
-                    Describe the changes you'd like to make to this order. Our team will review your request.
+                    Describe the changes you'd like to make to this order.
                   </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4">
                   <Textarea
-                    placeholder="Please describe the modifications you'd like..."
+                    placeholder="Please describe the modifications..."
                     value={modificationRequest}
                     onChange={(e) => setModificationRequest(e.target.value)}
                     rows={5}
                   />
                 </div>
-                <DialogFooter>
-                  <Button
-                    variant="outline"
-                    onClick={() => setModificationDialogOpen(false)}
-                  >
+                <DialogFooter className="flex-col sm:flex-row gap-2">
+                  <Button variant="outline" onClick={() => setModificationDialogOpen(false)} className="w-full sm:w-auto">
                     Cancel
                   </Button>
                   <Button
                     onClick={handleModificationRequest}
                     disabled={!modificationRequest.trim() || submittingModification}
+                    className="w-full sm:w-auto"
                   >
                     {submittingModification && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                    Submit Request
+                    Submit
                   </Button>
                 </DialogFooter>
               </DialogContent>
@@ -348,134 +355,140 @@ export default function CustomerOrderDetail() {
         </div>
       </div>
 
-      {/* Visual Progress Timeline */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Order Progress</CardTitle>
-            <CardDescription>Track your order status in real-time</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <OrderTimeline 
-              currentStatus={order.status}
-              depositRequired={order.deposit_required}
-              depositStatus={order.deposit_status}
-            />
-          </CardContent>
-        </Card>
+      {/* Order Progress Timeline */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-lg">Order Progress</CardTitle>
+          <CardDescription className="text-sm">Track your order status</CardDescription>
+        </CardHeader>
+        <CardContent className="overflow-x-auto">
+          <OrderTimeline 
+            currentStatus={order.status}
+            depositRequired={order.deposit_required}
+            depositStatus={order.deposit_status}
+          />
+        </CardContent>
+      </Card>
 
-        {/* Payment Cards */}
-        <div className="grid gap-6 md:grid-cols-2">
-          {/* Approval Pending Message */}
-          {order.deposit_required && 
-           (order.status === 'awaiting_approval' || order.status === 'draft' || order.status === 'quoted') && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <AlertCircle className="h-5 w-5 text-yellow-500" />
-                  Awaiting Approval
-                </CardTitle>
-                <CardDescription>
-                  Payment will be available once your order is approved
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-baseline justify-between">
-                  <span className="text-sm text-muted-foreground">Deposit Amount</span>
-                  <span className="text-3xl font-bold">${(order.deposit_amount || 0).toFixed(2)}</span>
-                </div>
+      {/* Payment Cards */}
+      <div className="grid gap-4 md:grid-cols-2">
+        {/* Approval Pending Message */}
+        {order.deposit_required && 
+         (order.status === 'awaiting_approval' || order.status === 'draft' || order.status === 'quoted') && (
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <AlertCircle className="h-5 w-5 text-yellow-500" />
+                Awaiting Approval
+              </CardTitle>
+              <CardDescription className="text-sm">
+                Payment available once approved
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex items-baseline justify-between">
+                <span className="text-sm text-muted-foreground">Deposit</span>
+                <span className="text-2xl font-bold">${(order.deposit_amount || 0).toFixed(2)}</span>
+              </div>
 
-                <div className="flex items-start gap-2 p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/20">
-                  <AlertCircle className="h-4 w-4 text-yellow-600 mt-0.5" />
-                  <div className="text-sm text-yellow-700">
-                    Your order is currently under review. You'll receive an email notification once it's approved and ready for payment.
-                  </div>
-                </div>
+              <div className="flex items-start gap-2 p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/20">
+                <AlertCircle className="h-4 w-4 text-yellow-600 mt-0.5 shrink-0" />
+                <p className="text-sm text-yellow-700">
+                  Your order is under review. You'll receive an email once approved.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
-                <div className="p-4 rounded-lg bg-muted">
-                  <p className="text-sm text-muted-foreground">
-                    <strong>What happens next?</strong><br/>
-                    Once approved, you'll be able to pay the deposit to move your order into production.
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Active Deposit Payment Card */}
-          {order.deposit_required && 
-           order.status !== 'shipped' && 
-           order.status !== 'awaiting_approval' && 
-           order.status !== 'draft' &&
-           order.status !== 'quoted' &&
-           order.status !== 'cancelled' && (
-            <PaymentCard
-              type="deposit"
-              amount={order.deposit_amount || 0}
-              status={order.deposit_status}
-              orderId={order.id}
-              orderNumber={order.human_uid}
-            />
-          )}
-          
-          {(['awaiting_payment', 'ready_to_ship'].includes(order.status)) && (
-            <PaymentCard
-              type="final"
-              amount={order.subtotal}
-              status="unpaid"
-              orderId={order.id}
-              orderNumber={order.human_uid}
-            />
-          )}
-          
-          {!order.deposit_required && !['awaiting_payment', 'ready_to_ship'].includes(order.status) && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Order Summary</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
+        {/* Active Deposit Payment Card */}
+        {order.deposit_required && 
+         order.status !== 'shipped' && 
+         order.status !== 'awaiting_approval' && 
+         order.status !== 'draft' &&
+         order.status !== 'quoted' &&
+         order.status !== 'cancelled' && (
+          <PaymentCard
+            type="deposit"
+            amount={order.deposit_amount || 0}
+            status={order.deposit_status}
+            orderId={order.id}
+            orderNumber={order.human_uid}
+          />
+        )}
+        
+        {(['awaiting_payment', 'ready_to_ship'].includes(order.status)) && (
+          <PaymentCard
+            type="final"
+            amount={order.subtotal}
+            status="unpaid"
+            orderId={order.id}
+            orderNumber={order.human_uid}
+          />
+        )}
+        
+        {!order.deposit_required && !['awaiting_payment', 'ready_to_ship'].includes(order.status) && (
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">Order Summary</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-muted-foreground">Subtotal</span>
+                <span className="font-medium">${order.subtotal.toFixed(2)}</span>
+              </div>
+              {order.promised_date && (
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-muted-foreground">Subtotal</span>
-                  <span className="font-medium">${order.subtotal.toFixed(2)}</span>
+                  <span className="text-sm text-muted-foreground">Promised</span>
+                  <span className="font-medium">
+                    {new Date(order.promised_date).toLocaleDateString()}
+                  </span>
                 </div>
-                {order.promised_date && (
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-muted-foreground">Promised Date</span>
-                    <span className="font-medium">
-                      {new Date(order.promised_date).toLocaleDateString()}
-                    </span>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          )}
-        </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+      </div>
 
-        {/* Shipment Tracking */}
-        <ShipmentTracker shipment={shipment} onUpdate={fetchOrderDetails} />
+      {/* Shipment Tracking */}
+      <ShipmentTracker shipment={shipment} onUpdate={fetchOrderDetails} />
 
-        {/* Request History Timeline */}
-        <OrderRequestHistory 
-          key={requestHistoryKey}
-          orderId={order.id} 
-          onRequestChange={() => setRequestHistoryKey(prev => prev + 1)}
-        />
+      {/* Request History Timeline */}
+      <OrderRequestHistory 
+        key={requestHistoryKey}
+        orderId={order.id} 
+        onRequestChange={() => setRequestHistoryKey(prev => prev + 1)}
+      />
 
-        {/* Documents */}
-        <OrderDocuments
-          orderId={order.id}
-          orderNumber={order.human_uid}
-          status={order.status}
-          hasQuote={order.status !== 'draft'}
-          hasInvoice={['awaiting_payment', 'shipped'].includes(order.status)}
-        />
+      {/* Documents */}
+      <OrderDocuments
+        orderId={order.id}
+        orderNumber={order.human_uid}
+        status={order.status}
+        hasQuote={order.status !== 'draft'}
+        hasInvoice={['awaiting_payment', 'shipped'].includes(order.status)}
+      />
 
-        {/* Order Items */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Order Items</CardTitle>
-            <CardDescription>Products included in this order</CardDescription>
-          </CardHeader>
-          <CardContent>
+      {/* Order Items */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-lg">Order Items</CardTitle>
+          <CardDescription className="text-sm">Products in this order</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {isMobile ? (
+            // Mobile Card View
+            <div>
+              {lines.map((line) => (
+                <LineItemCard key={line.id} line={line} />
+              ))}
+              <div className="flex justify-between items-center pt-3 mt-3 border-t">
+                <span className="font-semibold">Total</span>
+                <span className="text-xl font-bold">${order.subtotal.toFixed(2)}</span>
+              </div>
+            </div>
+          ) : (
+            // Desktop Table View
             <Table>
               <TableHeader>
                 <TableRow>
@@ -497,27 +510,28 @@ export default function CustomerOrderDetail() {
                     <TableCell className="text-right">{line.qty_entered}</TableCell>
                     <TableCell className="text-right">${line.unit_price.toFixed(2)}</TableCell>
                     <TableCell className="text-right">{line.bottle_qty}</TableCell>
-                    <TableCell className="text-right">${line.line_subtotal.toFixed(2)}</TableCell>
+                    <TableCell className="text-right font-medium">
+                      ${line.line_subtotal.toFixed(2)}
+                    </TableCell>
                   </TableRow>
                 ))}
+                <TableRow>
+                  <TableCell colSpan={6} className="text-right font-semibold">Total</TableCell>
+                  <TableCell className="text-right font-bold">
+                    ${order.subtotal.toFixed(2)}
+                  </TableCell>
+                </TableRow>
               </TableBody>
             </Table>
-          </CardContent>
-        </Card>
+          )}
+        </CardContent>
+      </Card>
 
-        {/* Production Photos */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Production Photos</CardTitle>
-            <CardDescription>Photos from the production process</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ProductionPhotosGallery orderId={order.id} />
-          </CardContent>
-        </Card>
+      {/* Production Photos */}
+      <ProductionPhotosGallery orderId={order.id} />
 
-        {/* Order Comments */}
-        <OrderComments orderId={order.id} />
+      {/* Comments */}
+      <OrderComments orderId={order.id} />
     </div>
   );
 }
