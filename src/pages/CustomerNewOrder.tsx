@@ -280,6 +280,46 @@ export default function CustomerNewOrder() {
         <p className="text-muted-foreground mt-1">Select products and quantities</p>
       </div>
 
+      {/* Pricing Tiers Reference Card */}
+      {skus.some(sku => sku.use_tier_pricing && sku.pricing_tiers && sku.pricing_tiers.length > 0) && (
+        <Card className="border-primary/20 bg-primary/5">
+          <CardHeader className="pb-3">
+            <div className="flex items-center gap-2">
+              <Info className="h-5 w-5 text-primary" />
+              <CardTitle className="text-lg">Volume Discounts</CardTitle>
+            </div>
+            <CardDescription>Order more to save more - pricing tiers for kit orders</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {skus
+                .filter(sku => sku.use_tier_pricing && sku.pricing_tiers && sku.pricing_tiers.length > 0)
+                .map(sku => (
+                  <div key={sku.id} className="rounded-lg border bg-card p-3 space-y-2">
+                    <div className="font-medium text-sm">{sku.code}</div>
+                    <div className="text-xs text-muted-foreground truncate">{sku.description}</div>
+                    <div className="space-y-1 pt-1">
+                      {sku.pricing_tiers?.map((tier, idx) => (
+                        <div 
+                          key={idx} 
+                          className="flex justify-between items-center text-xs py-1 px-2 rounded bg-muted/50"
+                        >
+                          <span className="text-muted-foreground">
+                            {tier.min_quantity}-{tier.max_quantity || '∞'} kits
+                          </span>
+                          <span className="font-semibold text-primary">
+                            ${tier.price_per_kit.toFixed(2)}/kit
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
         <Card>
           <CardHeader>
             <CardTitle>Order Items</CardTitle>
