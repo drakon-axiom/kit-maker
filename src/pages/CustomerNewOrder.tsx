@@ -153,11 +153,13 @@ export default function CustomerNewOrder() {
     return tier ? tier.price_per_kit : sku.price_per_kit;
   };
 
+  const MIN_ORDER_QUANTITY = 5;
+
   const addLine = () => {
     setLines([...lines, {
       sku_id: '',
       sell_mode: 'kit',
-      qty_entered: 1,
+      qty_entered: MIN_ORDER_QUANTITY,
       unit_price: 0,
       bottle_qty: 0,
       line_subtotal: 0
@@ -173,7 +175,14 @@ export default function CustomerNewOrder() {
       const sku = skus.find(s => s.id === updatedLines[index].sku_id);
       if (sku) {
         const sellMode = updatedLines[index].sell_mode;
-        const qty = updatedLines[index].qty_entered || 0;
+        let qty = updatedLines[index].qty_entered || 0;
+        
+        // Enforce minimum order quantity for kit mode
+        if (sellMode === 'kit' && qty < MIN_ORDER_QUANTITY && qty > 0) {
+          qty = MIN_ORDER_QUANTITY;
+          updatedLines[index].qty_entered = qty;
+        }
+        
         // Use tiered pricing for kit mode, flat pricing for piece mode
         updatedLines[index].unit_price = sellMode === 'kit' 
           ? getPriceForQuantity(sku, qty) 
@@ -349,7 +358,13 @@ export default function CustomerNewOrder() {
                       </Select>
                     </TableCell>
                     <TableCell>
-                      <Input type="number" min="1" value={line.qty_entered} onChange={e => updateLine(index, 'qty_entered', parseInt(e.target.value) || 0)} className="w-24" />
+                      <Input 
+                        type="number" 
+                        min={line.sell_mode === 'kit' ? MIN_ORDER_QUANTITY : 1} 
+                        value={line.qty_entered} 
+                        onChange={e => updateLine(index, 'qty_entered', parseInt(e.target.value) || 0)} 
+                        className="w-24" 
+                      />
                     </TableCell>
                     <TableCell>${line.unit_price.toFixed(2)}</TableCell>
                     <TableCell>{line.bottle_qty}</TableCell>
