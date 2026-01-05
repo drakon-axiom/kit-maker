@@ -15,7 +15,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Checkbox } from '@/components/ui/checkbox';
 import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
-import { CustomerCard } from '@/components/mobile/CustomerCard';
+import { SwipeableCustomerCard } from '@/components/mobile/SwipeableCustomerCard';
 
 interface Customer {
   id: string;
@@ -786,10 +786,10 @@ const Customers = () => {
             </div>
           ) : (
             <>
-              {/* Mobile Card View */}
+              {/* Mobile Card View with Swipeable Actions */}
               <div className="md:hidden p-2">
                 {filteredCustomers.map((customer) => (
-                  <CustomerCard
+                  <SwipeableCustomerCard
                     key={customer.id}
                     customer={customer}
                     onEdit={openEditDialog}
