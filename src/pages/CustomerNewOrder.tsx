@@ -8,10 +8,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { ArrowLeft, Plus, Trash2, Loader2, Package, Send } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Loader2, Package, Send, Info } from 'lucide-react';
 import { toast } from 'sonner';
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from '@/components/ui/breadcrumb';
 import { Link } from 'react-router-dom';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Badge } from '@/components/ui/badge';
 interface PricingTier {
   id: string;
   min_quantity: number;
@@ -333,48 +335,91 @@ export default function CustomerNewOrder() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {lines.map((line, index) => <TableRow key={index}>
-                    <TableCell>
-                      <Select value={line.sku_id} onValueChange={value => updateLine(index, 'sku_id', value)}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select product" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {skus.map(sku => <SelectItem key={sku.id} value={sku.id}>
-                              {sku.code} - {sku.description}
-                            </SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                    </TableCell>
-                    <TableCell>
-                      <Select value={line.sell_mode} onValueChange={value => updateLine(index, 'sell_mode', value)}>
-                        <SelectTrigger className="w-24">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="kit">Kit</SelectItem>
-                          <SelectItem value="piece">Piece</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </TableCell>
-                    <TableCell>
-                      <Input 
-                        type="number" 
-                        min={line.sell_mode === 'kit' ? MIN_ORDER_QUANTITY : 1} 
-                        value={line.qty_entered} 
-                        onChange={e => updateLine(index, 'qty_entered', parseInt(e.target.value) || 0)} 
-                        className="w-24" 
-                      />
-                    </TableCell>
-                    <TableCell>${line.unit_price.toFixed(2)}</TableCell>
-                    <TableCell>{line.bottle_qty}</TableCell>
-                    <TableCell>${line.line_subtotal.toFixed(2)}</TableCell>
-                    <TableCell>
-                      <Button variant="ghost" size="sm" onClick={() => removeLine(index)}>
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>)}
+                {lines.map((line, index) => {
+                  const selectedSku = skus.find(s => s.id === line.sku_id);
+                  const hasTiers = selectedSku?.use_tier_pricing && selectedSku?.pricing_tiers && selectedSku.pricing_tiers.length > 0;
+                  
+                  return (
+                    <TableRow key={index}>
+                      <TableCell>
+                        <div className="space-y-1">
+                          <Select value={line.sku_id} onValueChange={value => updateLine(index, 'sku_id', value)}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select product" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {skus.map(sku => <SelectItem key={sku.id} value={sku.id}>
+                                  {sku.code} - {sku.description}
+                                </SelectItem>)}
+                            </SelectContent>
+                          </Select>
+                          {hasTiers && line.sell_mode === 'kit' && (
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <div className="flex items-center gap-1 text-xs text-muted-foreground cursor-help">
+                                    <Info className="h-3 w-3" />
+                                    <span>Volume discounts available</span>
+                                  </div>
+                                </TooltipTrigger>
+                                <TooltipContent side="bottom" className="max-w-xs">
+                                  <div className="space-y-1">
+                                    <p className="font-medium text-sm">Pricing Tiers:</p>
+                                    {selectedSku.pricing_tiers?.map((tier, idx) => (
+                                      <div key={idx} className="flex justify-between gap-4 text-xs">
+                                        <span>
+                                          {tier.min_quantity}-{tier.max_quantity || '∞'} kits
+                                        </span>
+                                        <span className="font-medium">${tier.price_per_kit.toFixed(2)}/kit</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Select value={line.sell_mode} onValueChange={value => updateLine(index, 'sell_mode', value)}>
+                          <SelectTrigger className="w-24">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="kit">Kit</SelectItem>
+                            <SelectItem value="piece">Piece</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </TableCell>
+                      <TableCell>
+                        <Input 
+                          type="number" 
+                          min={line.sell_mode === 'kit' ? MIN_ORDER_QUANTITY : 1} 
+                          value={line.qty_entered} 
+                          onChange={e => updateLine(index, 'qty_entered', parseInt(e.target.value) || 0)} 
+                          className="w-24" 
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <div className="space-y-1">
+                          <span>${line.unit_price.toFixed(2)}</span>
+                          {hasTiers && line.sell_mode === 'kit' && (
+                            <Badge variant="outline" className="text-[10px] block w-fit">
+                              Tier Price
+                            </Badge>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>{line.bottle_qty}</TableCell>
+                      <TableCell>${line.line_subtotal.toFixed(2)}</TableCell>
+                      <TableCell>
+                        <Button variant="ghost" size="sm" onClick={() => removeLine(index)}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
 
