@@ -280,41 +280,6 @@ export default function CustomerNewOrder() {
         <p className="text-muted-foreground mt-1">Select products and quantities</p>
       </div>
 
-      {/* Pricing Tiers Reference Card */}
-      {(() => {
-        const skuWithTiers = skus.find(sku => sku.use_tier_pricing && sku.pricing_tiers && sku.pricing_tiers.length > 0);
-        if (!skuWithTiers) return null;
-        
-        return (
-          <Card className="border-primary/20 bg-primary/5">
-            <CardHeader className="pb-3">
-              <div className="flex items-center gap-2">
-                <Info className="h-5 w-5 text-primary" />
-                <CardTitle className="text-lg">Volume Discounts</CardTitle>
-              </div>
-              <CardDescription>Order more kits to unlock better pricing</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="flex flex-wrap gap-3">
-                {skuWithTiers.pricing_tiers?.map((tier, idx) => (
-                  <div 
-                    key={idx} 
-                    className="flex items-center gap-3 rounded-lg border bg-card px-4 py-2"
-                  >
-                    <span className="text-sm text-muted-foreground">
-                      {tier.min_quantity}-{tier.max_quantity || '∞'} kits
-                    </span>
-                    <span className="font-semibold text-primary">
-                      ${tier.price_per_kit.toFixed(2)}/kit
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        );
-      })()}
-
         <Card>
           <CardHeader>
             <CardTitle>Order Items</CardTitle>
