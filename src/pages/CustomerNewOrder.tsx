@@ -20,7 +20,6 @@ interface PricingTier {
   max_quantity: number | null;
   price_per_kit: number;
 }
-
 interface SKU {
   id: string;
   code: string;
@@ -57,32 +56,22 @@ export default function CustomerNewOrder() {
       checkAccessRequest();
     }
   }, [user]);
-
   const checkAccessRequest = async () => {
     if (!user) return;
-
     try {
-      const { data: customerData } = await supabase
-        .from('customers')
-        .select('id')
-        .eq('user_id', user.id)
-        .single();
-
+      const {
+        data: customerData
+      } = await supabase.from('customers').select('id').eq('user_id', user.id).single();
       if (customerData) {
-        const { data: request } = await supabase
-          .from('customer_access_requests')
-          .select('id')
-          .eq('customer_id', customerData.id)
-          .eq('status', 'pending')
-          .maybeSingle();
-
+        const {
+          data: request
+        } = await supabase.from('customer_access_requests').select('id').eq('customer_id', customerData.id).eq('status', 'pending').maybeSingle();
         setHasRequestedAccess(!!request);
       }
     } catch (error) {
       // Error handled silently
     }
   };
-
   const fetchData = async () => {
     try {
       const {
@@ -102,7 +91,7 @@ export default function CustomerNewOrder() {
         pricing_tiers:sku_pricing_tiers(id, min_quantity, max_quantity, price_per_kit)
       `).eq('active', true);
       if (error) throw error;
-      
+
       // Sort pricing tiers by min_quantity for each SKU
       const skusWithSortedTiers = (skusData || []).map(sku => ({
         ...sku,
@@ -116,18 +105,19 @@ export default function CustomerNewOrder() {
       setLoading(false);
     }
   };
-
   const handleRequestAccess = async () => {
     if (!customerId) return;
-
     setRequestingAccess(true);
     try {
-      const { data, error } = await supabase.functions.invoke('request-customer-access', {
-        body: { customerId }
+      const {
+        data,
+        error
+      } = await supabase.functions.invoke('request-customer-access', {
+        body: {
+          customerId
+        }
       });
-
       if (error) throw error;
-
       if (data?.hoursRemaining) {
         toast.error(`Please wait ${data.hoursRemaining} more hours before requesting access`);
       } else {
@@ -147,16 +137,10 @@ export default function CustomerNewOrder() {
     if (!sku.use_tier_pricing || !sku.pricing_tiers || sku.pricing_tiers.length === 0) {
       return sku.price_per_kit;
     }
-
-    const tier = sku.pricing_tiers.find(t => 
-      quantity >= t.min_quantity && (t.max_quantity === null || quantity <= t.max_quantity)
-    );
-
+    const tier = sku.pricing_tiers.find(t => quantity >= t.min_quantity && (t.max_quantity === null || quantity <= t.max_quantity));
     return tier ? tier.price_per_kit : sku.price_per_kit;
   };
-
   const MIN_ORDER_QUANTITY = 5;
-
   const addLine = () => {
     setLines([...lines, {
       sku_id: '',
@@ -178,17 +162,15 @@ export default function CustomerNewOrder() {
       if (sku) {
         const sellMode = updatedLines[index].sell_mode;
         let qty = updatedLines[index].qty_entered || 0;
-        
+
         // Enforce minimum order quantity for kit mode
         if (sellMode === 'kit' && qty < MIN_ORDER_QUANTITY && qty > 0) {
           qty = MIN_ORDER_QUANTITY;
           updatedLines[index].qty_entered = qty;
         }
-        
+
         // Use tiered pricing for kit mode, flat pricing for piece mode
-        updatedLines[index].unit_price = sellMode === 'kit' 
-          ? getPriceForQuantity(sku, qty) 
-          : sku.price_per_piece;
+        updatedLines[index].unit_price = sellMode === 'kit' ? getPriceForQuantity(sku, qty) : sku.price_per_piece;
         updatedLines[index].bottle_qty = sellMode === 'kit' ? qty * (sku.pack_size || 1) : qty;
         updatedLines[index].line_subtotal = qty * updatedLines[index].unit_price;
       }
@@ -258,8 +240,7 @@ export default function CustomerNewOrder() {
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>;
   }
-  return (
-    <div className="p-6 space-y-6">
+  return <div className="p-6 space-y-6">
       {/* Breadcrumb Navigation */}
       <Breadcrumb>
         <BreadcrumbList>
@@ -292,35 +273,24 @@ export default function CustomerNewOrder() {
                 <p className="text-muted-foreground mb-4">
                   You don't have access to any products yet. Please request access from your administrator.
                 </p>
-                {hasRequestedAccess ? (
-                  <div className="bg-muted/50 border border-border rounded-lg p-4 max-w-md mx-auto">
+                {hasRequestedAccess ? <div className="bg-muted/50 border border-border rounded-lg p-4 max-w-md mx-auto">
                     <p className="text-sm text-muted-foreground">
                       Your access request is pending. An administrator will review it shortly.
                     </p>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    <Button 
-                      onClick={handleRequestAccess} 
-                      disabled={requestingAccess}
-                    >
-                      {requestingAccess ? (
-                        <>
+                  </div> : <div className="space-y-3">
+                    <Button onClick={handleRequestAccess} disabled={requestingAccess}>
+                      {requestingAccess ? <>
                           <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                           Submitting...
-                        </>
-                      ) : (
-                        <>
+                        </> : <>
                           <Send className="h-4 w-4 mr-2" />
                           Request Access
-                        </>
-                      )}
+                        </>}
                     </Button>
                     <p className="text-xs text-muted-foreground">
                       Note: Requests can only be submitted 24 hours after signup
                     </p>
-                  </div>
-                )}
+                  </div>}
               </div> : <>
             <Table>
               <TableHeader>
@@ -336,11 +306,9 @@ export default function CustomerNewOrder() {
               </TableHeader>
               <TableBody>
                 {lines.map((line, index) => {
-                  const selectedSku = skus.find(s => s.id === line.sku_id);
-                  const hasTiers = selectedSku?.use_tier_pricing && selectedSku?.pricing_tiers && selectedSku.pricing_tiers.length > 0;
-                  
-                  return (
-                    <TableRow key={index}>
+                const selectedSku = skus.find(s => s.id === line.sku_id);
+                const hasTiers = selectedSku?.use_tier_pricing && selectedSku?.pricing_tiers && selectedSku.pricing_tiers.length > 0;
+                return <TableRow key={index}>
                       <TableCell>
                         <div className="space-y-1">
                           <Select value={line.sku_id} onValueChange={value => updateLine(index, 'sku_id', value)}>
@@ -353,8 +321,7 @@ export default function CustomerNewOrder() {
                                 </SelectItem>)}
                             </SelectContent>
                           </Select>
-                          {hasTiers && line.sell_mode === 'kit' && (
-                            <TooltipProvider>
+                          {hasTiers && line.sell_mode === 'kit' && <TooltipProvider>
                               <Tooltip>
                                 <TooltipTrigger asChild>
                                   <div className="flex items-center gap-1 text-xs text-muted-foreground cursor-help">
@@ -365,19 +332,16 @@ export default function CustomerNewOrder() {
                                 <TooltipContent side="bottom" className="max-w-xs">
                                   <div className="space-y-1">
                                     <p className="font-medium text-sm">Pricing Tiers:</p>
-                                    {selectedSku.pricing_tiers?.map((tier, idx) => (
-                                      <div key={idx} className="flex justify-between gap-4 text-xs">
+                                    {selectedSku.pricing_tiers?.map((tier, idx) => <div key={idx} className="flex justify-between gap-4 text-xs">
                                         <span>
                                           {tier.min_quantity}-{tier.max_quantity || '∞'} kits
                                         </span>
                                         <span className="font-medium">${tier.price_per_kit.toFixed(2)}/kit</span>
-                                      </div>
-                                    ))}
+                                      </div>)}
                                   </div>
                                 </TooltipContent>
                               </Tooltip>
-                            </TooltipProvider>
-                          )}
+                            </TooltipProvider>}
                         </div>
                       </TableCell>
                       <TableCell>
@@ -392,22 +356,12 @@ export default function CustomerNewOrder() {
                         </Select>
                       </TableCell>
                       <TableCell>
-                        <Input 
-                          type="number" 
-                          min={line.sell_mode === 'kit' ? MIN_ORDER_QUANTITY : 1} 
-                          value={line.qty_entered} 
-                          onChange={e => updateLine(index, 'qty_entered', parseInt(e.target.value) || 0)} 
-                          className="w-24" 
-                        />
+                        <Input type="number" min={line.sell_mode === 'kit' ? MIN_ORDER_QUANTITY : 1} value={line.qty_entered} onChange={e => updateLine(index, 'qty_entered', parseInt(e.target.value) || 0)} className="w-24" />
                       </TableCell>
                       <TableCell>
                         <div className="space-y-1">
                           <span>${line.unit_price.toFixed(2)}</span>
-                          {hasTiers && line.sell_mode === 'kit' && (
-                            <Badge variant="outline" className="text-[10px] block w-fit">
-                              Tier Price
-                            </Badge>
-                          )}
+                          {hasTiers && line.sell_mode === 'kit'}
                         </div>
                       </TableCell>
                       <TableCell>{line.bottle_qty}</TableCell>
@@ -417,9 +371,8 @@ export default function CustomerNewOrder() {
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </TableCell>
-                    </TableRow>
-                  );
-                })}
+                    </TableRow>;
+              })}
               </TableBody>
             </Table>
 
@@ -447,6 +400,5 @@ export default function CustomerNewOrder() {
             </>}
           </CardContent>
         </Card>
-    </div>
-  );
+    </div>;
 }
