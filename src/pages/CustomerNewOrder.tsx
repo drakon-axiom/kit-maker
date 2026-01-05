@@ -12,6 +12,13 @@ import { ArrowLeft, Plus, Trash2, Loader2, Package, Send } from 'lucide-react';
 import { toast } from 'sonner';
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from '@/components/ui/breadcrumb';
 import { Link } from 'react-router-dom';
+interface PricingTier {
+  id: string;
+  min_quantity: number;
+  max_quantity: number | null;
+  price_per_kit: number;
+}
+
 interface SKU {
   id: string;
   code: string;
@@ -19,11 +26,8 @@ interface SKU {
   price_per_kit: number;
   price_per_piece: number;
   pack_size: number;
-}
-interface PricingTier {
-  min_quantity: number;
-  max_quantity: number | null;
-  price_per_kit: number;
+  use_tier_pricing: boolean;
+  pricing_tiers?: PricingTier[];
 }
 interface OrderLine {
   sku_id: string;
@@ -91,9 +95,18 @@ export default function CustomerNewOrder() {
       const {
         data: skusData,
         error
-      } = await supabase.from('skus').select('id, code, description, price_per_kit, price_per_piece, pack_size').eq('active', true);
+      } = await supabase.from('skus').select(`
+        id, code, description, price_per_kit, price_per_piece, pack_size, use_tier_pricing,
+        pricing_tiers:sku_pricing_tiers(id, min_quantity, max_quantity, price_per_kit)
+      `).eq('active', true);
       if (error) throw error;
-      setSKUs(skusData || []);
+      
+      // Sort pricing tiers by min_quantity for each SKU
+      const skusWithSortedTiers = (skusData || []).map(sku => ({
+        ...sku,
+        pricing_tiers: sku.pricing_tiers?.sort((a: PricingTier, b: PricingTier) => a.min_quantity - b.min_quantity) || []
+      }));
+      setSKUs(skusWithSortedTiers);
     } catch (error) {
       toast.error('Failed to load products');
       // Error handled silently
@@ -127,6 +140,19 @@ export default function CustomerNewOrder() {
     }
   };
 
+  // Get price for quantity based on tier pricing
+  const getPriceForQuantity = (sku: SKU, quantity: number): number => {
+    if (!sku.use_tier_pricing || !sku.pricing_tiers || sku.pricing_tiers.length === 0) {
+      return sku.price_per_kit;
+    }
+
+    const tier = sku.pricing_tiers.find(t => 
+      quantity >= t.min_quantity && (t.max_quantity === null || quantity <= t.max_quantity)
+    );
+
+    return tier ? tier.price_per_kit : sku.price_per_kit;
+  };
+
   const addLine = () => {
     setLines([...lines, {
       sku_id: '',
@@ -148,7 +174,10 @@ export default function CustomerNewOrder() {
       if (sku) {
         const sellMode = updatedLines[index].sell_mode;
         const qty = updatedLines[index].qty_entered || 0;
-        updatedLines[index].unit_price = sellMode === 'kit' ? sku.price_per_kit : sku.price_per_piece;
+        // Use tiered pricing for kit mode, flat pricing for piece mode
+        updatedLines[index].unit_price = sellMode === 'kit' 
+          ? getPriceForQuantity(sku, qty) 
+          : sku.price_per_piece;
         updatedLines[index].bottle_qty = sellMode === 'kit' ? qty * (sku.pack_size || 1) : qty;
         updatedLines[index].line_subtotal = qty * updatedLines[index].unit_price;
       }
