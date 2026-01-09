@@ -470,8 +470,8 @@ const InternalOrderNew = () => {
                       <Label className="text-xs text-muted-foreground">Quantity</Label>
                       <Input
                         type="number"
-                        min={line.volume_unit === 'ml' ? '1' : '0.1'}
-                        step={line.volume_unit === 'ml' || line.volume_unit === 'bottle' ? '1' : '0.1'}
+                        min="1"
+                        step="any"
                         value={line.qty_entered}
                         onChange={(e) => updateLine(index, 'qty_entered', e.target.value)}
                         className="h-9"
@@ -575,8 +575,8 @@ const InternalOrderNew = () => {
                       <TableCell>
                         <Input
                           type="number"
-                          min={line.volume_unit === 'ml' ? '1' : '0.1'}
-                          step={line.volume_unit === 'ml' || line.volume_unit === 'bottle' ? '1' : '0.1'}
+                          min="1"
+                          step="any"
                           value={line.qty_entered}
                           onChange={(e) => updateLine(index, 'qty_entered', e.target.value)}
                           className="w-20"
