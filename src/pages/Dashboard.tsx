@@ -6,7 +6,8 @@ import {
   ClipboardList, 
   Factory as FactoryIcon, 
   TruckIcon,
-  AlertCircle 
+  AlertCircle,
+  Loader2
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import ExpiringQuotesWidget from '@/components/ExpiringQuotesWidget';
@@ -114,6 +115,17 @@ const Dashboard = () => {
     },
   ];
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-[50vh]">
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <p className="text-sm text-muted-foreground">Loading dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+
   const content = (
     <div className="p-4 md:p-6 space-y-4 md:space-y-6">
       <div>
@@ -139,7 +151,7 @@ const Dashboard = () => {
         ))}
       </div>
 
-      {stats.totalOrders === 0 && !loading && (
+      {stats.totalOrders === 0 && (
         <Card className="border-dashed">
           <CardContent className="flex flex-col items-center justify-center py-8 md:py-12">
             <AlertCircle className="h-10 md:h-12 w-10 md:w-12 text-muted-foreground mb-4" />
