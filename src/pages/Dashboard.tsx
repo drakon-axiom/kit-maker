@@ -33,11 +33,25 @@ const Dashboard = () => {
 
   const fetchStats = useCallback(async () => {
     try {
+      // Wait for auth session to be ready
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        console.log('Dashboard: No session found, waiting...');
+        setLoading(false);
+        return;
+      }
+
       const { data: orders, error } = await supabase
         .from('sales_orders')
         .select('status');
 
-      if (error) throw error;
+      if (error) {
+        console.error('Dashboard fetch error:', error);
+        throw error;
+      }
+
+      console.log('Dashboard: Fetched orders count:', orders?.length);
 
       const stats = {
         totalOrders: orders?.filter(o => o.status !== 'cancelled').length || 0,
@@ -50,7 +64,7 @@ const Dashboard = () => {
 
       setStats(stats);
     } catch (error) {
-      // Error handled silently
+      console.error('Dashboard error:', error);
     } finally {
       setLoading(false);
     }
@@ -58,6 +72,15 @@ const Dashboard = () => {
 
   useEffect(() => {
     fetchStats();
+    
+    // Listen for auth state changes and refetch
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+        fetchStats();
+      }
+    });
+
+    return () => subscription.unsubscribe();
   }, [fetchStats]);
 
   const handleRefresh = async () => {
