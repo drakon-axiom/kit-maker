@@ -337,27 +337,27 @@ const InternalOrderNew = () => {
   };
 
   return (
-    <div className="container mx-auto py-6 space-y-6">
-      <div className="flex items-center gap-4">
+    <div className="container mx-auto px-4 py-4 md:py-6 space-y-4 md:space-y-6">
+      <div className="flex items-center gap-3 md:gap-4">
         <Button variant="ghost" size="icon" onClick={() => navigate('/orders')}>
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <div>
-          <h1 className="text-3xl font-bold">New Internal Order</h1>
-          <p className="text-muted-foreground">Create internal production runs for retail stock</p>
+          <h1 className="text-xl md:text-3xl font-bold">New Internal Order</h1>
+          <p className="text-xs md:text-base text-muted-foreground">Create internal production runs for retail stock</p>
         </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <form onSubmit={handleSubmit} className="space-y-4 md:space-y-6">
         <Card>
-          <CardHeader>
-            <CardTitle>Order Details</CardTitle>
-            <CardDescription>Configure the internal production run</CardDescription>
+          <CardHeader className="p-4 md:p-6">
+            <CardTitle className="text-base md:text-lg">Order Details</CardTitle>
+            <CardDescription className="text-xs md:text-sm">Configure the internal production run</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="p-4 pt-0 md:p-6 md:pt-0 space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="brand">Brand *</Label>
+                <Label htmlFor="brand" className="text-sm">Brand *</Label>
                 <Select value={selectedBrand} onValueChange={setSelectedBrand}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select brand" />
@@ -378,40 +378,29 @@ const InternalOrderNew = () => {
                   checked={labelRequired}
                   onCheckedChange={setLabelRequired}
                 />
-                <Label htmlFor="label-required">Label Required</Label>
+                <Label htmlFor="label-required" className="text-sm">Label Required</Label>
               </div>
             </div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader>
-            <CardTitle>Product Lines</CardTitle>
-            <CardDescription>Add products to this internal order</CardDescription>
+          <CardHeader className="p-4 md:p-6">
+            <CardTitle className="text-base md:text-lg">Product Lines</CardTitle>
+            <CardDescription className="text-xs md:text-sm">Add products to this internal order</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>SKU</TableHead>
-                  <TableHead>Mode</TableHead>
-                  <TableHead>Unit</TableHead>
-                  <TableHead>Quantity</TableHead>
-                  <TableHead>My Cost</TableHead>
-                  <TableHead>Bottles</TableHead>
-                  <TableHead>Subtotal</TableHead>
-                  <TableHead></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {lines.map((line, index) => (
-                  <TableRow key={index}>
-                    <TableCell>
+          <CardContent className="p-4 pt-0 md:p-6 md:pt-0 space-y-4">
+            {/* Mobile Card Layout */}
+            <div className="md:hidden space-y-3">
+              {lines.map((line, index) => (
+                <Card key={index} className="p-3 space-y-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1 min-w-0">
                       <Select
                         value={line.sku_id}
                         onValueChange={(value) => updateLine(index, 'sku_id', value)}
                       >
-                        <SelectTrigger className="w-[200px]">
+                        <SelectTrigger className="w-full">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent className="max-h-[300px] overflow-y-auto bg-background z-50">
@@ -422,13 +411,26 @@ const InternalOrderNew = () => {
                           ))}
                         </SelectContent>
                       </Select>
-                    </TableCell>
-                    <TableCell>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 flex-shrink-0"
+                      onClick={() => removeLine(index)}
+                    >
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-1">
+                      <Label className="text-xs text-muted-foreground">Mode</Label>
                       <Select
                         value={line.sell_mode}
                         onValueChange={(value) => updateLine(index, 'sell_mode', value)}
                       >
-                        <SelectTrigger className="w-[100px]">
+                        <SelectTrigger className="h-9">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent className="bg-background z-50">
@@ -436,14 +438,16 @@ const InternalOrderNew = () => {
                           <SelectItem value="piece">Piece</SelectItem>
                         </SelectContent>
                       </Select>
-                    </TableCell>
-                    <TableCell>
+                    </div>
+                    
+                    <div className="space-y-1">
+                      <Label className="text-xs text-muted-foreground">Unit</Label>
                       {line.sell_mode === 'piece' ? (
                         <Select
                           value={line.volume_unit}
                           onValueChange={(value) => updateLine(index, 'volume_unit', value)}
                         >
-                          <SelectTrigger className="w-[90px]">
+                          <SelectTrigger className="h-9">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent className="bg-background z-50">
@@ -456,60 +460,170 @@ const InternalOrderNew = () => {
                           </SelectContent>
                         </Select>
                       ) : (
-                        <span className="text-muted-foreground text-sm">—</span>
+                        <div className="h-9 flex items-center text-sm text-muted-foreground">—</div>
                       )}
-                    </TableCell>
-                    <TableCell>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-1">
+                      <Label className="text-xs text-muted-foreground">Quantity</Label>
                       <Input
                         type="number"
                         min={line.volume_unit === 'ml' ? '1' : '0.1'}
                         step={line.volume_unit === 'ml' || line.volume_unit === 'bottle' ? '1' : '0.1'}
                         value={line.qty_entered}
                         onChange={(e) => updateLine(index, 'qty_entered', e.target.value)}
-                        className="w-20"
+                        className="h-9"
                       />
-                    </TableCell>
-                    <TableCell>${line.unit_price.toFixed(2)}</TableCell>
-                    <TableCell>{line.bottle_qty}</TableCell>
-                    <TableCell>${line.line_subtotal.toFixed(2)}</TableCell>
-                    <TableCell>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => removeLine(index)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs text-muted-foreground">Bottles</Label>
+                      <div className="h-9 flex items-center text-sm font-medium">{line.bottle_qty}</div>
+                    </div>
+                  </div>
 
-            <Button type="button" variant="outline" onClick={addLine}>
+                  <div className="flex items-center justify-between pt-2 border-t">
+                    <div className="text-xs text-muted-foreground">
+                      Cost: ${line.unit_price.toFixed(2)} each
+                    </div>
+                    <div className="text-sm font-semibold">
+                      ${line.line_subtotal.toFixed(2)}
+                    </div>
+                  </div>
+                </Card>
+              ))}
+
+              {lines.length === 0 && (
+                <div className="text-center py-6 text-muted-foreground text-sm">
+                  No products added yet
+                </div>
+              )}
+            </div>
+
+            {/* Desktop Table Layout */}
+            <div className="hidden md:block">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>SKU</TableHead>
+                    <TableHead>Mode</TableHead>
+                    <TableHead>Unit</TableHead>
+                    <TableHead>Quantity</TableHead>
+                    <TableHead>My Cost</TableHead>
+                    <TableHead>Bottles</TableHead>
+                    <TableHead>Subtotal</TableHead>
+                    <TableHead></TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {lines.map((line, index) => (
+                    <TableRow key={index}>
+                      <TableCell>
+                        <Select
+                          value={line.sku_id}
+                          onValueChange={(value) => updateLine(index, 'sku_id', value)}
+                        >
+                          <SelectTrigger className="w-[200px]">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent className="max-h-[300px] overflow-y-auto bg-background z-50">
+                            {skus.map(sku => (
+                              <SelectItem key={sku.id} value={sku.id}>
+                                {sku.code} - {sku.description}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </TableCell>
+                      <TableCell>
+                        <Select
+                          value={line.sell_mode}
+                          onValueChange={(value) => updateLine(index, 'sell_mode', value)}
+                        >
+                          <SelectTrigger className="w-[100px]">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent className="bg-background z-50">
+                            <SelectItem value="kit">Kit</SelectItem>
+                            <SelectItem value="piece">Piece</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </TableCell>
+                      <TableCell>
+                        {line.sell_mode === 'piece' ? (
+                          <Select
+                            value={line.volume_unit}
+                            onValueChange={(value) => updateLine(index, 'volume_unit', value)}
+                          >
+                            <SelectTrigger className="w-[90px]">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent className="bg-background z-50">
+                              <SelectItem value="bottle">Bottles</SelectItem>
+                              <SelectItem value="ml">ml</SelectItem>
+                              <SelectItem value="L">L</SelectItem>
+                              <SelectItem value="2L">2L</SelectItem>
+                              <SelectItem value="5L">5L</SelectItem>
+                              <SelectItem value="10L">10L</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        ) : (
+                          <span className="text-muted-foreground text-sm">—</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          type="number"
+                          min={line.volume_unit === 'ml' ? '1' : '0.1'}
+                          step={line.volume_unit === 'ml' || line.volume_unit === 'bottle' ? '1' : '0.1'}
+                          value={line.qty_entered}
+                          onChange={(e) => updateLine(index, 'qty_entered', e.target.value)}
+                          className="w-20"
+                        />
+                      </TableCell>
+                      <TableCell>${line.unit_price.toFixed(2)}</TableCell>
+                      <TableCell>{line.bottle_qty}</TableCell>
+                      <TableCell>${line.line_subtotal.toFixed(2)}</TableCell>
+                      <TableCell>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => removeLine(index)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+
+            <Button type="button" variant="outline" onClick={addLine} className="w-full md:w-auto">
               <Plus className="h-4 w-4 mr-2" />
               Add Line
             </Button>
 
-            <div className="flex justify-end space-x-6 pt-4 border-t">
-              <div className="space-y-1 text-right">
-                <p className="text-sm text-muted-foreground">Total Bottles</p>
-                <p className="text-2xl font-bold">{calculateTotalBottles()}</p>
+            <div className="flex flex-col sm:flex-row justify-end gap-4 sm:gap-6 pt-4 border-t">
+              <div className="flex justify-between sm:block sm:text-right">
+                <p className="text-xs md:text-sm text-muted-foreground">Total Bottles</p>
+                <p className="text-lg md:text-2xl font-bold">{calculateTotalBottles()}</p>
               </div>
-              <div className="space-y-1 text-right">
-                <p className="text-sm text-muted-foreground">Total Cost</p>
-                <p className="text-2xl font-bold">${calculateSubtotal().toFixed(2)}</p>
+              <div className="flex justify-between sm:block sm:text-right">
+                <p className="text-xs md:text-sm text-muted-foreground">Total Cost</p>
+                <p className="text-lg md:text-2xl font-bold">${calculateSubtotal().toFixed(2)}</p>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <div className="flex justify-end gap-4">
-          <Button type="button" variant="outline" onClick={() => navigate('/orders')}>
+        <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 md:gap-4">
+          <Button type="button" variant="outline" onClick={() => navigate('/orders')} className="w-full sm:w-auto">
             Cancel
           </Button>
-          <Button type="submit" disabled={loading}>
+          <Button type="submit" disabled={loading} className="w-full sm:w-auto">
             {loading ? 'Creating...' : 'Create Internal Order'}
           </Button>
         </div>
