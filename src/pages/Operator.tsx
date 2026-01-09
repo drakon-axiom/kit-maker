@@ -9,6 +9,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { QRCodeScanner } from '@/components/QRCodeScanner';
 import { 
   Scan, 
   Play, 
@@ -16,7 +17,8 @@ import {
   Clock, 
   Package, 
   AlertCircle,
-  Loader2
+  Loader2,
+  Camera
 } from 'lucide-react';
 
 interface WorkflowStep {
@@ -55,6 +57,7 @@ const Operator = () => {
   const [updatingStep, setUpdatingStep] = useState<string | null>(null);
   const [goodQty, setGoodQty] = useState('');
   const [scrapQty, setScrapQty] = useState('');
+  const [showScanner, setShowScanner] = useState(false);
   const { toast } = useToast();
   const { user } = useAuth();
 
@@ -362,8 +365,98 @@ const Operator = () => {
       .join(' ');
   };
 
+  const handleQRScan = (scannedCode: string) => {
+    setShowScanner(false);
+    setBatchUid(scannedCode);
+    // Auto-load the scanned batch
+    setTimeout(() => {
+      const input = document.getElementById('batch-scan') as HTMLInputElement;
+      if (input) {
+        input.value = scannedCode;
+        // Trigger the load
+        loadBatchWithUid(scannedCode);
+      }
+    }, 100);
+  };
+
+  const loadBatchWithUid = async (uid: string) => {
+    if (!uid.trim()) {
+      toast({
+        title: 'Error',
+        description: 'Please enter a batch UID',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setLoading(true);
+    try {
+      // Load batch details
+      const { data: batchData, error: batchError } = await supabase
+        .from('production_batches')
+        .select(`
+          *,
+          sales_orders (
+            human_uid,
+            customers (
+              name
+            )
+          )
+        `)
+        .eq('uid', uid.trim())
+        .maybeSingle();
+
+      if (batchError) throw batchError;
+
+      if (!batchData) {
+        toast({
+          title: 'Not Found',
+          description: 'Batch not found. Please check the UID.',
+          variant: 'destructive',
+        });
+        setLoading(false);
+        return;
+      }
+
+      setBatch(batchData);
+      setGoodQty(batchData.qty_bottle_good?.toString() || '0');
+      setScrapQty(batchData.qty_bottle_scrap?.toString() || '0');
+
+      // Load workflow steps
+      const { data: stepsData, error: stepsError } = await supabase
+        .from('workflow_steps')
+        .select('*')
+        .eq('batch_id', batchData.id)
+        .order('created_at');
+
+      if (stepsError) throw stepsError;
+
+      setWorkflowSteps(stepsData || []);
+
+      toast({
+        title: 'Success',
+        description: 'Batch loaded successfully',
+      });
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to load batch',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="p-6 space-y-6">
+      {showScanner && (
+        <QRCodeScanner
+          onScan={handleQRScan}
+          onClose={() => setShowScanner(false)}
+        />
+      )}
+
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Operator Console</h1>
         <p className="text-muted-foreground mt-1">Scan batches and update workflow steps</p>
@@ -391,6 +484,14 @@ const Operator = () => {
                     }
                   }}
                 />
+                <Button 
+                  variant="outline" 
+                  onClick={() => setShowScanner(true)}
+                  disabled={loading}
+                  title="Scan QR Code"
+                >
+                  <Camera className="h-4 w-4" />
+                </Button>
                 <Button onClick={loadBatch} disabled={loading}>
                   {loading ? (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -404,6 +505,7 @@ const Operator = () => {
           </div>
         </CardContent>
       </Card>
+
 
       {batch && (
         <>
