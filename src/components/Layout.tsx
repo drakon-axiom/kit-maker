@@ -72,8 +72,9 @@ const Layout = ({ children }: LayoutProps) => {
             {children}
           </SidebarInset>
         </div>
+        {/* Mobile bottom nav inside the container for proper stacking */}
+        <MobileBottomNav />
       </div>
-      <MobileBottomNav />
     </SidebarProvider>
   );
 };
