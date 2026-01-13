@@ -70,8 +70,25 @@ const WholesaleApplications = () => {
     setActionLoading(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      
-      // Update application status first
+
+      // If approved, create the account first; only then mark the application as approved.
+      // This prevents "approved" applications that have no associated account.
+      if (newStatus === 'approved') {
+        const { error: functionError } = await supabase.functions.invoke('approve-wholesale-application', {
+          body: {
+            applicationId: appId,
+            reviewNotes: reviewNotes || undefined,
+            siteUrl: window.location.origin,
+          },
+        });
+
+        if (functionError) {
+          toast.error(`Account creation failed: ${functionError.message ?? 'Unknown error'}`);
+          return;
+        }
+      }
+
+      // Update application status
       const { error: updateError } = await supabase
         .from('wholesale_applications')
         .update({
@@ -84,21 +101,7 @@ const WholesaleApplications = () => {
 
       if (updateError) throw updateError;
 
-      // If approved, call edge function to create account and send email
       if (newStatus === 'approved') {
-        const { data, error: functionError } = await supabase.functions.invoke('approve-wholesale-application', {
-          body: {
-            applicationId: appId,
-            reviewNotes: reviewNotes || undefined,
-            siteUrl: window.location.origin,
-          },
-        });
-
-        if (functionError) {
-          toast.error(`Account creation failed: ${functionError.message ?? 'Unknown error'}`);
-          return;
-        }
-
         toast.success(`Application approved! Login credentials sent to ${applications.find(a => a.id === appId)?.email}`);
       } else {
         toast.success('Application rejected');
@@ -108,7 +111,6 @@ const WholesaleApplications = () => {
       setReviewNotes('');
       fetchApplications();
     } catch (error) {
-      // Error handled silently
       toast.error('Failed to update application');
     } finally {
       setActionLoading(false);
