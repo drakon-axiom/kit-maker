@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
+import { SMTPClient } from "https://deno.land/x/denomailer@1.6.0/mod.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -246,26 +247,31 @@ serve(async (req) => {
 </body>
 </html>`;
 
-        // Simple SMTP implementation using fetch
-        const response = await fetch(`https://${smtpHost}:${smtpPort}`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
+        // Use proper SMTP client for Proton SMTP
+        const effectivePort = smtpHost?.includes("protonmail") ? 465 : (smtpPort || 465);
+        const useTls = effectivePort === 465;
+
+        const client = new SMTPClient({
+          connection: {
+            hostname: smtpHost,
+            port: effectivePort,
+            tls: useTls,
+            auth: {
+              username: smtpUser,
+              password: smtpPassword,
+            },
           },
-          body: JSON.stringify({
-            from: smtpUser,
-            to: application.email,
-            subject: 'Wholesale Account Approved - Login Credentials',
-            html: emailBody,
-          }),
-        }).catch(err => {
-          console.error('SMTP error:', err);
-          return null;
         });
 
-        if (response) {
-          console.log('Welcome email sent successfully');
-        }
+        await client.send({
+          from: `Wholesale Portal <${smtpUser}>`,
+          to: application.email,
+          subject: 'Wholesale Account Approved - Login Credentials',
+          html: emailBody,
+        });
+
+        await client.close();
+        console.log('Welcome email sent successfully via SMTP');
       } catch (emailError) {
         console.error('Error sending email:', emailError);
         // Don't fail the whole operation if email fails
