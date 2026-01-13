@@ -86,30 +86,19 @@ const WholesaleApplications = () => {
 
       // If approved, call edge function to create account and send email
       if (newStatus === 'approved') {
-        const webhookSecret = await supabase
-          .from('settings')
-          .select('value')
-          .eq('key', 'internal_webhook_secret')
-          .single();
-
         const { data, error: functionError } = await supabase.functions.invoke('approve-wholesale-application', {
           body: {
             applicationId: appId,
             reviewNotes: reviewNotes || undefined,
             siteUrl: window.location.origin,
           },
-          headers: webhookSecret?.data?.value ? {
-            'x-webhook-secret': webhookSecret.data.value
-          } : undefined
         });
 
         if (functionError) {
-          // Error handled silently
-          toast.error('Application approved but failed to create account. Please contact support.');
+          toast.error(`Account creation failed: ${functionError.message ?? 'Unknown error'}`);
           return;
         }
 
-        // Debug log removed
         toast.success(`Application approved! Login credentials sent to ${applications.find(a => a.id === appId)?.email}`);
       } else {
         toast.success('Application rejected');
