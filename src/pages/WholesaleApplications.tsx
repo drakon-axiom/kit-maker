@@ -96,6 +96,7 @@ const WholesaleApplications = () => {
           body: {
             applicationId: appId,
             reviewNotes: reviewNotes || undefined,
+            siteUrl: window.location.origin,
           },
           headers: webhookSecret?.data?.value ? {
             'x-webhook-secret': webhookSecret.data.value

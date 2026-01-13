@@ -9,6 +9,7 @@ const corsHeaders = {
 interface ApprovalRequest {
   applicationId: string;
   reviewNotes?: string;
+  siteUrl?: string;
 }
 
 serve(async (req) => {
@@ -34,8 +35,8 @@ serve(async (req) => {
       });
     }
 
-    const { applicationId, reviewNotes }: ApprovalRequest = await req.json();
-    console.log('Processing application approval:', applicationId);
+    const { applicationId, reviewNotes, siteUrl }: ApprovalRequest = await req.json();
+    console.log('Processing application approval:', applicationId, 'siteUrl:', siteUrl);
 
     // Get application details
     const { data: application, error: appError } = await supabase
@@ -166,7 +167,7 @@ serve(async (req) => {
       <p>Your account has been created and you can now access our wholesale portal using the credentials below:</p>
       
       <div class="credentials">
-        <p><strong>Login URL:</strong> ${supabaseUrl.replace('https://dfaafbwhdnoaknuxonig.supabase.co', window.location.origin)}/auth</p>
+        <p><strong>Login URL:</strong> ${siteUrl || 'https://b2b.nexusaminos.com'}/auth</p>
         <p><strong>Email:</strong> ${application.email}</p>
         <p><strong>Temporary Password:</strong> <code>${tempPassword}</code></p>
       </div>
