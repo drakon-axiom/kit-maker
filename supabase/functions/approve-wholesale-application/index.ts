@@ -69,6 +69,22 @@ serve(async (req) => {
     const { applicationId, reviewNotes, siteUrl }: ApprovalRequest = await req.json();
     console.log('Processing application approval:', applicationId, 'siteUrl:', siteUrl);
 
+    // Helper to log failures to audit_log
+    const logFailure = async (action: string, errorDetails: unknown) => {
+      try {
+        await supabase.from('audit_log').insert({
+          action,
+          entity: 'wholesale_application',
+          entity_id: applicationId,
+          actor_id: caller.id,
+          before: null,
+          after: { error: errorDetails },
+        });
+      } catch (logErr) {
+        console.error('Failed to write audit log:', logErr);
+      }
+    };
+
     // Get application details
     const { data: application, error: appError } = await supabase
       .from('wholesale_applications')
@@ -78,6 +94,7 @@ serve(async (req) => {
 
     if (appError || !application) {
       console.error('Application not found:', appError);
+      await logFailure('wholesale_approval_failed', { stage: 'fetch_application', error: appError });
       return new Response(JSON.stringify({ error: 'Application not found' }), {
         status: 404,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -105,6 +122,7 @@ serve(async (req) => {
 
     if (authError || !authData.user) {
       console.error('Error creating user:', authError);
+      await logFailure('wholesale_approval_failed', { stage: 'create_user', email: application.email, error: authError });
       return new Response(JSON.stringify({ error: 'Failed to create user account', details: authError }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -139,6 +157,7 @@ serve(async (req) => {
 
     if (customerError) {
       console.error('Error creating customer:', customerError);
+      await logFailure('wholesale_approval_failed', { stage: 'create_customer', userId: authData.user.id, error: customerError });
       // Clean up user if customer creation fails
       await supabase.auth.admin.deleteUser(authData.user.id);
       return new Response(JSON.stringify({ error: 'Failed to create customer record' }), {
@@ -270,6 +289,26 @@ serve(async (req) => {
   } catch (error) {
     console.error('Error in approve-wholesale-application:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+
+    // Attempt to log unhandled errors (may not have supabase or applicationId in scope)
+    try {
+      const supabaseUrl = Deno.env.get('SUPABASE_URL');
+      const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+      if (supabaseUrl && supabaseServiceKey) {
+        const supabaseFallback = createClient(supabaseUrl, supabaseServiceKey);
+        await supabaseFallback.from('audit_log').insert({
+          action: 'wholesale_approval_failed',
+          entity: 'wholesale_application',
+          entity_id: null,
+          actor_id: null,
+          before: null,
+          after: { stage: 'unhandled_exception', error: errorMessage },
+        });
+      }
+    } catch (_) {
+      // ignore logging failure
+    }
+
     return new Response(
       JSON.stringify({ error: errorMessage }),
       {
