@@ -39,7 +39,9 @@ serve(async (req) => {
       auth: { persistSession: false },
     });
 
-    const { data: userData, error: userError } = await supabaseAuth.auth.getUser();
+    // IMPORTANT: pass the JWT explicitly to avoid "AuthSessionMissingError" in edge runtime
+    const token = authHeader.replace('Bearer ', '');
+    const { data: userData, error: userError } = await supabaseAuth.auth.getUser(token);
     const caller = userData?.user;
 
     if (userError || !caller) {
