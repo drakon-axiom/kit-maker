@@ -70,6 +70,10 @@ export type Database = {
           secondary_color: string
           secondary_foreground: string
           slug: string
+          smtp_host: string | null
+          smtp_password: string | null
+          smtp_port: number | null
+          smtp_user: string | null
           updated_at: string | null
         }
         Insert: {
@@ -94,6 +98,10 @@ export type Database = {
           secondary_color?: string
           secondary_foreground?: string
           slug: string
+          smtp_host?: string | null
+          smtp_password?: string | null
+          smtp_port?: number | null
+          smtp_user?: string | null
           updated_at?: string | null
         }
         Update: {
@@ -118,6 +126,10 @@ export type Database = {
           secondary_color?: string
           secondary_foreground?: string
           slug?: string
+          smtp_host?: string | null
+          smtp_password?: string | null
+          smtp_port?: number | null
+          smtp_user?: string | null
           updated_at?: string | null
         }
         Relationships: []
