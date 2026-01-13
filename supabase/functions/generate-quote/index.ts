@@ -23,6 +23,52 @@ interface QuoteEmailParams {
   approvalLink?: string;
 }
 
+interface SmtpConfig {
+  host: string;
+  port: number;
+  user: string;
+  password: string;
+}
+
+// Helper function to get SMTP config: brand-specific first, then global fallback
+async function getSmtpConfig(supabase: any, brandId?: string | null): Promise<SmtpConfig | null> {
+  // Try brand-specific SMTP first
+  if (brandId) {
+    const { data: brand } = await supabase
+      .from('brands')
+      .select('smtp_host, smtp_port, smtp_user, smtp_password')
+      .eq('id', brandId)
+      .single();
+
+    if (brand?.smtp_host && brand?.smtp_user && brand?.smtp_password) {
+      console.log('Using brand-specific SMTP configuration');
+      return {
+        host: brand.smtp_host,
+        port: brand.smtp_port || 465,
+        user: brand.smtp_user,
+        password: brand.smtp_password,
+      };
+    }
+  }
+
+  // Fallback to global SMTP from environment variables
+  const smtpHost = Deno.env.get('SMTP_HOST');
+  const smtpUser = Deno.env.get('SMTP_USER');
+  const smtpPassword = Deno.env.get('SMTP_PASSWORD');
+
+  if (smtpHost && smtpUser && smtpPassword) {
+    console.log('Using global SMTP configuration');
+    return {
+      host: smtpHost,
+      port: parseInt(Deno.env.get('SMTP_PORT') || '465'),
+      user: smtpUser,
+      password: smtpPassword,
+    };
+  }
+
+  return null;
+}
+
 function generateQuoteHtml(params: QuoteEmailParams & { orderId?: string }): string {
   const {
     companyName,
@@ -143,23 +189,25 @@ serve(async (req) => {
     const logoUrl = settings.company_logo_url || "";
     const customHtml = templateData?.custom_html || "";
 
-    // Handle test mode
+    // Handle test mode - use global SMTP config for test emails
     if (testMode && testEmail) {
-      const smtpHost = Deno.env.get("SMTP_HOST")!;
-      const envPort = parseInt(Deno.env.get("SMTP_PORT") || "0");
-      const smtpUser = Deno.env.get("SMTP_USER")!;
-      const smtpPassword = Deno.env.get("SMTP_PASSWORD")!;
-      const effectivePort = smtpHost?.includes("protonmail") ? 465 : (envPort || 465);
+      const smtpConfig = await getSmtpConfig(supabase, null);
+      
+      if (!smtpConfig) {
+        throw new Error('SMTP configuration not available');
+      }
+
+      const effectivePort = smtpConfig.host.includes("protonmail") ? 465 : smtpConfig.port;
       const useTls = effectivePort === 465;
 
       const client = new SMTPClient({
         connection: {
-          hostname: smtpHost,
+          hostname: smtpConfig.host,
           port: effectivePort,
           tls: useTls,
           auth: {
-            username: smtpUser,
-            password: smtpPassword,
+            username: smtpConfig.user,
+            password: smtpConfig.password,
           },
         },
       });
@@ -185,7 +233,7 @@ serve(async (req) => {
       });
 
       await client.send({
-        from: `${companyName} <${smtpUser}>`,
+        from: `${companyName} <${smtpConfig.user}>`,
         to: testEmail,
         subject: `Test Quote from ${companyName}`,
         html: testHtml,
@@ -234,6 +282,9 @@ serve(async (req) => {
       .eq("id", orderId)
       .single();
 
+    if (orderError || !order) {
+      throw new Error("Order not found");
+    }
 
     const customerEmail = order.customer?.email || "";
     const customerName = order.customer?.name || "Customer";
@@ -244,12 +295,14 @@ serve(async (req) => {
     const baseUrl = Deno.env.get("SUPABASE_URL")?.replace('.supabase.co', '.lovable.app') || "";
     const approvalLink = `${baseUrl}/quote-approval?token=${order.quote_link_token}`;
 
-    // Send email with PDF attachment
-    const smtpHost = Deno.env.get("SMTP_HOST")!;
-    const envPort = parseInt(Deno.env.get("SMTP_PORT") || "0");
-    const smtpUser = Deno.env.get("SMTP_USER")!;
-    const smtpPassword = Deno.env.get("SMTP_PASSWORD")!;
-    const effectivePort = smtpHost?.includes("protonmail") ? 465 : (envPort || 465);
+    // Get SMTP config (brand-specific or global fallback)
+    const smtpConfig = await getSmtpConfig(supabase, order.brand_id);
+    
+    if (!smtpConfig) {
+      throw new Error('SMTP configuration not available');
+    }
+
+    const effectivePort = smtpConfig.host.includes("protonmail") ? 465 : smtpConfig.port;
     const useTls = effectivePort === 465;
 
     // Generate line items HTML
@@ -309,12 +362,12 @@ serve(async (req) => {
 
     const client = new SMTPClient({
       connection: {
-        hostname: smtpHost,
+        hostname: smtpConfig.host,
         port: effectivePort,
         tls: useTls,
         auth: {
-          username: smtpUser,
-          password: smtpPassword,
+          username: smtpConfig.user,
+          password: smtpConfig.password,
         },
       },
     });
@@ -342,7 +395,7 @@ serve(async (req) => {
     });
 
     await client.send({
-      from: `${companyName} <${smtpUser}>`,
+      from: `${companyName} <${smtpConfig.user}>`,
       to: customerEmail,
       subject: `Quote ${order.human_uid} from ${companyName}`,
       html: emailHtml,

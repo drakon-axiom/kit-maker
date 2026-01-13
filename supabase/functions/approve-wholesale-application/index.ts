@@ -13,6 +13,52 @@ interface ApprovalRequest {
   siteUrl?: string;
 }
 
+interface SmtpConfig {
+  host: string;
+  port: number;
+  user: string;
+  password: string;
+}
+
+// Helper function to get SMTP config: brand-specific first, then global fallback
+async function getSmtpConfig(supabase: any, brandId?: string | null): Promise<SmtpConfig | null> {
+  // Try brand-specific SMTP first
+  if (brandId) {
+    const { data: brand } = await supabase
+      .from('brands')
+      .select('smtp_host, smtp_port, smtp_user, smtp_password')
+      .eq('id', brandId)
+      .single();
+
+    if (brand?.smtp_host && brand?.smtp_user && brand?.smtp_password) {
+      console.log('Using brand-specific SMTP configuration');
+      return {
+        host: brand.smtp_host,
+        port: brand.smtp_port || 465,
+        user: brand.smtp_user,
+        password: brand.smtp_password,
+      };
+    }
+  }
+
+  // Fallback to global SMTP from environment variables
+  const smtpHost = Deno.env.get('SMTP_HOST');
+  const smtpUser = Deno.env.get('SMTP_USER');
+  const smtpPassword = Deno.env.get('SMTP_PASSWORD');
+
+  if (smtpHost && smtpUser && smtpPassword) {
+    console.log('Using global SMTP configuration');
+    return {
+      host: smtpHost,
+      port: parseInt(Deno.env.get('SMTP_PORT') || '465'),
+      user: smtpUser,
+      password: smtpPassword,
+    };
+  }
+
+  return null;
+}
+
 serve(async (req) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
@@ -181,13 +227,16 @@ serve(async (req) => {
       console.error('Error assigning role:', roleError);
     }
 
-    // Send welcome email with credentials
-    const smtpHost = Deno.env.get('SMTP_HOST');
-    const smtpPort = parseInt(Deno.env.get('SMTP_PORT') || '587');
-    const smtpUser = Deno.env.get('SMTP_USER');
-    const smtpPassword = Deno.env.get('SMTP_PASSWORD');
+    // Get default brand for SMTP config (wholesale applications don't have a brand_id yet)
+    const { data: defaultBrand } = await supabase
+      .from('brands')
+      .select('id')
+      .eq('is_default', true)
+      .single();
 
-    if (smtpHost && smtpUser && smtpPassword) {
+    const smtpConfig = await getSmtpConfig(supabase, defaultBrand?.id);
+
+    if (smtpConfig) {
       try {
         console.log('Sending welcome email to:', application.email);
         
@@ -248,23 +297,23 @@ serve(async (req) => {
 </html>`;
 
         // Use proper SMTP client for Proton SMTP
-        const effectivePort = smtpHost?.includes("protonmail") ? 465 : (smtpPort || 465);
+        const effectivePort = smtpConfig.host.includes("protonmail") ? 465 : smtpConfig.port;
         const useTls = effectivePort === 465;
 
         const client = new SMTPClient({
           connection: {
-            hostname: smtpHost,
+            hostname: smtpConfig.host,
             port: effectivePort,
             tls: useTls,
             auth: {
-              username: smtpUser,
-              password: smtpPassword,
+              username: smtpConfig.user,
+              password: smtpConfig.password,
             },
           },
         });
 
         await client.send({
-          from: `Wholesale Portal <${smtpUser}>`,
+          from: `Wholesale Portal <${smtpConfig.user}>`,
           to: application.email,
           subject: 'Wholesale Account Approved - Login Credentials',
           html: emailBody,
@@ -276,6 +325,8 @@ serve(async (req) => {
         console.error('Error sending email:', emailError);
         // Don't fail the whole operation if email fails
       }
+    } else {
+      console.log('SMTP not configured, skipping welcome email');
     }
 
     console.log('Application approval complete');
