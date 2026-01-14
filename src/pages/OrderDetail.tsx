@@ -397,6 +397,7 @@ const OrderDetail = () => {
   const handleStatusChange = async (newStatus: string, overrideNote?: string) => {
     if (!order || newStatus === order.status) return;
     
+    const oldStatus = order.status;
     setUpdatingStatus(true);
     try {
       const { error: updateError } = await supabase
@@ -412,12 +413,37 @@ const OrderDetail = () => {
         entity_id: id,
         action: overrideNote ? 'status_changed_override' : 'status_changed',
         actor_id: (await supabase.auth.getUser()).data.user?.id,
-        before: { status: order.status },
+        before: { status: oldStatus },
         after: { 
           status: newStatus,
           override_note: overrideNote || null
         },
       });
+
+      // Send email notification (fire and forget - errors logged but not blocking)
+      supabase.functions.invoke('send-order-notification', {
+        body: {
+          orderId: order.id,
+          newStatus: newStatus,
+          oldStatus: oldStatus,
+        },
+      }).then(({ error }) => {
+        if (error) console.error('Email notification failed:', error);
+      });
+
+      // Send SMS notification if customer has phone and SMS enabled
+      if (order.customer?.phone) {
+        supabase.functions.invoke('send-sms-notification', {
+          body: {
+            orderId: order.id,
+            newStatus: newStatus,
+            phoneNumber: order.customer.phone,
+            eventType: 'order_status',
+          },
+        }).then(({ error }) => {
+          if (error) console.error('SMS notification failed:', error);
+        });
+      }
 
       toast({
         title: 'Status Updated',
