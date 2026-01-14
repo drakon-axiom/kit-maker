@@ -124,14 +124,15 @@ export const BrandProvider = ({ children }: { children: React.ReactNode }) => {
 
       let brandToUse: Brand | null = null;
 
-      // 1. Detect brand from custom domain (highest priority) - only b2b subdomain
+      // 1. Detect brand from custom domain (highest priority)
       const currentHostname = window.location.hostname;
       
-      // Only match b2b subdomain of configured domains
+      // Match configured domain directly (supports full domain like b2b.nexusaminos.com)
       const domainBrand = brands.find(b => {
         if (!b.domain) return false;
-        const expectedSubdomain = `b2b.${b.domain}`;
-        return currentHostname === expectedSubdomain;
+        // Remove protocol if present and compare
+        const cleanDomain = b.domain.replace(/^https?:\/\//, '').replace(/\/$/, '');
+        return currentHostname === cleanDomain;
       });
       
       if (domainBrand) {
