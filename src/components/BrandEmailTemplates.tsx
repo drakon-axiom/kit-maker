@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
-import { Save, Eye, Code, Copy, RotateCcw } from 'lucide-react';
+import { Save, Eye, Code, Copy, RotateCcw, Send, Loader2 } from 'lucide-react';
 import {
   Select,
   SelectContent,
@@ -42,6 +42,10 @@ interface Brand {
   logo_url: string | null;
   primary_color: string;
   contact_email: string | null;
+  smtp_host: string | null;
+  smtp_port: number | null;
+  smtp_user: string | null;
+  smtp_password: string | null;
 }
 
 interface BrandEmailTemplatesProps {
@@ -85,13 +89,15 @@ export function BrandEmailTemplates({ brandId }: BrandEmailTemplatesProps) {
   const [editingTemplate, setEditingTemplate] = useState<EmailTemplate | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [sendingTest, setSendingTest] = useState(false);
+  const [testEmail, setTestEmail] = useState('');
 
   // Fetch templates and brands
   useEffect(() => {
     const fetchData = async () => {
       const [templatesRes, brandsRes] = await Promise.all([
         supabase.from('email_templates').select('*').order('name'),
-        supabase.from('brands').select('id, name, slug, logo_url, primary_color, contact_email').eq('active', true),
+        supabase.from('brands').select('id, name, slug, logo_url, primary_color, contact_email, smtp_host, smtp_port, smtp_user, smtp_password').eq('active', true),
       ]);
 
       if (templatesRes.data) setTemplates(templatesRes.data);
@@ -217,6 +223,59 @@ export function BrandEmailTemplates({ brandId }: BrandEmailTemplatesProps) {
     if (editingTemplate?.custom_html) {
       navigator.clipboard.writeText(editingTemplate.custom_html);
       toast.success('HTML copied to clipboard');
+    }
+  };
+
+  const handleSendTestEmail = async () => {
+    if (!editingTemplate || !previewHtml) {
+      toast.error('Please select a template first');
+      return;
+    }
+
+    const brand = brands.find(b => b.id === selectedBrandId);
+    
+    // Check if brand has SMTP configured
+    if (selectedBrandId !== 'global' && (!brand?.smtp_host || !brand?.smtp_user || !brand?.smtp_password)) {
+      toast.error('Selected brand does not have SMTP configured. Please configure SMTP in brand settings first.');
+      return;
+    }
+
+    const recipientEmail = testEmail || brand?.contact_email || brand?.smtp_user;
+    if (!recipientEmail) {
+      toast.error('Please enter a recipient email address');
+      return;
+    }
+
+    setSendingTest(true);
+    try {
+      // Replace variables in subject line
+      const processedSubject = editingTemplate.subject.replace(
+        /\{\{[^}]+\}\}/g, 
+        (match) => sampleData[match] || match
+      );
+
+      const { data, error } = await supabase.functions.invoke('email-test', {
+        body: {
+          to: recipientEmail,
+          subject: `[TEST] ${processedSubject}`,
+          html: previewHtml,
+          smtp_host: brand?.smtp_host,
+          smtp_port: brand?.smtp_port || 465,
+          smtp_user: brand?.smtp_user,
+          smtp_password: brand?.smtp_password,
+          brand_name: brand?.name || 'Global',
+        },
+      });
+
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      toast.success(`Test email sent to ${data.sentTo || recipientEmail}`);
+    } catch (error: any) {
+      console.error('Failed to send test email:', error);
+      toast.error(`Failed to send: ${error.message}`);
+    } finally {
+      setSendingTest(false);
     }
   };
 
@@ -354,15 +413,41 @@ export function BrandEmailTemplates({ brandId }: BrandEmailTemplatesProps) {
             </Tabs>
 
             {/* Actions */}
-            <div className="flex justify-between items-center pt-4 border-t">
-              <Button variant="outline" onClick={() => setPreviewOpen(true)}>
-                <Eye className="h-4 w-4 mr-2" />
-                Full Preview
-              </Button>
-              <Button onClick={handleSave}>
-                <Save className="h-4 w-4 mr-2" />
-                Save Template
-              </Button>
+            <div className="flex flex-col gap-4 pt-4 border-t">
+              <div className="flex items-center gap-2">
+                <Input
+                  placeholder="Test email address (optional)"
+                  value={testEmail}
+                  onChange={(e) => setTestEmail(e.target.value)}
+                  className="max-w-xs"
+                  type="email"
+                />
+                <Button 
+                  variant="secondary" 
+                  onClick={handleSendTestEmail}
+                  disabled={sendingTest || selectedBrandId === 'global'}
+                >
+                  {sendingTest ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <Send className="h-4 w-4 mr-2" />
+                  )}
+                  {sendingTest ? 'Sending...' : 'Send Test Email'}
+                </Button>
+                {selectedBrandId === 'global' && (
+                  <span className="text-xs text-muted-foreground">Select a brand to send test emails</span>
+                )}
+              </div>
+              <div className="flex justify-between items-center">
+                <Button variant="outline" onClick={() => setPreviewOpen(true)}>
+                  <Eye className="h-4 w-4 mr-2" />
+                  Full Preview
+                </Button>
+                <Button onClick={handleSave}>
+                  <Save className="h-4 w-4 mr-2" />
+                  Save Template
+                </Button>
+              </div>
             </div>
           </>
         )}
