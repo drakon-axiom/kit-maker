@@ -39,6 +39,7 @@ interface Brand {
   id: string;
   name: string;
   slug: string;
+  domain: string | null;
   logo_url: string | null;
   primary_color: string;
   contact_email: string | null;
@@ -47,6 +48,17 @@ interface Brand {
   smtp_user: string | null;
   smtp_password: string | null;
 }
+
+// Generate portal URL from brand
+const getPortalUrl = (brand: Brand | undefined): string => {
+  if (!brand) return 'https://portal.example.com';
+  if (brand.domain) {
+    return brand.domain.startsWith('http') ? brand.domain : `https://${brand.domain}`;
+  }
+  // Fallback to path-based URL using published app URL
+  const baseUrl = window.location.origin;
+  return `${baseUrl}/brand/${brand.slug}`;
+};
 
 interface BrandEmailTemplatesProps {
   brandId?: string;
@@ -97,7 +109,7 @@ export function BrandEmailTemplates({ brandId }: BrandEmailTemplatesProps) {
     const fetchData = async () => {
       const [templatesRes, brandsRes] = await Promise.all([
         supabase.from('email_templates').select('*').order('name'),
-        supabase.from('brands').select('id, name, slug, logo_url, primary_color, contact_email, smtp_host, smtp_port, smtp_user, smtp_password').eq('active', true),
+        supabase.from('brands').select('id, name, slug, domain, logo_url, primary_color, contact_email, smtp_host, smtp_port, smtp_user, smtp_password').eq('active', true),
       ]);
 
       if (templatesRes.data) setTemplates(templatesRes.data);
@@ -201,17 +213,25 @@ export function BrandEmailTemplates({ brandId }: BrandEmailTemplatesProps) {
     }
   };
 
+  // Get selected brand for display
+  const selectedBrand = useMemo(() => 
+    brands.find(b => b.id === selectedBrandId), 
+    [brands, selectedBrandId]
+  );
+
   // Replace variables with sample data for preview
   const previewHtml = useMemo(() => {
     if (!editingTemplate?.custom_html) return '';
     let html = editingTemplate.custom_html;
     
-    // Get brand-specific logo if available
+    // Get brand-specific values
     const brand = brands.find(b => b.id === selectedBrandId);
     if (brand?.logo_url) {
       sampleData['{{logo_url}}'] = brand.logo_url;
       sampleData['{{company_name}}'] = brand.name;
     }
+    // Set dynamic portal URL
+    sampleData['{{portal_url}}'] = getPortalUrl(brand);
     
     Object.entries(sampleData).forEach(([key, value]) => {
       html = html.replace(new RegExp(key.replace(/[{}]/g, '\\$&'), 'g'), value);
@@ -309,6 +329,11 @@ export function BrandEmailTemplates({ brandId }: BrandEmailTemplatesProps) {
                 ))}
               </SelectContent>
             </Select>
+            {selectedBrand && (
+              <p className="text-xs text-muted-foreground mt-1">
+                Portal: <code className="bg-muted px-1 rounded">{getPortalUrl(selectedBrand)}</code>
+              </p>
+            )}
           </div>
           <div className="flex-1 space-y-2">
             <Label>Template</Label>
