@@ -156,7 +156,10 @@ serve(async (req) => {
 
     console.log('Creating user account for:', application.email);
 
-    // Create user account
+    let userId: string;
+    let isExistingUser = false;
+
+    // Try to create user account
     const { data: authData, error: authError } = await supabase.auth.admin.createUser({
       email: application.email,
       password: tempPassword,
@@ -167,64 +170,123 @@ serve(async (req) => {
       },
     });
 
-    if (authError || !authData.user) {
-      console.error('Error creating user:', authError);
-      await logFailure('wholesale_approval_failed', { stage: 'create_user', email: application.email, error: authError });
-      return new Response(JSON.stringify({ error: 'Failed to create user account', details: authError }), {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+    if (authError) {
+      // Check if user already exists
+      if (authError.code === 'email_exists') {
+        console.log('User already exists, looking up existing user');
+        
+        // Find existing user by email
+        const { data: existingUsers, error: listError } = await supabase.auth.admin.listUsers();
+        
+        if (listError) {
+          console.error('Error listing users:', listError);
+          await logFailure('wholesale_approval_failed', { stage: 'list_users', email: application.email, error: listError });
+          return new Response(JSON.stringify({ error: 'Failed to lookup existing user' }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+        
+        const existingUser = existingUsers.users.find(u => u.email === application.email);
+        
+        if (!existingUser) {
+          console.error('User exists but could not be found');
+          await logFailure('wholesale_approval_failed', { stage: 'find_user', email: application.email });
+          return new Response(JSON.stringify({ error: 'User exists but could not be found' }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+        
+        userId = existingUser.id;
+        isExistingUser = true;
+        console.log('Found existing user:', userId);
+      } else {
+        console.error('Error creating user:', authError);
+        await logFailure('wholesale_approval_failed', { stage: 'create_user', email: application.email, error: authError });
+        return new Response(JSON.stringify({ error: 'Failed to create user account', details: authError }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+    } else {
+      userId = authData.user!.id;
     }
 
-    console.log('User created:', authData.user.id);
+    console.log(isExistingUser ? 'Using existing user:' : 'User created:', userId);
 
-    // Create customer record
-    const { error: customerError } = await supabase
+    // Check if customer record already exists for this user
+    const { data: existingCustomer } = await supabase
       .from('customers')
-      .insert({
-        user_id: authData.user.id,
-        name: application.company_name,
-        email: application.email,
-        phone: application.phone,
-        default_terms: 'Net 30',
-        shipping_address_line1: application.shipping_address_line1,
-        shipping_address_line2: application.shipping_address_line2,
-        shipping_city: application.shipping_city,
-        shipping_state: application.shipping_state,
-        shipping_zip: application.shipping_zip,
-        shipping_country: application.shipping_country,
-        billing_address_line1: application.billing_address_line1,
-        billing_address_line2: application.billing_address_line2,
-        billing_city: application.billing_city,
-        billing_state: application.billing_state,
-        billing_zip: application.billing_zip,
-        billing_country: application.billing_country,
-        billing_same_as_shipping: application.billing_same_as_shipping,
-      });
+      .select('id')
+      .eq('user_id', userId)
+      .maybeSingle();
 
-    if (customerError) {
-      console.error('Error creating customer:', customerError);
-      await logFailure('wholesale_approval_failed', { stage: 'create_customer', userId: authData.user.id, error: customerError });
-      // Clean up user if customer creation fails
-      await supabase.auth.admin.deleteUser(authData.user.id);
-      return new Response(JSON.stringify({ error: 'Failed to create customer record' }), {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+    if (existingCustomer) {
+      console.log('Customer record already exists for user:', userId);
+    } else {
+      // Create customer record
+      const { error: customerError } = await supabase
+        .from('customers')
+        .insert({
+          user_id: userId,
+          name: application.company_name,
+          email: application.email,
+          phone: application.phone,
+          default_terms: 'Net 30',
+          shipping_address_line1: application.shipping_address_line1,
+          shipping_address_line2: application.shipping_address_line2,
+          shipping_city: application.shipping_city,
+          shipping_state: application.shipping_state,
+          shipping_zip: application.shipping_zip,
+          shipping_country: application.shipping_country,
+          billing_address_line1: application.billing_address_line1,
+          billing_address_line2: application.billing_address_line2,
+          billing_city: application.billing_city,
+          billing_state: application.billing_state,
+          billing_zip: application.billing_zip,
+          billing_country: application.billing_country,
+          billing_same_as_shipping: application.billing_same_as_shipping,
+        });
+
+      if (customerError) {
+        console.error('Error creating customer:', customerError);
+        await logFailure('wholesale_approval_failed', { stage: 'create_customer', userId, error: customerError });
+        // Only clean up user if we created it
+        if (!isExistingUser) {
+          await supabase.auth.admin.deleteUser(userId);
+        }
+        return new Response(JSON.stringify({ error: 'Failed to create customer record' }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
     }
 
-    console.log('Customer created successfully');
+    console.log('Customer created/verified successfully');
 
-    // Assign customer role
-    const { error: roleError } = await supabase
+    // Check if role already exists
+    const { data: existingRole } = await supabase
       .from('user_roles')
-      .insert({
-        user_id: authData.user.id,
-        role: 'customer',
-      });
+      .select('id')
+      .eq('user_id', userId)
+      .eq('role', 'customer')
+      .maybeSingle();
 
-    if (roleError) {
-      console.error('Error assigning role:', roleError);
+    if (existingRole) {
+      console.log('Customer role already assigned');
+    } else {
+      // Assign customer role
+      const { error: roleError } = await supabase
+        .from('user_roles')
+        .insert({
+          user_id: userId,
+          role: 'customer',
+        });
+
+      if (roleError) {
+        console.error('Error assigning role:', roleError);
+      }
     }
 
     // Get default brand for SMTP config (wholesale applications don't have a brand_id yet)
@@ -334,8 +396,9 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         success: true, 
-        userId: authData.user.id,
-        tempPassword, // Return this for admin reference
+        userId,
+        tempPassword: isExistingUser ? '(existing user - password unchanged)' : tempPassword,
+        isExistingUser,
       }),
       {
         status: 200,
