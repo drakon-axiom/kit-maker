@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
-import { Plus, Save, Trash2, TestTube, CheckCircle, XCircle, Send, Loader2, Mail } from 'lucide-react';
+import { Plus, Save, Trash2, TestTube, CheckCircle, XCircle, Send, Loader2, Mail, CreditCard, DollarSign } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -112,6 +112,12 @@ interface Brand {
   smtp_port: number | null;
   smtp_user: string | null;
   smtp_password: string | null;
+  stripe_enabled: boolean;
+  cashapp_tag: string | null;
+  paypal_email: string | null;
+  wire_bank_name: string | null;
+  wire_routing_number: string | null;
+  wire_account_number: string | null;
 }
 
 const BrandManagement = () => {
@@ -193,6 +199,12 @@ const BrandManagement = () => {
       smtp_port: editingBrand.smtp_port || null,
       smtp_user: editingBrand.smtp_user || null,
       smtp_password: editingBrand.smtp_password || null,
+      stripe_enabled: editingBrand.stripe_enabled !== false,
+      cashapp_tag: editingBrand.cashapp_tag || null,
+      paypal_email: editingBrand.paypal_email || null,
+      wire_bank_name: editingBrand.wire_bank_name || null,
+      wire_routing_number: editingBrand.wire_routing_number || null,
+      wire_account_number: editingBrand.wire_account_number || null,
     };
 
     if (editingBrand.id) {
@@ -483,6 +495,86 @@ const BrandManagement = () => {
                     )}
                     {testingSmtp ? 'Sending...' : 'Test SMTP'}
                   </Button>
+                </div>
+              </div>
+
+              {/* Payment Configuration Section */}
+              <div className="border-t pt-4 mt-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <DollarSign className="h-4 w-4" />
+                  <h4 className="font-medium">Payment Configuration</h4>
+                </div>
+                <p className="text-xs text-muted-foreground mb-4">
+                  Configure payment methods and details for this brand
+                </p>
+                <div className="grid gap-4">
+                  <div className="flex items-center space-x-2">
+                    <Switch
+                      id="stripe-enabled"
+                      checked={editingBrand?.stripe_enabled !== false}
+                      onCheckedChange={(checked) => setEditingBrand({ ...editingBrand, stripe_enabled: checked })}
+                    />
+                    <Label htmlFor="stripe-enabled" className="flex items-center gap-2">
+                      <CreditCard className="h-4 w-4" />
+                      Enable Credit Card Payments (Stripe)
+                    </Label>
+                  </div>
+                  
+                  <div className="grid gap-2">
+                    <Label htmlFor="cashapp-tag">CashApp Tag</Label>
+                    <Input
+                      id="cashapp-tag"
+                      value={editingBrand?.cashapp_tag || ''}
+                      onChange={(e) => setEditingBrand({ ...editingBrand, cashapp_tag: e.target.value })}
+                      placeholder="$YourCashTag"
+                    />
+                  </div>
+
+                  <div className="grid gap-2">
+                    <Label htmlFor="paypal-email">PayPal Email</Label>
+                    <Input
+                      id="paypal-email"
+                      type="email"
+                      value={editingBrand?.paypal_email || ''}
+                      onChange={(e) => setEditingBrand({ ...editingBrand, paypal_email: e.target.value })}
+                      placeholder="payments@brand.com"
+                    />
+                  </div>
+
+                  <div className="border-t pt-4 mt-2">
+                    <p className="text-sm font-medium mb-3">Wire Transfer Details</p>
+                    <div className="grid gap-4">
+                      <div className="grid gap-2">
+                        <Label htmlFor="wire-bank-name">Bank Name</Label>
+                        <Input
+                          id="wire-bank-name"
+                          value={editingBrand?.wire_bank_name || ''}
+                          onChange={(e) => setEditingBrand({ ...editingBrand, wire_bank_name: e.target.value })}
+                          placeholder="Chase Bank"
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="grid gap-2">
+                          <Label htmlFor="wire-routing">Routing Number</Label>
+                          <Input
+                            id="wire-routing"
+                            value={editingBrand?.wire_routing_number || ''}
+                            onChange={(e) => setEditingBrand({ ...editingBrand, wire_routing_number: e.target.value })}
+                            placeholder="XXXXXXXXX"
+                          />
+                        </div>
+                        <div className="grid gap-2">
+                          <Label htmlFor="wire-account">Account Number</Label>
+                          <Input
+                            id="wire-account"
+                            value={editingBrand?.wire_account_number || ''}
+                            onChange={(e) => setEditingBrand({ ...editingBrand, wire_account_number: e.target.value })}
+                            placeholder="XXXXXXXXXXXX"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
 
