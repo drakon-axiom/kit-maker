@@ -115,6 +115,8 @@ interface Brand {
   stripe_enabled: boolean;
   cashapp_tag: string | null;
   paypal_email: string | null;
+  paypal_checkout_enabled: boolean;
+  paypal_client_id: string | null;
   wire_bank_name: string | null;
   wire_routing_number: string | null;
   wire_account_number: string | null;
@@ -202,6 +204,8 @@ const BrandManagement = () => {
       stripe_enabled: editingBrand.stripe_enabled !== false,
       cashapp_tag: editingBrand.cashapp_tag || null,
       paypal_email: editingBrand.paypal_email || null,
+      paypal_checkout_enabled: editingBrand.paypal_checkout_enabled || false,
+      paypal_client_id: editingBrand.paypal_client_id || null,
       wire_bank_name: editingBrand.wire_bank_name || null,
       wire_routing_number: editingBrand.wire_routing_number || null,
       wire_account_number: editingBrand.wire_account_number || null,
@@ -530,15 +534,43 @@ const BrandManagement = () => {
                     />
                   </div>
 
-                  <div className="grid gap-2">
-                    <Label htmlFor="paypal-email">PayPal Email</Label>
-                    <Input
-                      id="paypal-email"
-                      type="email"
-                      value={editingBrand?.paypal_email || ''}
-                      onChange={(e) => setEditingBrand({ ...editingBrand, paypal_email: e.target.value })}
-                      placeholder="payments@brand.com"
-                    />
+                  <div className="border-t pt-4 mt-2">
+                    <p className="text-sm font-medium mb-3">PayPal Configuration</p>
+                    <div className="grid gap-4">
+                      <div className="grid gap-2">
+                        <Label htmlFor="paypal-email">PayPal Email (Manual Payments)</Label>
+                        <Input
+                          id="paypal-email"
+                          type="email"
+                          value={editingBrand?.paypal_email || ''}
+                          onChange={(e) => setEditingBrand({ ...editingBrand, paypal_email: e.target.value })}
+                          placeholder="payments@brand.com"
+                        />
+                        <p className="text-xs text-muted-foreground">Customers will send payments to this email manually</p>
+                      </div>
+                      
+                      <div className="flex items-center space-x-2">
+                        <Switch
+                          id="paypal-checkout-enabled"
+                          checked={editingBrand?.paypal_checkout_enabled || false}
+                          onCheckedChange={(checked) => setEditingBrand({ ...editingBrand, paypal_checkout_enabled: checked })}
+                        />
+                        <Label htmlFor="paypal-checkout-enabled">Enable PayPal Checkout</Label>
+                      </div>
+                      
+                      {editingBrand?.paypal_checkout_enabled && (
+                        <div className="grid gap-2">
+                          <Label htmlFor="paypal-client-id">PayPal Client ID</Label>
+                          <Input
+                            id="paypal-client-id"
+                            value={editingBrand?.paypal_client_id || ''}
+                            onChange={(e) => setEditingBrand({ ...editingBrand, paypal_client_id: e.target.value })}
+                            placeholder="AWq3v..."
+                          />
+                          <p className="text-xs text-muted-foreground">Get this from your PayPal Developer Dashboard</p>
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   <div className="border-t pt-4 mt-2">
