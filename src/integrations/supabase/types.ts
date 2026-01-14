@@ -374,6 +374,7 @@ export type Database = {
       email_templates: {
         Row: {
           available_variables: string[]
+          brand_id: string | null
           created_at: string
           custom_html: string | null
           description: string | null
@@ -385,6 +386,7 @@ export type Database = {
         }
         Insert: {
           available_variables?: string[]
+          brand_id?: string | null
           created_at?: string
           custom_html?: string | null
           description?: string | null
@@ -396,6 +398,7 @@ export type Database = {
         }
         Update: {
           available_variables?: string[]
+          brand_id?: string | null
           created_at?: string
           custom_html?: string | null
           description?: string | null
@@ -405,7 +408,15 @@ export type Database = {
           template_type?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "email_templates_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       invoice_payments: {
         Row: {
