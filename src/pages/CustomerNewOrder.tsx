@@ -4,17 +4,16 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { ArrowLeft, Plus, Trash2, Loader2, Package, Send, Info } from 'lucide-react';
+import { Plus, Trash2, Loader2, Package, Send, Info } from 'lucide-react';
 import { toast } from 'sonner';
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from '@/components/ui/breadcrumb';
 import { Link } from 'react-router-dom';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Badge } from '@/components/ui/badge';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { DebouncedQuantityInput } from '@/components/DebouncedQuantityInput';
 
 interface PricingTier {
   id: string;
@@ -302,11 +301,10 @@ export default function CustomerNewOrder() {
             </div>
             <div>
               <Label className="text-xs text-muted-foreground">Quantity</Label>
-              <Input
-                type="number"
+              <DebouncedQuantityInput
                 min={line.sell_mode === 'kit' ? MIN_ORDER_QUANTITY : 1}
                 value={line.qty_entered}
-                onChange={e => updateLine(index, 'qty_entered', parseInt(e.target.value) || 0)}
+                onChange={value => updateLine(index, 'qty_entered', value)}
               />
             </div>
           </div>
@@ -471,11 +469,10 @@ export default function CustomerNewOrder() {
                             </Select>
                           </TableCell>
                           <TableCell>
-                            <Input
-                              type="number"
+                            <DebouncedQuantityInput
                               min={line.sell_mode === 'kit' ? MIN_ORDER_QUANTITY : 1}
                               value={line.qty_entered}
-                              onChange={e => updateLine(index, 'qty_entered', parseInt(e.target.value) || 0)}
+                              onChange={value => updateLine(index, 'qty_entered', value)}
                               className="w-24"
                             />
                           </TableCell>
