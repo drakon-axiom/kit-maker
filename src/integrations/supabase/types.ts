@@ -54,6 +54,7 @@ export type Database = {
           active: boolean | null
           background_color: string
           card_color: string
+          cashapp_tag: string | null
           contact_address: string | null
           contact_email: string | null
           contact_phone: string | null
@@ -65,6 +66,7 @@ export type Database = {
           logo_url: string | null
           muted_color: string
           name: string
+          paypal_email: string | null
           primary_color: string
           primary_foreground: string
           secondary_color: string
@@ -74,7 +76,11 @@ export type Database = {
           smtp_password: string | null
           smtp_port: number | null
           smtp_user: string | null
+          stripe_enabled: boolean | null
           updated_at: string | null
+          wire_account_number: string | null
+          wire_bank_name: string | null
+          wire_routing_number: string | null
         }
         Insert: {
           accent_color?: string
@@ -82,6 +88,7 @@ export type Database = {
           active?: boolean | null
           background_color?: string
           card_color?: string
+          cashapp_tag?: string | null
           contact_address?: string | null
           contact_email?: string | null
           contact_phone?: string | null
@@ -93,6 +100,7 @@ export type Database = {
           logo_url?: string | null
           muted_color?: string
           name: string
+          paypal_email?: string | null
           primary_color?: string
           primary_foreground?: string
           secondary_color?: string
@@ -102,7 +110,11 @@ export type Database = {
           smtp_password?: string | null
           smtp_port?: number | null
           smtp_user?: string | null
+          stripe_enabled?: boolean | null
           updated_at?: string | null
+          wire_account_number?: string | null
+          wire_bank_name?: string | null
+          wire_routing_number?: string | null
         }
         Update: {
           accent_color?: string
@@ -110,6 +122,7 @@ export type Database = {
           active?: boolean | null
           background_color?: string
           card_color?: string
+          cashapp_tag?: string | null
           contact_address?: string | null
           contact_email?: string | null
           contact_phone?: string | null
@@ -121,6 +134,7 @@ export type Database = {
           logo_url?: string | null
           muted_color?: string
           name?: string
+          paypal_email?: string | null
           primary_color?: string
           primary_foreground?: string
           secondary_color?: string
@@ -130,7 +144,11 @@ export type Database = {
           smtp_password?: string | null
           smtp_port?: number | null
           smtp_user?: string | null
+          stripe_enabled?: boolean | null
           updated_at?: string | null
+          wire_account_number?: string | null
+          wire_bank_name?: string | null
+          wire_routing_number?: string | null
         }
         Relationships: []
       }
