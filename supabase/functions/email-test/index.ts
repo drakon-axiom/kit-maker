@@ -31,10 +31,21 @@ serve(async (req) => {
     const envPort = parseInt(Deno.env.get("SMTP_PORT") || "0");
     const smtpUser = smtp_user || Deno.env.get("SMTP_USER");
     const smtpPassword = smtp_password || Deno.env.get("SMTP_PASSWORD");
-    const effectivePort = smtp_port || (smtpHost?.includes("protonmail") ? 465 : (envPort || 465));
+    
+    // Determine port - for Proton Mail, always use 465 with implicit TLS
+    const isProtonMail = smtpHost?.includes("proton");
+    let effectivePort = smtp_port || envPort || 465;
+    
+    // Force port 465 for Proton Mail if user entered 587 (STARTTLS has issues)
+    if (isProtonMail && effectivePort === 587) {
+      console.log("Proton Mail detected with port 587 - switching to port 465 for better TLS compatibility");
+      effectivePort = 465;
+    }
+    
+    // Port 465 = implicit TLS, Port 587 = STARTTLS
     const useTls = effectivePort === 465;
 
-    console.log(`Testing SMTP for brand: ${brand_name || 'default'}, host: ${smtpHost}, port: ${effectivePort}`);
+    console.log(`Testing SMTP for brand: ${brand_name || 'default'}, host: ${smtpHost}, port: ${effectivePort}, tls: ${useTls}`);
 
     if (!smtpHost || !smtpUser || !smtpPassword) {
       throw new Error("SMTP configuration missing - host, user, or password not provided");
@@ -66,7 +77,7 @@ serve(async (req) => {
             <p>This test email confirms that your SMTP settings are correctly configured.</p>
             <p><strong>SMTP Host:</strong> ${smtpHost}<br/>
             <strong>Port:</strong> ${effectivePort}<br/>
-            <strong>TLS:</strong> ${useTls ? 'Yes' : 'No'}</p>
+            <strong>TLS:</strong> ${useTls ? 'Implicit (465)' : 'STARTTLS (587)'}</p>
           </div>
           <p class="muted">Automated test message · ${new Date().toISOString()}</p>
         </body>
