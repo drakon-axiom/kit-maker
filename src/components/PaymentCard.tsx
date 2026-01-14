@@ -17,6 +17,8 @@ interface BrandPaymentConfig {
   stripe_enabled?: boolean | null;
   cashapp_tag?: string | null;
   paypal_email?: string | null;
+  paypal_checkout_enabled?: boolean | null;
+  paypal_client_id?: string | null;
   wire_bank_name?: string | null;
   wire_routing_number?: string | null;
   wire_account_number?: string | null;
@@ -41,7 +43,9 @@ const PaymentCard = ({ type, amount, status, orderId, orderNumber, brandConfig }
   // Determine which payment methods are available based on brand config
   const isStripeEnabled = brandConfig?.stripe_enabled !== false;
   const hasCashApp = !!brandConfig?.cashapp_tag;
-  const hasPayPal = !!brandConfig?.paypal_email;
+  const hasPayPalEmail = !!brandConfig?.paypal_email;
+  const hasPayPalCheckout = brandConfig?.paypal_checkout_enabled && !!brandConfig?.paypal_client_id;
+  const hasPayPal = hasPayPalEmail || hasPayPalCheckout;
   const hasWire = !!brandConfig?.wire_bank_name && !!brandConfig?.wire_routing_number && !!brandConfig?.wire_account_number;
 
   const handleStripePayment = async () => {
@@ -71,11 +75,27 @@ const PaymentCard = ({ type, amount, status, orderId, orderNumber, brandConfig }
     }
   };
 
+  const handlePayPalCheckout = () => {
+    // PayPal Checkout SDK integration - opens PayPal in a new tab
+    const clientId = brandConfig?.paypal_client_id;
+    if (!clientId) {
+      toast.error('PayPal Checkout is not properly configured');
+      return;
+    }
+    // For now, redirect to PayPal with amount info - full SDK integration can be added later
+    const paypalUrl = `https://www.paypal.com/paypalme/${brandConfig?.paypal_email?.split('@')[0] || 'merchant'}/${amount}`;
+    window.open(paypalUrl, '_blank');
+    toast.success('Opening PayPal...');
+  };
+
   const handlePaymentMethodSelect = (method: string) => {
     setSelectedMethod(method);
     if (method === 'stripe') {
       setShowPaymentDialog(false);
       handleStripePayment();
+    } else if (method === 'paypal_checkout') {
+      setShowPaymentDialog(false);
+      handlePayPalCheckout();
     } else {
       setShowPaymentDialog(true);
     }
@@ -184,7 +204,19 @@ const PaymentCard = ({ type, amount, status, orderId, orderNumber, brandConfig }
                 </Button>
               )}
 
-              {hasPayPal && (
+              {hasPayPalCheckout && (
+                <Button 
+                  onClick={() => handlePaymentMethodSelect('paypal_checkout')} 
+                  variant="outline"
+                  size="lg"
+                  className="h-auto py-4 flex flex-col gap-2 border-blue-300 bg-blue-50 hover:bg-blue-100"
+                >
+                  <Wallet className="h-5 w-5 text-blue-600" />
+                  <span className="text-xs text-blue-700">PayPal</span>
+                </Button>
+              )}
+
+              {hasPayPalEmail && !hasPayPalCheckout && (
                 <Button 
                   onClick={() => handlePaymentMethodSelect('paypal')} 
                   variant="outline"
