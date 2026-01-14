@@ -170,58 +170,58 @@ const Queue = () => {
       {/* Key Metrics */}
       <div className="grid gap-3 md:gap-4 grid-cols-2 lg:grid-cols-4">
         <Card className="border-l-4 border-l-purple-500">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Queued</CardTitle>
-            <Clock className="h-5 w-5 text-purple-500" />
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 md:pb-2 p-3 md:p-6">
+            <CardTitle className="text-xs md:text-sm font-medium">Queued</CardTitle>
+            <Clock className="h-4 w-4 md:h-5 md:w-5 text-purple-500" />
           </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">
+          <CardContent className="p-3 pt-0 md:p-6 md:pt-0">
+            <div className="text-xl md:text-3xl font-bold">
               {batchSummary.find(b => b.status === 'queued')?.count || 0}
             </div>
-            <p className="text-xs text-muted-foreground mt-1">
+            <p className="text-[10px] md:text-xs text-muted-foreground mt-0.5 md:mt-1">
               {batchSummary.find(b => b.status === 'queued')?.total_bottles || 0} bottles
             </p>
           </CardContent>
         </Card>
 
         <Card className="border-l-4 border-l-primary">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">In Progress</CardTitle>
-            <PlayCircle className="h-5 w-5 text-primary" />
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 md:pb-2 p-3 md:p-6">
+            <CardTitle className="text-xs md:text-sm font-medium">In Progress</CardTitle>
+            <PlayCircle className="h-4 w-4 md:h-5 md:w-5 text-primary" />
           </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">
+          <CardContent className="p-3 pt-0 md:p-6 md:pt-0">
+            <div className="text-xl md:text-3xl font-bold">
               {batchSummary.find(b => b.status === 'wip')?.count || 0}
             </div>
-            <p className="text-xs text-muted-foreground mt-1">
+            <p className="text-[10px] md:text-xs text-muted-foreground mt-0.5 md:mt-1">
               {batchSummary.find(b => b.status === 'wip')?.total_bottles || 0} bottles
             </p>
           </CardContent>
         </Card>
 
         <Card className="border-l-4 border-l-blue-500">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Batches</CardTitle>
-            <Package className="h-5 w-5 text-blue-500" />
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 md:pb-2 p-3 md:p-6">
+            <CardTitle className="text-xs md:text-sm font-medium">Total Batches</CardTitle>
+            <Package className="h-4 w-4 md:h-5 md:w-5 text-blue-500" />
           </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">
+          <CardContent className="p-3 pt-0 md:p-6 md:pt-0">
+            <div className="text-xl md:text-3xl font-bold">
               {activeBatches.length}
             </div>
-            <p className="text-xs text-muted-foreground mt-1">Active</p>
+            <p className="text-[10px] md:text-xs text-muted-foreground mt-0.5 md:mt-1">Active</p>
           </CardContent>
         </Card>
 
         <Card className="border-l-4 border-l-green-500">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Bottles</CardTitle>
-            <Box className="h-5 w-5 text-green-500" />
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 md:pb-2 p-3 md:p-6">
+            <CardTitle className="text-xs md:text-sm font-medium">Total Bottles</CardTitle>
+            <Box className="h-4 w-4 md:h-5 md:w-5 text-green-500" />
           </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">
+          <CardContent className="p-3 pt-0 md:p-6 md:pt-0">
+            <div className="text-xl md:text-3xl font-bold">
               {batchSummary.reduce((sum, b) => sum + b.total_bottles, 0)}
             </div>
-            <p className="text-xs text-muted-foreground mt-1">Planned</p>
+            <p className="text-[10px] md:text-xs text-muted-foreground mt-0.5 md:mt-1">Planned</p>
           </CardContent>
         </Card>
       </div>

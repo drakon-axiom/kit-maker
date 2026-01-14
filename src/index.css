@@ -140,6 +140,47 @@ All colors MUST be HSL.
   .scroll-smooth-touch {
     -webkit-overflow-scrolling: touch;
   }
+
+  /* Text truncation utilities */
+  .line-clamp-1 {
+    display: -webkit-box;
+    -webkit-line-clamp: 1;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .line-clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  /* Mobile-first card shadows */
+  .card-shadow-mobile {
+    box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1);
+  }
+
+  @media (min-width: 768px) {
+    .card-shadow-mobile {
+      box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+    }
+  }
+
+  /* Responsive container padding */
+  .container-mobile {
+    @apply px-3 sm:px-4 md:px-6 lg:px-8;
+  }
+
+  /* Mobile-first flex gap */
+  .gap-responsive {
+    @apply gap-2 sm:gap-3 md:gap-4;
+  }
+
+  /* Button touch area improvements */
+  .btn-touch {
+    @apply min-h-[44px] min-w-[44px] touch-target;
+  }
 }
 
 @media print {

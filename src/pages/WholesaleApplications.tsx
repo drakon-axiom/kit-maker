@@ -142,13 +142,13 @@ const WholesaleApplications = () => {
 
   return (
     <Layout>
-      <div className="container mx-auto py-8 space-y-6">
+      <div className="container mx-auto p-4 md:py-8 space-y-4 md:space-y-6">
         <div>
-          <h1 className="text-3xl font-bold">Wholesale Applications</h1>
-          <p className="text-muted-foreground">Review and manage wholesale account applications</p>
+          <h1 className="text-2xl md:text-3xl font-bold">Wholesale Applications</h1>
+          <p className="text-sm text-muted-foreground mt-1">Review and manage wholesale account applications</p>
         </div>
 
-        <div className="grid gap-4">
+        <div className="grid gap-3 md:gap-4">
           {applications.length === 0 ? (
             <Card>
               <CardContent className="py-8 text-center text-muted-foreground">
@@ -170,7 +170,7 @@ const WholesaleApplications = () => {
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 text-sm">
                     {app.phone && (
                       <div>
                         <span className="font-medium">Phone:</span> {app.phone}

@@ -309,20 +309,20 @@ const BrandManagement = () => {
   }
 
   return (
-    <div className="container mx-auto py-8 space-y-6">
-      <div className="flex justify-between items-center">
+    <div className="container mx-auto p-4 md:py-8 space-y-4 md:space-y-6">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
         <div>
-          <h1 className="text-3xl font-bold">Brand Management</h1>
-          <p className="text-muted-foreground">Manage your business brands and their visual identity</p>
+          <h1 className="text-2xl md:text-3xl font-bold">Brand Management</h1>
+          <p className="text-sm text-muted-foreground mt-1">Manage your business brands and their visual identity</p>
         </div>
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
-            <Button onClick={() => setEditingBrand({})}>
+            <Button onClick={() => setEditingBrand({})} className="w-full sm:w-auto">
               <Plus className="h-4 w-4 mr-2" />
               Add Brand
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-2xl">
+          <DialogContent className="max-w-[95vw] sm:max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>{editingBrand?.id ? 'Edit Brand' : 'Create New Brand'}</DialogTitle>
               <DialogDescription>
