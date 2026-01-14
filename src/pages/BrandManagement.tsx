@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
-import { Plus, Save, Trash2, TestTube, CheckCircle, XCircle, Send, Loader2 } from 'lucide-react';
+import { Plus, Save, Trash2, TestTube, CheckCircle, XCircle, Send, Loader2, Mail } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -16,6 +16,8 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { BrandEmailTemplates } from '@/components/BrandEmailTemplates';
 
 // Helper functions to convert between hex and HSL
 const hexToHsl = (hex: string): string => {
@@ -512,132 +514,148 @@ const BrandManagement = () => {
         </Dialog>
       </div>
 
-      {/* Domain Tester Section */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <TestTube className="h-5 w-5 text-primary" />
-            <CardTitle>Domain Tester</CardTitle>
-          </div>
-          <CardDescription>
-            Test which brand will be detected for a given URL before setting up DNS
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex gap-2">
-            <Input
-              placeholder="Enter URL (e.g., b2b.nexusaminos.com or portal.axc.llc/nexus_aminos)"
-              value={testUrl}
-              onChange={(e) => setTestUrl(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleTestUrl()}
-            />
-            <Button onClick={handleTestUrl}>
-              <TestTube className="h-4 w-4 mr-2" />
-              Test
-            </Button>
-          </div>
+      <Tabs defaultValue="brands" className="w-full">
+        <TabsList className="grid w-full grid-cols-2 max-w-md">
+          <TabsTrigger value="brands">Brands</TabsTrigger>
+          <TabsTrigger value="templates">
+            <Mail className="h-4 w-4 mr-2" />
+            Email Templates
+          </TabsTrigger>
+        </TabsList>
 
-          {testResult && (
-            <Alert className={testResult.brand ? 'border-green-500' : 'border-yellow-500'}>
-              <div className="flex items-start gap-3">
-                {testResult.brand ? (
-                  <CheckCircle className="h-5 w-5 text-green-500 flex-shrink-0 mt-0.5" />
-                ) : (
-                  <XCircle className="h-5 w-5 text-yellow-500 flex-shrink-0 mt-0.5" />
-                )}
-                <div className="flex-1 space-y-2">
-                  <AlertTitle className="font-semibold">
-                    {testResult.brand ? `Brand Detected: ${testResult.brand.name}` : 'No Brand Detected'}
-                  </AlertTitle>
-                  <AlertDescription className="space-y-2">
-                    <p className="text-sm">
-                      <span className="font-medium">Detection Method:</span> {testResult.method}
-                    </p>
-                    {testResult.brand && (
-                      <>
-                        <p className="text-sm">
-                          <span className="font-medium">Slug:</span> {testResult.brand.slug}
-                        </p>
-                        {testResult.brand.domain && (
-                          <p className="text-sm">
-                            <span className="font-medium">Configured Domain:</span> {testResult.brand.domain}
-                          </p>
-                        )}
-                        <div className="flex items-center gap-2 mt-3">
-                          <div 
-                            className="w-8 h-8 rounded border"
-                            style={{ backgroundColor: `hsl(${testResult.brand.primary_color})` }}
-                          />
-                          <span className="text-xs text-muted-foreground">Primary color preview</span>
-                        </div>
-                      </>
-                    )}
-                  </AlertDescription>
-                </div>
-              </div>
-            </Alert>
-          )}
-
-          <div className="text-sm text-muted-foreground space-y-1">
-            <p className="font-medium">Detection Priority:</p>
-            <ol className="list-decimal list-inside space-y-1 ml-2">
-              <li>Exact domain match (e.g., nexusaminos.com)</li>
-              <li>Subdomain match (e.g., b2b.nexusaminos.com)</li>
-              <li>URL path match (e.g., portal.axc.llc/nexus_aminos)</li>
-              <li>User's assigned brand (when logged in)</li>
-              <li>Cookie from previous visit</li>
-              <li>Default brand (fallback)</li>
-            </ol>
-          </div>
-        </CardContent>
-      </Card>
-
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {brands.map((brand) => (
-          <Card key={brand.id}>
+        <TabsContent value="brands" className="space-y-6 mt-6">
+          {/* Domain Tester Section */}
+          <Card>
             <CardHeader>
-              <div className="flex justify-between items-start">
-                <div>
-                  <CardTitle>{brand.name}</CardTitle>
-                  <CardDescription>/{brand.slug}</CardDescription>
-                </div>
-                {brand.is_default && (
-                  <span className="text-xs bg-primary text-primary-foreground px-2 py-1 rounded">
-                    Default
-                  </span>
-                )}
+              <div className="flex items-center gap-2">
+                <TestTube className="h-5 w-5 text-primary" />
+                <CardTitle>Domain Tester</CardTitle>
               </div>
+              <CardDescription>
+                Test which brand will be detected for a given URL before setting up DNS
+              </CardDescription>
             </CardHeader>
-            <CardContent>
-              {brand.logo_url && (
-                <img src={brand.logo_url} alt={brand.name} className="h-12 mb-4 object-contain" />
-              )}
-              <div className="flex gap-2 mt-4">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="flex-1"
-                  onClick={() => {
-                    setEditingBrand(brand);
-                    setDialogOpen(true);
-                  }}
-                >
-                  Edit
+            <CardContent className="space-y-4">
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Enter URL (e.g., b2b.nexusaminos.com or portal.axc.llc/nexus_aminos)"
+                  value={testUrl}
+                  onChange={(e) => setTestUrl(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleTestUrl()}
+                />
+                <Button onClick={handleTestUrl}>
+                  <TestTube className="h-4 w-4 mr-2" />
+                  Test
                 </Button>
-                {!brand.is_default && (
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    onClick={() => handleDeleteBrand(brand.id)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                )}
+              </div>
+
+              {testResult && (
+                <Alert className={testResult.brand ? 'border-green-500' : 'border-yellow-500'}>
+                  <div className="flex items-start gap-3">
+                    {testResult.brand ? (
+                      <CheckCircle className="h-5 w-5 text-green-500 flex-shrink-0 mt-0.5" />
+                    ) : (
+                      <XCircle className="h-5 w-5 text-yellow-500 flex-shrink-0 mt-0.5" />
+                    )}
+                    <div className="flex-1 space-y-2">
+                      <AlertTitle className="font-semibold">
+                        {testResult.brand ? `Brand Detected: ${testResult.brand.name}` : 'No Brand Detected'}
+                      </AlertTitle>
+                      <AlertDescription className="space-y-2">
+                        <p className="text-sm">
+                          <span className="font-medium">Detection Method:</span> {testResult.method}
+                        </p>
+                        {testResult.brand && (
+                          <>
+                            <p className="text-sm">
+                              <span className="font-medium">Slug:</span> {testResult.brand.slug}
+                            </p>
+                            {testResult.brand.domain && (
+                              <p className="text-sm">
+                                <span className="font-medium">Configured Domain:</span> {testResult.brand.domain}
+                              </p>
+                            )}
+                            <div className="flex items-center gap-2 mt-3">
+                              <div 
+                                className="w-8 h-8 rounded border"
+                                style={{ backgroundColor: `hsl(${testResult.brand.primary_color})` }}
+                              />
+                              <span className="text-xs text-muted-foreground">Primary color preview</span>
+                            </div>
+                          </>
+                        )}
+                      </AlertDescription>
+                    </div>
+                  </div>
+                </Alert>
+              )}
+
+              <div className="text-sm text-muted-foreground space-y-1">
+                <p className="font-medium">Detection Priority:</p>
+                <ol className="list-decimal list-inside space-y-1 ml-2">
+                  <li>Exact domain match (e.g., nexusaminos.com)</li>
+                  <li>Subdomain match (e.g., b2b.nexusaminos.com)</li>
+                  <li>URL path match (e.g., portal.axc.llc/nexus_aminos)</li>
+                  <li>User&apos;s assigned brand (when logged in)</li>
+                  <li>Cookie from previous visit</li>
+                  <li>Default brand (fallback)</li>
+                </ol>
               </div>
             </CardContent>
           </Card>
-        ))}
-      </div>
+
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {brands.map((brand) => (
+              <Card key={brand.id}>
+                <CardHeader>
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <CardTitle>{brand.name}</CardTitle>
+                      <CardDescription>/{brand.slug}</CardDescription>
+                    </div>
+                    {brand.is_default && (
+                      <span className="text-xs bg-primary text-primary-foreground px-2 py-1 rounded">
+                        Default
+                      </span>
+                    )}
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  {brand.logo_url && (
+                    <img src={brand.logo_url} alt={brand.name} className="h-12 mb-4 object-contain" />
+                  )}
+                  <div className="flex gap-2 mt-4">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex-1"
+                      onClick={() => {
+                        setEditingBrand(brand);
+                        setDialogOpen(true);
+                      }}
+                    >
+                      Edit
+                    </Button>
+                    {!brand.is_default && (
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => handleDeleteBrand(brand.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="templates" className="mt-6">
+          <BrandEmailTemplates />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };
