@@ -13,19 +13,36 @@ import {
 } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
+interface BrandPaymentConfig {
+  stripe_enabled?: boolean | null;
+  cashapp_tag?: string | null;
+  paypal_email?: string | null;
+  wire_bank_name?: string | null;
+  wire_routing_number?: string | null;
+  wire_account_number?: string | null;
+  contact_email?: string | null;
+}
+
 interface PaymentCardProps {
   type: 'deposit' | 'final';
   amount: number;
   status: string;
   orderId: string;
   orderNumber: string;
+  brandConfig?: BrandPaymentConfig;
 }
 
-const PaymentCard = ({ type, amount, status, orderId, orderNumber }: PaymentCardProps) => {
+const PaymentCard = ({ type, amount, status, orderId, orderNumber, brandConfig }: PaymentCardProps) => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
   const [selectedMethod, setSelectedMethod] = useState<string>('');
   const [copiedField, setCopiedField] = useState<string>('');
+
+  // Determine which payment methods are available based on brand config
+  const isStripeEnabled = brandConfig?.stripe_enabled !== false;
+  const hasCashApp = !!brandConfig?.cashapp_tag;
+  const hasPayPal = !!brandConfig?.paypal_email;
+  const hasWire = !!brandConfig?.wire_bank_name && !!brandConfig?.wire_routing_number && !!brandConfig?.wire_account_number;
 
   const handleStripePayment = async () => {
     setIsProcessing(true);
@@ -48,7 +65,6 @@ const PaymentCard = ({ type, amount, status, orderId, orderNumber }: PaymentCard
         toast.success('Opening payment checkout...');
       }
     } catch (error) {
-      // Error handled silently
       toast.error('Failed to initiate payment. Please try again.');
     } finally {
       setIsProcessing(false);
@@ -77,7 +93,7 @@ const PaymentCard = ({ type, amount, status, orderId, orderNumber }: PaymentCard
       name: 'CashApp',
       icon: Wallet,
       details: {
-        cashtag: '$YourBusinessCashTag',
+        cashtag: brandConfig?.cashapp_tag || '$YourBusinessCashTag',
         note: `Order ${orderNumber} - ${type} payment`,
       },
     },
@@ -85,7 +101,7 @@ const PaymentCard = ({ type, amount, status, orderId, orderNumber }: PaymentCard
       name: 'PayPal',
       icon: Wallet,
       details: {
-        email: 'payments@yourbusiness.com',
+        email: brandConfig?.paypal_email || 'payments@yourbusiness.com',
         note: `Order ${orderNumber} - ${type} payment`,
       },
     },
@@ -93,14 +109,16 @@ const PaymentCard = ({ type, amount, status, orderId, orderNumber }: PaymentCard
       name: 'Wire Transfer',
       icon: Building2,
       details: {
-        bankName: 'Your Bank Name',
-        accountNumber: 'XXXX-XXXX-XXXX-1234',
-        routingNumber: '123456789',
-        accountName: 'Your Business Name',
+        bankName: brandConfig?.wire_bank_name || 'Your Bank Name',
+        accountNumber: brandConfig?.wire_account_number || 'XXXX-XXXX-XXXX-1234',
+        routingNumber: brandConfig?.wire_routing_number || '123456789',
+        accountName: brandConfig?.wire_bank_name || 'Your Business Name',
         reference: `Order ${orderNumber}`,
       },
     },
   };
+
+  const contactEmail = brandConfig?.contact_email || 'payments@yourbusiness.com';
 
   const isPaid = status === 'paid';
   const isPartial = status === 'partial';
@@ -141,47 +159,61 @@ const PaymentCard = ({ type, amount, status, orderId, orderNumber }: PaymentCard
             </div>
 
             <div className="grid grid-cols-2 gap-2">
-              <Button 
-                onClick={() => handlePaymentMethodSelect('stripe')} 
-                variant="outline"
-                size="lg"
-                disabled={isProcessing}
-                className="h-auto py-4 flex flex-col gap-2"
-              >
-                <CreditCard className="h-5 w-5" />
-                <span className="text-xs">Credit Card</span>
-              </Button>
+              {isStripeEnabled && (
+                <Button 
+                  onClick={() => handlePaymentMethodSelect('stripe')} 
+                  variant="outline"
+                  size="lg"
+                  disabled={isProcessing}
+                  className="h-auto py-4 flex flex-col gap-2"
+                >
+                  <CreditCard className="h-5 w-5" />
+                  <span className="text-xs">Credit Card</span>
+                </Button>
+              )}
 
-              <Button 
-                onClick={() => handlePaymentMethodSelect('cashapp')} 
-                variant="outline"
-                size="lg"
-                className="h-auto py-4 flex flex-col gap-2"
-              >
-                <Wallet className="h-5 w-5" />
-                <span className="text-xs">CashApp</span>
-              </Button>
+              {hasCashApp && (
+                <Button 
+                  onClick={() => handlePaymentMethodSelect('cashapp')} 
+                  variant="outline"
+                  size="lg"
+                  className="h-auto py-4 flex flex-col gap-2"
+                >
+                  <Wallet className="h-5 w-5" />
+                  <span className="text-xs">CashApp</span>
+                </Button>
+              )}
 
-              <Button 
-                onClick={() => handlePaymentMethodSelect('paypal')} 
-                variant="outline"
-                size="lg"
-                className="h-auto py-4 flex flex-col gap-2"
-              >
-                <Wallet className="h-5 w-5" />
-                <span className="text-xs">PayPal</span>
-              </Button>
+              {hasPayPal && (
+                <Button 
+                  onClick={() => handlePaymentMethodSelect('paypal')} 
+                  variant="outline"
+                  size="lg"
+                  className="h-auto py-4 flex flex-col gap-2"
+                >
+                  <Wallet className="h-5 w-5" />
+                  <span className="text-xs">PayPal</span>
+                </Button>
+              )}
 
-              <Button 
-                onClick={() => handlePaymentMethodSelect('wire')} 
-                variant="outline"
-                size="lg"
-                className="h-auto py-4 flex flex-col gap-2"
-              >
-                <Building2 className="h-5 w-5" />
-                <span className="text-xs">Wire Transfer</span>
-              </Button>
+              {hasWire && (
+                <Button 
+                  onClick={() => handlePaymentMethodSelect('wire')} 
+                  variant="outline"
+                  size="lg"
+                  className="h-auto py-4 flex flex-col gap-2"
+                >
+                  <Building2 className="h-5 w-5" />
+                  <span className="text-xs">Wire Transfer</span>
+                </Button>
+              )}
             </div>
+
+            {!isStripeEnabled && !hasCashApp && !hasPayPal && !hasWire && (
+              <p className="text-sm text-muted-foreground text-center">
+                No payment methods configured. Please contact support.
+              </p>
+            )}
 
             <p className="text-xs text-center text-muted-foreground">
               Choose your preferred payment method
@@ -279,7 +311,7 @@ const PaymentCard = ({ type, amount, status, orderId, orderNumber }: PaymentCard
             <div className="p-4 border-l-4 border-primary bg-primary/5 rounded">
               <p className="text-sm text-muted-foreground">
                 After completing the payment, please email your receipt or confirmation to{' '}
-                <span className="font-medium text-foreground">payments@yourbusiness.com</span> with order number{' '}
+                <span className="font-medium text-foreground">{contactEmail}</span> with order number{' '}
                 <span className="font-medium text-foreground">{orderNumber}</span>
               </p>
             </div>

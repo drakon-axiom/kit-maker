@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
-import { Plus, Save, Trash2, TestTube, CheckCircle, XCircle, Send, Loader2, Mail, CreditCard, DollarSign } from 'lucide-react';
+import { Plus, Save, Trash2, TestTube, CheckCircle, XCircle, Send, Loader2, Mail, CreditCard, DollarSign, Building2 } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -716,7 +716,44 @@ const BrandManagement = () => {
                   {brand.logo_url && (
                     <img src={brand.logo_url} alt={brand.name} className="h-12 mb-4 object-contain" />
                   )}
-                  <div className="flex gap-2 mt-4">
+                  
+                  {/* Payment Methods Preview */}
+                  <div className="mt-3 mb-4">
+                    <p className="text-xs text-muted-foreground mb-2">Payment Methods</p>
+                    <div className="flex flex-wrap gap-1">
+                      {brand.stripe_enabled !== false && (
+                        <span className="text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded-full flex items-center gap-1">
+                          <CreditCard className="h-3 w-3" />
+                          Card
+                        </span>
+                      )}
+                      {brand.cashapp_tag && (
+                        <span className="text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded-full flex items-center gap-1">
+                          <DollarSign className="h-3 w-3" />
+                          CashApp
+                        </span>
+                      )}
+                      {brand.paypal_email && (
+                        <span className="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full flex items-center gap-1">
+                          <DollarSign className="h-3 w-3" />
+                          PayPal
+                        </span>
+                      )}
+                      {brand.wire_bank_name && brand.wire_routing_number && brand.wire_account_number && (
+                        <span className="text-xs bg-purple-100 text-purple-800 px-2 py-0.5 rounded-full flex items-center gap-1">
+                          <Building2 className="h-3 w-3" />
+                          Wire
+                        </span>
+                      )}
+                      {brand.stripe_enabled === false && !brand.cashapp_tag && !brand.paypal_email && !brand.wire_bank_name && (
+                        <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">
+                          No methods
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  
+                  <div className="flex gap-2">
                     <Button
                       variant="outline"
                       size="sm"
