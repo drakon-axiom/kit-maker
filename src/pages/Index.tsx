@@ -4,15 +4,19 @@ import { useAuth } from '@/contexts/AuthContext';
 import Landing from './Landing';
 
 const Index = () => {
-  const { user, loading } = useAuth();
+  const { user, userRole, loading } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
     if (!loading && user) {
-      // Redirect authenticated users to their dashboard
-      navigate('/dashboard');
+      // Redirect to appropriate dashboard based on role
+      if (userRole === 'customer') {
+        navigate('/customer');
+      } else {
+        navigate('/dashboard');
+      }
     }
-  }, [user, loading, navigate]);
+  }, [user, userRole, loading, navigate]);
 
   if (loading) {
     return (
