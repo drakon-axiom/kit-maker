@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
-import { Plus, Save, Trash2, TestTube, CheckCircle, XCircle } from 'lucide-react';
+import { Plus, Save, Trash2, TestTube, CheckCircle, XCircle, Send, Loader2 } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -119,6 +119,37 @@ const BrandManagement = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [testUrl, setTestUrl] = useState('');
   const [testResult, setTestResult] = useState<{ brand: Brand | null; method: string } | null>(null);
+  const [testingSmtp, setTestingSmtp] = useState(false);
+
+  const handleTestSmtp = async () => {
+    if (!editingBrand?.smtp_host || !editingBrand?.smtp_user || !editingBrand?.smtp_password) {
+      toast.error('Please fill in SMTP host, username, and password first');
+      return;
+    }
+
+    setTestingSmtp(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('email-test', {
+        body: {
+          smtp_host: editingBrand.smtp_host,
+          smtp_port: editingBrand.smtp_port || 465,
+          smtp_user: editingBrand.smtp_user,
+          smtp_password: editingBrand.smtp_password,
+          brand_name: editingBrand.name || 'Brand Test',
+        },
+      });
+
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      toast.success(`Test email sent to ${data.sentTo || editingBrand.smtp_user}`);
+    } catch (error: any) {
+      console.error('SMTP test failed:', error);
+      toast.error(`SMTP test failed: ${error.message}`);
+    } finally {
+      setTestingSmtp(false);
+    }
+  };
 
   const fetchBrands = async () => {
     const { data, error } = await supabase
@@ -437,6 +468,19 @@ const BrandManagement = () => {
                       For Proton Mail, use an app-specific password from Settings → Security → SMTP tokens
                     </p>
                   </div>
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    onClick={handleTestSmtp}
+                    disabled={testingSmtp || !editingBrand?.smtp_host || !editingBrand?.smtp_user || !editingBrand?.smtp_password}
+                  >
+                    {testingSmtp ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <Send className="h-4 w-4 mr-2" />
+                    )}
+                    {testingSmtp ? 'Sending...' : 'Test SMTP'}
+                  </Button>
                 </div>
               </div>
 
