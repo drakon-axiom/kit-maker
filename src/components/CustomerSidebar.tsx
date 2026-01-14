@@ -1,5 +1,6 @@
 import { NavLink } from '@/components/NavLink';
 import { useLocation } from 'react-router-dom';
+import { useBrand } from '@/contexts/BrandContext';
 import axiomLogo from '@/assets/axiom-logo.png';
 import {
   Home,
@@ -25,7 +26,12 @@ import {
 export function CustomerSidebar() {
   const { state } = useSidebar();
   const location = useLocation();
+  const { currentBrand } = useBrand();
   const collapsed = state === 'collapsed';
+
+  // Use brand logo or fallback to Axiom logo
+  const logoUrl = currentBrand?.logo_url || axiomLogo;
+  const brandName = currentBrand?.name || 'Axiom Collective';
 
   const items = [
     { title: 'Orders', url: '/customer', icon: Home },
@@ -41,9 +47,9 @@ export function CustomerSidebar() {
       <SidebarHeader className="border-b p-4">
         <div className="flex items-center justify-center">
           {collapsed ? (
-            <img src={axiomLogo} alt="Axiom Collective" className="h-6 w-6 object-contain" />
+            <img src={logoUrl} alt={brandName} className="h-6 w-6 object-contain" />
           ) : (
-            <img src={axiomLogo} alt="Axiom Collective" className="h-8 object-contain" />
+            <img src={logoUrl} alt={brandName} className="h-8 object-contain" />
           )}
         </div>
       </SidebarHeader>
