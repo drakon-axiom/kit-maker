@@ -106,6 +106,10 @@ interface Brand {
   contact_email: string | null;
   contact_phone: string | null;
   contact_address: string | null;
+  smtp_host: string | null;
+  smtp_port: number | null;
+  smtp_user: string | null;
+  smtp_password: string | null;
 }
 
 const BrandManagement = () => {
@@ -152,6 +156,10 @@ const BrandManagement = () => {
       contact_email: editingBrand.contact_email || null,
       contact_phone: editingBrand.contact_phone || null,
       contact_address: editingBrand.contact_address || null,
+      smtp_host: editingBrand.smtp_host || null,
+      smtp_port: editingBrand.smtp_port || null,
+      smtp_user: editingBrand.smtp_user || null,
+      smtp_password: editingBrand.smtp_password || null,
     };
 
     if (editingBrand.id) {
@@ -379,6 +387,59 @@ const BrandManagement = () => {
                   />
                 </div>
               </div>
+              {/* SMTP Configuration Section */}
+              <div className="border-t pt-4 mt-4">
+                <h4 className="font-medium mb-3">SMTP Configuration (Optional)</h4>
+                <p className="text-xs text-muted-foreground mb-4">
+                  Configure brand-specific SMTP for sending emails. Leave empty to use global SMTP settings.
+                </p>
+                <div className="grid gap-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="grid gap-2">
+                      <Label htmlFor="smtp-host">SMTP Host</Label>
+                      <Input
+                        id="smtp-host"
+                        value={editingBrand?.smtp_host || ''}
+                        onChange={(e) => setEditingBrand({ ...editingBrand, smtp_host: e.target.value })}
+                        placeholder="smtp.proton.me"
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="smtp-port">SMTP Port</Label>
+                      <Input
+                        id="smtp-port"
+                        type="number"
+                        value={editingBrand?.smtp_port || ''}
+                        onChange={(e) => setEditingBrand({ ...editingBrand, smtp_port: e.target.value ? parseInt(e.target.value) : null })}
+                        placeholder="465"
+                      />
+                    </div>
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="smtp-user">SMTP Username</Label>
+                    <Input
+                      id="smtp-user"
+                      value={editingBrand?.smtp_user || ''}
+                      onChange={(e) => setEditingBrand({ ...editingBrand, smtp_user: e.target.value })}
+                      placeholder="noreply@brand.com"
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="smtp-password">SMTP Password</Label>
+                    <Input
+                      id="smtp-password"
+                      type="password"
+                      value={editingBrand?.smtp_password || ''}
+                      onChange={(e) => setEditingBrand({ ...editingBrand, smtp_password: e.target.value })}
+                      placeholder="••••••••"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      For Proton Mail, use an app-specific password from Settings → Security → SMTP tokens
+                    </p>
+                  </div>
+                </div>
+              </div>
+
               <div className="flex items-center space-x-2">
                 <Switch
                   id="default"
