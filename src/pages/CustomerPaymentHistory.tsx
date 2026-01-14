@@ -210,7 +210,7 @@ export default function CustomerPaymentHistory() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-3 gap-3 md:gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-6">
         <Card>
           <CardHeader className="pb-2 pt-4 px-3 md:px-6">
             <CardTitle className="text-xs md:text-sm font-medium text-muted-foreground">
@@ -218,7 +218,7 @@ export default function CustomerPaymentHistory() {
             </CardTitle>
           </CardHeader>
           <CardContent className="px-3 md:px-6 pb-4">
-            <div className="text-xl md:text-3xl font-bold">${stats.totalPaid.toFixed(2)}</div>
+            <div className="text-2xl md:text-3xl font-bold">${stats.totalPaid.toFixed(2)}</div>
           </CardContent>
         </Card>
 
@@ -229,18 +229,18 @@ export default function CustomerPaymentHistory() {
             </CardTitle>
           </CardHeader>
           <CardContent className="px-3 md:px-6 pb-4">
-            <div className="text-xl md:text-3xl font-bold">{stats.depositCount}</div>
+            <div className="text-2xl md:text-3xl font-bold">{stats.depositCount}</div>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="pb-2 pt-4 px-3 md:px-6">
             <CardTitle className="text-xs md:text-sm font-medium text-muted-foreground">
-              Final
+              Final Payments
             </CardTitle>
           </CardHeader>
           <CardContent className="px-3 md:px-6 pb-4">
-            <div className="text-xl md:text-3xl font-bold">{stats.finalCount}</div>
+            <div className="text-2xl md:text-3xl font-bold">{stats.finalCount}</div>
           </CardContent>
         </Card>
       </div>
