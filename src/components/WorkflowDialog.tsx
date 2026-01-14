@@ -125,6 +125,7 @@ export const WorkflowDialog = ({ open, onOpenChange, batchId, batchNumber, produ
       const completedAt = new Date();
       const laborCost = parseFloat(calculateLaborCost());
 
+      // Save workflow completion record
       const { error } = await supabase
         .from('workflow_completions')
         .insert({
@@ -140,6 +141,46 @@ export const WorkflowDialog = ({ open, onOpenChange, batchId, batchNumber, produ
 
       if (error) throw error;
 
+      // Update batch status to complete
+      const { error: batchError } = await supabase
+        .from('production_batches')
+        .update({ 
+          status: 'complete',
+          actual_finish: completedAt.toISOString()
+        })
+        .eq('id', batchId);
+
+      if (batchError) throw batchError;
+
+      // Get the order ID from the batch and check if all batches are complete
+      const { data: batch } = await supabase
+        .from('production_batches')
+        .select('so_id')
+        .eq('id', batchId)
+        .single();
+
+      if (batch?.so_id) {
+        // Check if all batches for this order are complete
+        const { data: allBatches } = await supabase
+          .from('production_batches')
+          .select('status')
+          .eq('so_id', batch.so_id);
+
+        const allComplete = allBatches?.every(b => b.status === 'complete');
+
+        if (allComplete) {
+          // Update order status to packed
+          const { error: orderError } = await supabase
+            .from('sales_orders')
+            .update({ status: 'packed' })
+            .eq('id', batch.so_id);
+
+          if (orderError) {
+            console.error('Failed to update order status:', orderError);
+          }
+        }
+      }
+
       toast({
         title: "Workflow Completed",
         description: `Time: ${formatTime(elapsedSeconds)} • Cost: $${laborCost}`,
@@ -147,7 +188,7 @@ export const WorkflowDialog = ({ open, onOpenChange, batchId, batchNumber, produ
 
       onOpenChange(false);
     } catch (error) {
-      // Error handled silently
+      console.error('Workflow completion error:', error);
       toast({
         title: "Error",
         description: "Failed to save workflow completion data",

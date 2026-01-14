@@ -97,6 +97,7 @@ export default function CustomerPortal() {
           .from('sales_orders')
           .select('id, human_uid, status, subtotal, created_at, promised_date')
           .eq('customer_id', customer.id)
+          .eq('is_internal', false)
           .order('created_at', { ascending: false });
 
         if (error) throw error;
