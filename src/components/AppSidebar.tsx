@@ -1,4 +1,5 @@
 import { useAuth } from '@/contexts/AuthContext';
+import { useBrand } from '@/contexts/BrandContext';
 import { NavLink } from '@/components/NavLink';
 import { useLocation } from 'react-router-dom';
 import { useEffect, useState } from 'react';
@@ -41,11 +42,14 @@ import {
 export function AppSidebar() {
   const { state } = useSidebar();
   const { userRole } = useAuth();
+  const { currentBrand } = useBrand();
   const location = useLocation();
   const collapsed = state === 'collapsed';
   const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
 
   const isActive = (path: string) => location.pathname === path;
+  const logoSrc = currentBrand?.logo_url || axiomLogo;
+  const brandName = currentBrand?.name || 'Axiom Collective';
 
   useEffect(() => {
     if (userRole === 'admin') {
@@ -113,9 +117,9 @@ export function AppSidebar() {
       <SidebarHeader className="border-b p-4">
         <div className="flex items-center justify-center">
           {collapsed ? (
-            <img src={axiomLogo} alt="Axiom Collective" className="h-6 w-6 object-contain" />
+            <img src={logoSrc} alt={brandName} className="h-6 w-6 object-contain" />
           ) : (
-            <img src={axiomLogo} alt="Axiom Collective" className="h-8 object-contain" />
+            <img src={logoSrc} alt={brandName} className="h-8 object-contain" />
           )}
         </div>
       </SidebarHeader>
