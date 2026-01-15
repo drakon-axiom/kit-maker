@@ -378,7 +378,8 @@ serve(async (req) => {
           from: `Wholesale Portal <${smtpConfig.user}>`,
           to: application.email,
           subject: 'Wholesale Account Approved - Login Credentials',
-          html: emailBody,
+          content: emailBody,
+          mimeContent: [{ mimeType: 'text/html', content: emailBody, transferEncoding: '8bit' }],
         });
 
         await client.close();

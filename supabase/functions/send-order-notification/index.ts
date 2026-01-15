@@ -452,7 +452,8 @@ serve(async (req) => {
         from: `Nexus Aminos <${smtpUser}>`,
         to: recipientEmail,
         subject: subject,
-        html: body,
+        content: body,
+        mimeContent: [{ mimeType: 'text/html', content: body, transferEncoding: '8bit' }],
       });
 
       await client.close();

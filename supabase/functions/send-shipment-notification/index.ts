@@ -416,7 +416,7 @@ strong { font-weight: bold !important; }
       to: recipientEmail,
       subject: subject,
       content: plainText,
-      html: body,
+      mimeContent: [{ mimeType: 'text/html', content: body, transferEncoding: '8bit' }],
     });
 
     await smtpClient.close();

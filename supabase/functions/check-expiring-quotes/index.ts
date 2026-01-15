@@ -305,7 +305,8 @@ async function sendExpirationNotification(
       from: smtpConfig.user,
       to: order.customer.email,
       subject: subject,
-      html: body,
+      content: body,
+      mimeContent: [{ mimeType: 'text/html', content: body, transferEncoding: '8bit' }],
     });
 
     await client.close();
@@ -407,7 +408,8 @@ async function sendAdminExpirationNotification(
       from: smtpConfig.user,
       to: settingsMap.company_email,
       subject: subject,
-      html: body,
+      content: body,
+      mimeContent: [{ mimeType: 'text/html', content: body, transferEncoding: '8bit' }],
     });
 
     await client.close();

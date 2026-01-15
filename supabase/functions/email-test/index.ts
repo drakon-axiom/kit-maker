@@ -100,7 +100,8 @@ serve(async (req) => {
       from: `${displayName} <${smtpUser}>`,
       to: toEmail,
       subject: emailSubject,
-      html: emailHtml,
+      content: emailHtml,
+      mimeContent: [{ mimeType: 'text/html', content: emailHtml, transferEncoding: '8bit' }],
     });
 
     await client.close();

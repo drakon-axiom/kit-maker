@@ -236,7 +236,8 @@ serve(async (req) => {
         from: `${companyName} <${smtpConfig.user}>`,
         to: testEmail,
         subject: `Test Quote from ${companyName}`,
-        html: testHtml,
+        content: testHtml,
+        mimeContent: [{ mimeType: 'text/html', content: testHtml, transferEncoding: '8bit' }],
       });
 
       await client.close();
@@ -398,7 +399,8 @@ serve(async (req) => {
       from: `${companyName} <${smtpConfig.user}>`,
       to: customerEmail,
       subject: `Quote ${order.human_uid} from ${companyName}`,
-      html: emailHtml,
+      content: emailHtml,
+      mimeContent: [{ mimeType: 'text/html', content: emailHtml, transferEncoding: '8bit' }],
     });
 
     await client.close();
