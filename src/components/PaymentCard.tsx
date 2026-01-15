@@ -42,7 +42,8 @@ const PaymentCard = ({ type, amount, status, orderId, orderNumber, brandConfig }
   const [copiedField, setCopiedField] = useState<string>('');
 
   // Determine which payment methods are available based on brand config
-  const isStripeEnabled = brandConfig?.stripe_enabled !== false;
+  // Only enable Stripe if explicitly set to true in brand config
+  const isStripeEnabled = brandConfig?.stripe_enabled === true;
   const hasCashApp = !!brandConfig?.cashapp_tag;
   const hasPayPalEmail = !!brandConfig?.paypal_email;
   const hasPayPalCheckout = brandConfig?.paypal_checkout_enabled && !!brandConfig?.paypal_client_id;
