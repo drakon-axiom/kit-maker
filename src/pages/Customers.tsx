@@ -13,6 +13,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
 import { SwipeableCustomerCard } from '@/components/mobile/SwipeableCustomerCard';
@@ -23,6 +24,7 @@ interface Customer {
   email: string | null;
   phone: string | null;
   default_terms: string | null;
+  brand_id: string | null;
   shipping_address_line1: string | null;
   shipping_address_line2: string | null;
   shipping_city: string | null;
@@ -51,6 +53,13 @@ interface ImportRow {
   existingId?: string;
 }
 
+interface Brand {
+  id: string;
+  name: string;
+  slug: string;
+  is_default: boolean;
+}
+
 const Customers = () => {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
@@ -65,12 +74,14 @@ const Customers = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [accessDialogOpen, setAccessDialogOpen] = useState(false);
   const [accessCustomerId, setAccessCustomerId] = useState<string | null>(null);
+  const [brands, setBrands] = useState<Brand[]>([]);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     phone: '',
     default_terms: '',
     quote_expiration_days: '',
+    brand_id: '',
     shipping_address_line1: '',
     shipping_address_line2: '',
     shipping_city: '',
@@ -90,7 +101,20 @@ const Customers = () => {
 
   useEffect(() => {
     fetchCustomers();
+    fetchBrands();
   }, []);
+
+  const fetchBrands = async () => {
+    const { data } = await supabase
+      .from('brands')
+      .select('id, name, slug, is_default')
+      .eq('active', true)
+      .order('is_default', { ascending: false });
+    
+    if (data) {
+      setBrands(data);
+    }
+  };
 
   const fetchCustomers = async () => {
     try {
@@ -160,12 +184,24 @@ const Customers = () => {
     }
 
     try {
+      // Ensure brand_id is set - use default brand if not specified
+      const brandId = formData.brand_id || brands.find(b => b.is_default)?.id;
+      if (!brandId) {
+        toast({
+          title: 'Error',
+          description: 'Please select a brand for this customer',
+          variant: 'destructive',
+        });
+        return;
+      }
+
       const customerData = {
         name: formData.name,
         email: formData.email || null,
         phone: formData.phone || null,
         default_terms: formData.default_terms || null,
         quote_expiration_days: formData.quote_expiration_days ? parseInt(formData.quote_expiration_days) : null,
+        brand_id: brandId,
         shipping_address_line1: formData.shipping_address_line1 || null,
         shipping_address_line2: formData.shipping_address_line2 || null,
         shipping_city: formData.shipping_city || null,
@@ -212,12 +248,14 @@ const Customers = () => {
   };
 
   const resetForm = () => {
+    const defaultBrandId = brands.find(b => b.is_default)?.id || '';
     setFormData({
       name: '',
       email: '',
       phone: '',
       default_terms: '',
       quote_expiration_days: '',
+      brand_id: defaultBrandId,
       shipping_address_line1: '',
       shipping_address_line2: '',
       shipping_city: '',
@@ -244,6 +282,7 @@ const Customers = () => {
       phone: customer.phone || '',
       default_terms: customer.default_terms || '',
       quote_expiration_days: customer.quote_expiration_days?.toString() || '',
+      brand_id: customer.brand_id || brands.find(b => b.is_default)?.id || '',
       shipping_address_line1: customer.shipping_address_line1 || '',
       shipping_address_line2: customer.shipping_address_line2 || '',
       shipping_city: customer.shipping_city || '',
@@ -417,6 +456,9 @@ const Customers = () => {
     try {
       const toInsert: any[] = [];
       const toUpdate: any[] = [];
+      
+      // Get default brand for new customers
+      const defaultBrandId = brands.find(b => b.is_default)?.id;
 
       validRows.forEach(row => {
         const customerData = {
@@ -429,7 +471,8 @@ const Customers = () => {
         if (row.action === 'update' && row.existingId) {
           toUpdate.push({ id: row.existingId, ...customerData });
         } else {
-          toInsert.push(customerData);
+          // New customers get the default brand
+          toInsert.push({ ...customerData, brand_id: defaultBrandId });
         }
       });
 
@@ -598,6 +641,27 @@ const Customers = () => {
                     />
                     <p className="text-xs text-muted-foreground">
                       Override default quote expiration for this customer
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="brand">Brand *</Label>
+                    <Select
+                      value={formData.brand_id}
+                      onValueChange={(value) => setFormData({ ...formData, brand_id: value })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select a brand" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {brands.map((brand) => (
+                          <SelectItem key={brand.id} value={brand.id}>
+                            {brand.name} {brand.is_default && '(Default)'}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">
+                      This customer will only see content and pricing for this brand
                     </p>
                   </div>
                 </div>

@@ -9,6 +9,7 @@ interface Customer {
   email: string | null;
   phone: string | null;
   default_terms: string | null;
+  brand_id: string | null;
   shipping_address_line1: string | null;
   shipping_address_line2: string | null;
   shipping_city: string | null;
