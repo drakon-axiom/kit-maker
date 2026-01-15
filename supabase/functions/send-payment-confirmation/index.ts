@@ -200,7 +200,8 @@ serve(async (req) => {
       from: smtpConfig.user,
       to: customerEmail,
       subject: `Payment Confirmed - Order ${orderNumber}`,
-      html: emailHtml,
+      content: emailHtml,
+      mimeContent: [{ mimeType: 'text/html', content: emailHtml, transferEncoding: '8bit' }],
     });
 
     await client.close();

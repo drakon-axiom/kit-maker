@@ -277,7 +277,7 @@ serve(async (req) => {
           to: order.customer.email,
           subject: template?.subject?.replace(/\{\{quote_number\}\}/g, order.human_uid) || `Quote ${order.human_uid} Extended`,
           content: emailHtml,
-          html: emailHtml,
+          mimeContent: [{ mimeType: 'text/html', content: emailHtml, transferEncoding: '8bit' }],
         });
 
         await client.close();

@@ -164,7 +164,8 @@ serve(async (req) => {
       from: `${companyName} <${smtpConfig.user}>`,
       to: recipientEmail,
       subject: testMode ? `[TEST] ${subject}` : subject,
-      html: htmlContent,
+      content: htmlContent,
+      mimeContent: [{ mimeType: 'text/html', content: htmlContent, transferEncoding: '8bit' }],
     });
 
     await smtpClient.close();

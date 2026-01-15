@@ -169,7 +169,8 @@ serve(async (req) => {
       from: smtpConfig.user,
       to: user.email,
       subject: 'Verify your email address',
-      html,
+      content: html,
+      mimeContent: [{ mimeType: 'text/html', content: html, transferEncoding: '8bit' }],
     });
 
     await client.close();
