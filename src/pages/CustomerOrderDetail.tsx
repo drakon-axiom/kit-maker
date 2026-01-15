@@ -22,6 +22,19 @@ import { Link } from 'react-router-dom';
 import { ProductionPhotosGallery } from '@/components/ProductionPhotosGallery';
 import { useIsMobile } from '@/hooks/use-mobile';
 
+interface Brand {
+  id: string;
+  stripe_enabled?: boolean | null;
+  cashapp_tag?: string | null;
+  paypal_email?: string | null;
+  paypal_checkout_enabled?: boolean | null;
+  paypal_client_id?: string | null;
+  wire_bank_name?: string | null;
+  wire_routing_number?: string | null;
+  wire_account_number?: string | null;
+  contact_email?: string | null;
+}
+
 interface Order {
   id: string;
   human_uid: string;
@@ -32,6 +45,8 @@ interface Order {
   deposit_required: boolean;
   deposit_amount: number | null;
   deposit_status: string;
+  brand_id: string | null;
+  brands?: Brand | null;
 }
 
 interface OrderLine {
@@ -84,7 +99,21 @@ export default function CustomerOrderDetail() {
     try {
       const { data: orderData, error: orderError } = await supabase
         .from('sales_orders')
-        .select('*')
+        .select(`
+          *,
+          brands (
+            id,
+            stripe_enabled,
+            cashapp_tag,
+            paypal_email,
+            paypal_checkout_enabled,
+            paypal_client_id,
+            wire_bank_name,
+            wire_routing_number,
+            wire_account_number,
+            contact_email
+          )
+        `)
         .eq('id', id)
         .single();
 
@@ -414,6 +443,7 @@ export default function CustomerOrderDetail() {
             status={order.deposit_status}
             orderId={order.id}
             orderNumber={order.human_uid}
+            brandConfig={order.brands || undefined}
           />
         )}
         
@@ -424,6 +454,7 @@ export default function CustomerOrderDetail() {
             status="unpaid"
             orderId={order.id}
             orderNumber={order.human_uid}
+            brandConfig={order.brands || undefined}
           />
         )}
         

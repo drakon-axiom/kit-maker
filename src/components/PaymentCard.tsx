@@ -11,9 +11,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import PayPalCheckoutButton from './PayPalCheckoutButton';
 
 interface BrandPaymentConfig {
+  id?: string;
   stripe_enabled?: boolean | null;
   cashapp_tag?: string | null;
   paypal_email?: string | null;
@@ -75,18 +76,7 @@ const PaymentCard = ({ type, amount, status, orderId, orderNumber, brandConfig }
     }
   };
 
-  const handlePayPalCheckout = () => {
-    // PayPal Checkout SDK integration - opens PayPal in a new tab
-    const clientId = brandConfig?.paypal_client_id;
-    if (!clientId) {
-      toast.error('PayPal Checkout is not properly configured');
-      return;
-    }
-    // For now, redirect to PayPal with amount info - full SDK integration can be added later
-    const paypalUrl = `https://www.paypal.com/paypalme/${brandConfig?.paypal_email?.split('@')[0] || 'merchant'}/${amount}`;
-    window.open(paypalUrl, '_blank');
-    toast.success('Opening PayPal...');
-  };
+  const [showPayPalModal, setShowPayPalModal] = useState(false);
 
   const handlePaymentMethodSelect = (method: string) => {
     setSelectedMethod(method);
@@ -94,8 +84,7 @@ const PaymentCard = ({ type, amount, status, orderId, orderNumber, brandConfig }
       setShowPaymentDialog(false);
       handleStripePayment();
     } else if (method === 'paypal_checkout') {
-      setShowPaymentDialog(false);
-      handlePayPalCheckout();
+      setShowPayPalModal(true);
     } else {
       setShowPaymentDialog(true);
     }
@@ -351,6 +340,39 @@ const PaymentCard = ({ type, amount, status, orderId, orderNumber, brandConfig }
             <Button onClick={() => setShowPaymentDialog(false)} className="w-full">
               Done
             </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* PayPal SDK Checkout Modal */}
+      <Dialog open={showPayPalModal} onOpenChange={setShowPayPalModal}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Wallet className="h-5 w-5 text-blue-600" />
+              PayPal Checkout
+            </DialogTitle>
+            <DialogDescription>
+              Pay ${amount.toFixed(2)} for Order {orderNumber}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            {brandConfig?.paypal_client_id && brandConfig?.id && (
+              <PayPalCheckoutButton
+                amount={amount}
+                orderId={orderId}
+                orderNumber={orderNumber}
+                type={type}
+                clientId={brandConfig.paypal_client_id}
+                brandId={brandConfig.id}
+                onSuccess={() => {
+                  setShowPayPalModal(false);
+                  // Reload the page to show updated payment status
+                  window.location.reload();
+                }}
+              />
+            )}
           </div>
         </DialogContent>
       </Dialog>

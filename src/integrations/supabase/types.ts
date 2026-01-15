@@ -68,6 +68,7 @@ export type Database = {
           name: string
           paypal_checkout_enabled: boolean | null
           paypal_client_id: string | null
+          paypal_client_secret: string | null
           paypal_email: string | null
           primary_color: string
           primary_foreground: string
@@ -104,6 +105,7 @@ export type Database = {
           name: string
           paypal_checkout_enabled?: boolean | null
           paypal_client_id?: string | null
+          paypal_client_secret?: string | null
           paypal_email?: string | null
           primary_color?: string
           primary_foreground?: string
@@ -140,6 +142,7 @@ export type Database = {
           name?: string
           paypal_checkout_enabled?: boolean | null
           paypal_client_id?: string | null
+          paypal_client_secret?: string | null
           paypal_email?: string | null
           primary_color?: string
           primary_foreground?: string
