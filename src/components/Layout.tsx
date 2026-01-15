@@ -96,11 +96,6 @@ const Layout = ({ children }: LayoutProps) => {
                 <span className="sr-only">Open menu</span>
               </Button>
               <SidebarTrigger className="h-9 w-9 hidden md:flex flex-shrink-0" />
-              {currentBrand?.logo_url ? (
-                <img src={currentBrand.logo_url} alt={currentBrand.name} className="h-7 md:h-8 flex-shrink-0" />
-              ) : (
-                <h1 className="text-base md:text-lg font-semibold truncate">{currentBrand?.name || 'Production Manager'}</h1>
-              )}
             </div>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
