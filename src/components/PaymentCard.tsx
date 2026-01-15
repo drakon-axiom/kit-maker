@@ -2,7 +2,10 @@ import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { DollarSign, CreditCard, AlertCircle, Loader2, Wallet, Building2, Copy, Check } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import { DollarSign, CreditCard, AlertCircle, Loader2, Wallet, Building2, Copy, Check, Send } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   Dialog,
@@ -12,6 +15,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import PayPalCheckoutButton from './PayPalCheckoutButton';
+import { supabase } from '@/integrations/supabase/client';
 
 interface BrandPaymentConfig {
   id?: string;
@@ -40,9 +44,15 @@ const PaymentCard = ({ type, amount, status, orderId, orderNumber, brandConfig }
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
   const [selectedMethod, setSelectedMethod] = useState<string>('');
   const [copiedField, setCopiedField] = useState<string>('');
+  const [showPayPalModal, setShowPayPalModal] = useState(false);
+  
+  // CashApp confirmation form state
+  const [showConfirmationForm, setShowConfirmationForm] = useState(false);
+  const [cashappName, setCashappName] = useState('');
+  const [confirmationNotes, setConfirmationNotes] = useState('');
+  const [isSubmittingConfirmation, setIsSubmittingConfirmation] = useState(false);
 
   // Determine which payment methods are available based on brand config
-  // Only enable Stripe if explicitly set to true in brand config
   const isStripeEnabled = brandConfig?.stripe_enabled === true;
   const hasCashApp = !!brandConfig?.cashapp_tag;
   const hasPayPalEmail = !!brandConfig?.paypal_email;
@@ -53,8 +63,6 @@ const PaymentCard = ({ type, amount, status, orderId, orderNumber, brandConfig }
   const handleStripePayment = async () => {
     setIsProcessing(true);
     try {
-      const { supabase } = await import('@/integrations/supabase/client');
-      
       const { data, error } = await supabase.functions.invoke('create-payment-checkout', {
         body: {
           orderId,
@@ -77,8 +85,6 @@ const PaymentCard = ({ type, amount, status, orderId, orderNumber, brandConfig }
     }
   };
 
-  const [showPayPalModal, setShowPayPalModal] = useState(false);
-
   const handlePaymentMethodSelect = (method: string) => {
     setSelectedMethod(method);
     if (method === 'stripe') {
@@ -96,6 +102,65 @@ const PaymentCard = ({ type, amount, status, orderId, orderNumber, brandConfig }
     setCopiedField(field);
     toast.success('Copied to clipboard');
     setTimeout(() => setCopiedField(''), 2000);
+  };
+
+  const handleCashAppConfirmation = async () => {
+    if (!cashappName.trim()) {
+      toast.error('Please enter your CashApp name');
+      return;
+    }
+
+    setIsSubmittingConfirmation(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('cashapp-webhook', {
+        body: {
+          orderId,
+          paymentType: type,
+          amount,
+          cashappName: cashappName.trim(),
+          notes: confirmationNotes.trim(),
+        },
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      // Add manual=true query param by using the URL directly
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/cashapp-webhook?manual=true`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          },
+          body: JSON.stringify({
+            orderId,
+            paymentType: type,
+            amount,
+            cashappName: cashappName.trim(),
+            notes: confirmationNotes.trim(),
+          }),
+        }
+      );
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to submit confirmation');
+      }
+
+      toast.success('Payment confirmation submitted! We\'ll verify and update your order shortly.');
+      setShowConfirmationForm(false);
+      setShowPaymentDialog(false);
+      setCashappName('');
+      setConfirmationNotes('');
+    } catch (error) {
+      console.error('Error submitting CashApp confirmation:', error);
+      toast.error('Failed to submit confirmation. Please try again or contact support.');
+    } finally {
+      setIsSubmittingConfirmation(false);
+    }
   };
 
   const paymentMethods = {
@@ -272,7 +337,6 @@ const PaymentCard = ({ type, amount, status, orderId, orderNumber, brandConfig }
                   size="lg"
                   onClick={() => {
                     const cashtag = paymentMethods.cashapp.details.cashtag.replace('$', '');
-                    // CashApp deep link with amount - works on iOS and Android
                     const cashAppUrl = `https://cash.app/$${cashtag}/${amount.toFixed(2)}`;
                     window.open(cashAppUrl, '_blank');
                   }}
@@ -299,9 +363,72 @@ const PaymentCard = ({ type, amount, status, orderId, orderNumber, brandConfig }
                   <p className="text-lg font-mono">{paymentMethods.cashapp.details.cashtag}</p>
                 </div>
                 <div className="p-4 border rounded-lg bg-muted/50">
-                  <span className="text-sm font-medium block mb-2">Note</span>
+                  <span className="text-sm font-medium block mb-2">Note to include</span>
                   <p className="text-sm text-muted-foreground">{paymentMethods.cashapp.details.note}</p>
                 </div>
+
+                {/* Payment confirmation section */}
+                {!showConfirmationForm ? (
+                  <Button
+                    variant="outline"
+                    className="w-full border-green-300 text-green-700 hover:bg-green-50"
+                    onClick={() => setShowConfirmationForm(true)}
+                  >
+                    <Send className="h-4 w-4 mr-2" />
+                    I've Sent the Payment
+                  </Button>
+                ) : (
+                  <div className="space-y-3 p-4 border rounded-lg bg-green-50 border-green-200">
+                    <h4 className="font-medium text-green-800">Confirm Your Payment</h4>
+                    <div className="space-y-2">
+                      <Label htmlFor="cashapp-name" className="text-green-800">Your CashApp Name/Tag *</Label>
+                      <Input
+                        id="cashapp-name"
+                        placeholder="$YourCashTag or Name"
+                        value={cashappName}
+                        onChange={(e) => setCashappName(e.target.value)}
+                        className="bg-white"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="confirmation-notes" className="text-green-800">Additional Notes (optional)</Label>
+                      <Textarea
+                        id="confirmation-notes"
+                        placeholder="Any additional details about the payment..."
+                        value={confirmationNotes}
+                        onChange={(e) => setConfirmationNotes(e.target.value)}
+                        rows={2}
+                        className="bg-white"
+                      />
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        onClick={() => setShowConfirmationForm(false)}
+                        className="flex-1"
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        className="flex-1 bg-green-600 hover:bg-green-700"
+                        onClick={handleCashAppConfirmation}
+                        disabled={isSubmittingConfirmation}
+                      >
+                        {isSubmittingConfirmation ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Submitting...
+                          </>
+                        ) : (
+                          <>
+                            <Check className="h-4 w-4 mr-2" />
+                            Submit
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
@@ -388,7 +515,6 @@ const PaymentCard = ({ type, amount, status, orderId, orderNumber, brandConfig }
                 brandId={brandConfig.id}
                 onSuccess={() => {
                   setShowPayPalModal(false);
-                  // Reload the page to show updated payment status
                   window.location.reload();
                 }}
               />

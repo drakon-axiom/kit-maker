@@ -12,6 +12,103 @@ serve(async (req) => {
   }
 
   try {
+    const url = new URL(req.url);
+    const isManualConfirmation = url.searchParams.get("manual") === "true";
+
+    // Initialize Supabase client with service role key
+    const supabaseClient = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
+    );
+
+    // Handle manual payment confirmation from customer
+    if (isManualConfirmation) {
+      console.log("Processing manual CashApp payment confirmation");
+      
+      const body = await req.json();
+      const { orderId, paymentType, amount, cashappName, notes } = body;
+
+      if (!orderId || !paymentType || !amount) {
+        return new Response(JSON.stringify({ error: "Missing required fields" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Fetch order details
+      const { data: order, error: orderError } = await supabaseClient
+        .from("sales_orders")
+        .select("*, customers(email, name)")
+        .eq("id", orderId)
+        .single();
+
+      if (orderError || !order) {
+        console.error("Order not found:", orderError);
+        return new Response(JSON.stringify({ error: "Order not found" }), {
+          status: 404,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Insert payment transaction record as "pending_verification"
+      const { data: txData, error: txError } = await supabaseClient
+        .from("payment_transactions")
+        .insert({
+          so_id: orderId,
+          amount: amount,
+          payment_method: "cashapp",
+          payment_type: paymentType,
+          status: "pending_verification",
+          customer_email: order.customers?.email || "unknown",
+          metadata: {
+            cashapp_name: cashappName,
+            customer_notes: notes,
+            customer_name: order.customers?.name,
+            order_number: order.human_uid,
+            submitted_at: new Date().toISOString(),
+          },
+        })
+        .select()
+        .single();
+
+      if (txError) {
+        console.error("Error inserting payment transaction:", txError);
+        return new Response(JSON.stringify({ error: "Failed to record payment notification" }), {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Log to audit trail
+      await supabaseClient.from("audit_log").insert({
+        entity: "payment",
+        entity_id: orderId,
+        action: "cashapp_payment_submitted",
+        after: {
+          amount,
+          payment_type: paymentType,
+          cashapp_name: cashappName,
+          notes,
+          transaction_id: txData?.id,
+        },
+      });
+
+      console.log(`CashApp payment notification submitted for order ${orderId}`);
+
+      return new Response(
+        JSON.stringify({ 
+          success: true, 
+          message: "Payment notification received. We'll verify and update your order shortly.",
+          transactionId: txData?.id 
+        }),
+        {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    // Handle webhook from CashApp Business (signature verification)
     const signature = req.headers.get("x-cashapp-signature");
     const webhookSecret = Deno.env.get("CASHAPP_WEBHOOK_SECRET");
 
@@ -68,12 +165,6 @@ serve(async (req) => {
 
       console.log(`Processing ${paymentType} payment for order ${orderId}, amount: $${amount}`);
 
-      // Initialize Supabase client with service role key
-      const supabaseClient = createClient(
-        Deno.env.get("SUPABASE_URL") ?? "",
-        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
-      );
-
       // Fetch order details
       const { data: order, error: orderError } = await supabaseClient
         .from("sales_orders")
@@ -98,10 +189,10 @@ serve(async (req) => {
           payment_method: "cashapp",
           payment_type: paymentType,
           status: "completed",
-          customer_email: order.customers.email,
+          customer_email: order.customers?.email || "unknown",
           metadata: {
             cashapp_payment_id: payment.id,
-            customer_name: order.customers.name,
+            customer_name: order.customers?.name,
             order_number: order.human_uid,
           },
         });
