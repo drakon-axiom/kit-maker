@@ -25,6 +25,7 @@ import {
   MessageSquare,
   Palette,
   DollarSign,
+  Clock,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -46,6 +47,7 @@ export function AppSidebar() {
   const location = useLocation();
   const collapsed = state === 'collapsed';
   const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
+  const [pendingPaymentsCount, setPendingPaymentsCount] = useState(0);
 
   const isActive = (path: string) => location.pathname === path;
   const logoSrc = currentBrand?.logo_url || axiomLogo;
@@ -54,9 +56,10 @@ export function AppSidebar() {
   useEffect(() => {
     if (userRole === 'admin') {
       fetchPendingRequestsCount();
+      fetchPendingPaymentsCount();
       
-      // Subscribe to realtime updates
-      const channel = supabase
+      // Subscribe to realtime updates for order comments
+      const commentsChannel = supabase
         .channel('order_comments_changes')
         .on(
           'postgres_changes',
@@ -71,8 +74,25 @@ export function AppSidebar() {
         )
         .subscribe();
 
+      // Subscribe to realtime updates for payment transactions
+      const paymentsChannel = supabase
+        .channel('payment_transactions_changes')
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'payment_transactions'
+          },
+          () => {
+            fetchPendingPaymentsCount();
+          }
+        )
+        .subscribe();
+
       return () => {
-        supabase.removeChannel(channel);
+        supabase.removeChannel(commentsChannel);
+        supabase.removeChannel(paymentsChannel);
       };
     }
   }, [userRole]);
@@ -85,6 +105,15 @@ export function AppSidebar() {
       .eq('request_status', 'pending');
     
     setPendingRequestsCount(count || 0);
+  };
+
+  const fetchPendingPaymentsCount = async () => {
+    const { count } = await supabase
+      .from('payment_transactions')
+      .select('*', { count: 'exact', head: true })
+      .eq('status', 'pending_verification');
+    
+    setPendingPaymentsCount(count || 0);
   };
 
   const mainItems = [
@@ -108,6 +137,7 @@ export function AppSidebar() {
     { title: 'Notifications', url: '/notifications', icon: Mail, badge: null },
     { title: 'Email History', url: '/email-history', icon: History, badge: null },
     { title: 'Manual Payments', url: '/manual-payment', icon: DollarSign, badge: null },
+    { title: 'Pending Payments', url: '/pending-payments', icon: Clock, badge: pendingPaymentsCount },
     { title: 'Label Settings', url: '/label-settings', icon: Tags, badge: null },
     { title: 'Settings', url: '/settings', icon: Settings, badge: null },
   ];

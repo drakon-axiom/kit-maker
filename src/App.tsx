@@ -41,6 +41,7 @@ import UserManagement from "./pages/UserManagement";
 import EmailHistory from "./pages/EmailHistory";
 import ManualPaymentRecording from "./pages/ManualPaymentRecording";
 import OrderRequestManagement from "./pages/OrderRequestManagement";
+import PendingPaymentVerification from "./pages/PendingPaymentVerification";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Layout from "./components/Layout";
 import { CustomerLayout } from "./components/CustomerLayout";
@@ -311,6 +312,16 @@ const App = () => (
                 <ProtectedRoute requiredRole="admin">
                   <Layout>
                     <ManualPaymentRecording />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/pending-payments"
+              element={
+                <ProtectedRoute requiredRole="admin">
+                  <Layout>
+                    <PendingPaymentVerification />
                   </Layout>
                 </ProtectedRoute>
               }
