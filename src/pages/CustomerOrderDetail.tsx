@@ -119,6 +119,31 @@ export default function CustomerOrderDetail() {
 
       if (orderError) throw orderError;
 
+      // If no brand is linked to the order, fetch the default brand for payment config
+      let brandConfig = orderData.brands;
+      if (!brandConfig) {
+        const { data: defaultBrand } = await supabase
+          .from('brands')
+          .select(`
+            id,
+            stripe_enabled,
+            cashapp_tag,
+            paypal_email,
+            paypal_checkout_enabled,
+            paypal_client_id,
+            wire_bank_name,
+            wire_routing_number,
+            wire_account_number,
+            contact_email
+          `)
+          .eq('is_default', true)
+          .single();
+        
+        if (defaultBrand) {
+          orderData.brands = defaultBrand;
+        }
+      }
+
       const { data: linesData, error: linesError } = await supabase
         .from('sales_order_lines')
         .select(`
