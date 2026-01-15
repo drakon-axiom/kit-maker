@@ -76,7 +76,12 @@ export const BrandProvider = ({ children }: { children: React.ReactNode }) => {
     root.style.setProperty('--muted', brand.muted_color);
   };
 
-  const fetchBrands = async () => {
+  const fetchBrands = async (isCustomer: boolean = false) => {
+    // For customers, we don't fetch all brands - they should only see their own
+    if (isCustomer) {
+      return [];
+    }
+    
     const { data, error } = await supabase
       .from('brands')
       .select('*')
@@ -112,14 +117,34 @@ export const BrandProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const refreshBrands = async () => {
-    const brands = await fetchBrands();
+    // Check if user is a customer - customers shouldn't see all brands
+    const isCustomer = await checkIfCustomer();
+    const brands = await fetchBrands(isCustomer);
     setAllBrands(brands);
+  };
+
+  const checkIfCustomer = async (): Promise<boolean> => {
+    if (!user) return false;
+    
+    const { data: roles } = await supabase
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', user.id);
+    
+    // If user has only customer role (or no admin/operator role), they are a customer
+    const hasAdminOrOperator = roles?.some(r => r.role === 'admin' || r.role === 'operator');
+    return !hasAdminOrOperator;
   };
 
   useEffect(() => {
     const initializeBrand = async () => {
       setLoading(true);
-      const brands = await fetchBrands();
+      
+      // Check if user is a customer
+      const isCustomer = await checkIfCustomer();
+      
+      // For customers, don't expose all brands
+      const brands = await fetchBrands(isCustomer);
       setAllBrands(brands);
 
       let brandToUse: Brand | null = null;

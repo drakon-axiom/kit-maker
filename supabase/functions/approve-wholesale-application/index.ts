@@ -225,7 +225,14 @@ serve(async (req) => {
     if (existingCustomer) {
       console.log('Customer record already exists for user:', userId);
     } else {
-      // Create customer record
+      // Get default brand for new customers
+      const { data: defaultBrand } = await supabase
+        .from('brands')
+        .select('id')
+        .eq('is_default', true)
+        .single();
+
+      // Create customer record with brand assignment
       const { error: customerError } = await supabase
         .from('customers')
         .insert({
@@ -234,6 +241,7 @@ serve(async (req) => {
           email: application.email,
           phone: application.phone,
           default_terms: 'Net 30',
+          brand_id: defaultBrand?.id || null,
           shipping_address_line1: application.shipping_address_line1,
           shipping_address_line2: application.shipping_address_line2,
           shipping_city: application.shipping_city,
