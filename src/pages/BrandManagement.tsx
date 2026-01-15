@@ -117,6 +117,7 @@ interface Brand {
   paypal_email: string | null;
   paypal_checkout_enabled: boolean;
   paypal_client_id: string | null;
+  paypal_client_secret: string | null;
   wire_bank_name: string | null;
   wire_routing_number: string | null;
   wire_account_number: string | null;
@@ -206,6 +207,7 @@ const BrandManagement = () => {
       paypal_email: editingBrand.paypal_email || null,
       paypal_checkout_enabled: editingBrand.paypal_checkout_enabled || false,
       paypal_client_id: editingBrand.paypal_client_id || null,
+      paypal_client_secret: editingBrand.paypal_client_secret || null,
       wire_bank_name: editingBrand.wire_bank_name || null,
       wire_routing_number: editingBrand.wire_routing_number || null,
       wire_account_number: editingBrand.wire_account_number || null,
@@ -559,15 +561,42 @@ const BrandManagement = () => {
                       </div>
                       
                       {editingBrand?.paypal_checkout_enabled && (
-                        <div className="grid gap-2">
-                          <Label htmlFor="paypal-client-id">PayPal Client ID</Label>
-                          <Input
-                            id="paypal-client-id"
-                            value={editingBrand?.paypal_client_id || ''}
-                            onChange={(e) => setEditingBrand({ ...editingBrand, paypal_client_id: e.target.value })}
-                            placeholder="AWq3v..."
-                          />
-                          <p className="text-xs text-muted-foreground">Get this from your PayPal Developer Dashboard</p>
+                        <div className="grid gap-4 pl-6 border-l-2 border-blue-200 ml-2">
+                          <div className="grid gap-2">
+                            <Label htmlFor="paypal-client-id">PayPal Client ID</Label>
+                            <Input
+                              id="paypal-client-id"
+                              value={editingBrand?.paypal_client_id || ''}
+                              onChange={(e) => setEditingBrand({ ...editingBrand, paypal_client_id: e.target.value })}
+                              placeholder="AWq3v..."
+                            />
+                          </div>
+                          <div className="grid gap-2">
+                            <Label htmlFor="paypal-client-secret">PayPal Client Secret</Label>
+                            <Input
+                              id="paypal-client-secret"
+                              type="password"
+                              value={editingBrand?.paypal_client_secret || ''}
+                              onChange={(e) => setEditingBrand({ ...editingBrand, paypal_client_secret: e.target.value })}
+                              placeholder="••••••••••••••••"
+                            />
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            Get these from your{' '}
+                            <a 
+                              href="https://developer.paypal.com/dashboard/applications/live" 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="text-blue-600 hover:underline"
+                            >
+                              PayPal Developer Dashboard
+                            </a>
+                          </p>
+                          {editingBrand?.paypal_client_id && !editingBrand?.paypal_client_secret && (
+                            <div className="p-2 bg-yellow-100 border border-yellow-300 rounded text-xs text-yellow-800">
+                              ⚠️ Both Client ID and Client Secret are required for PayPal SDK checkout to work.
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
