@@ -266,6 +266,25 @@ const PaymentCard = ({ type, amount, status, orderId, orderNumber, brandConfig }
           <div className="space-y-4">
             {selectedMethod === 'cashapp' && (
               <div className="space-y-3">
+                {/* Open CashApp button - uses deep link */}
+                <Button
+                  className="w-full bg-[#00D632] hover:bg-[#00B82B] text-white"
+                  size="lg"
+                  onClick={() => {
+                    const cashtag = paymentMethods.cashapp.details.cashtag.replace('$', '');
+                    // CashApp deep link with amount - works on iOS and Android
+                    const cashAppUrl = `https://cash.app/$${cashtag}/${amount.toFixed(2)}`;
+                    window.open(cashAppUrl, '_blank');
+                  }}
+                >
+                  <Wallet className="h-5 w-5 mr-2" />
+                  Open CashApp & Pay ${amount.toFixed(2)}
+                </Button>
+                
+                <p className="text-xs text-center text-muted-foreground">
+                  Or send manually using the details below
+                </p>
+                
                 <div className="p-4 border rounded-lg bg-muted/50">
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-sm font-medium">CashTag</span>
