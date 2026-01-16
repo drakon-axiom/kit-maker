@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -70,13 +70,7 @@ export default function CustomerAccountSettings() {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
 
-  useEffect(() => {
-    if (user) {
-      fetchAccountData();
-    }
-  }, [user]);
-
-  const fetchAccountData = async () => {
+  const fetchAccountData = useCallback(async () => {
     try {
       const { data: customerData } = await supabase
         .from('customers')
@@ -116,7 +110,13 @@ export default function CustomerAccountSettings() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
+
+  useEffect(() => {
+    if (user) {
+      fetchAccountData();
+    }
+  }, [user, fetchAccountData]);
 
   const handleSaveAddress = async () => {
     if (!customerId) return;

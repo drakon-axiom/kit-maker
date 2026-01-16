@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -89,13 +89,7 @@ export default function CustomerOrderDetail() {
   const [requestHistoryKey, setRequestHistoryKey] = useState(0);
   const [downloadingPdf, setDownloadingPdf] = useState(false);
 
-  useEffect(() => {
-    if (user && id) {
-      fetchOrderDetails();
-    }
-  }, [user, id]);
-
-  const fetchOrderDetails = async () => {
+  const fetchOrderDetails = useCallback(async () => {
     try {
       const { data: orderData, error: orderError } = await supabase
         .from('sales_orders')
@@ -169,7 +163,13 @@ export default function CustomerOrderDetail() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id, navigate]);
+
+  useEffect(() => {
+    if (user && id) {
+      fetchOrderDetails();
+    }
+  }, [user, id, fetchOrderDetails]);
 
   const getStatusColor = (status: string) => {
     const statusColors: Record<string, string> = {
@@ -258,25 +258,21 @@ export default function CustomerOrderDetail() {
       doc.setFontSize(12);
       doc.text(`Total: $${order?.subtotal.toFixed(2)}`, 20, yPos);
       
-      try {
-        const blobUrl = (doc as any).output?.('bloburl');
-        if (blobUrl) {
-          const newWin = window.open(blobUrl, '_blank');
-          if (!newWin) {
-            const a = document.createElement('a');
-            a.href = blobUrl;
-            a.download = `order-${order?.human_uid}.pdf`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-          }
-        } else if (typeof (doc as any).save === 'function') {
-          (doc as any).save(`order-${order?.human_uid}.pdf`);
-        } else {
-          throw new Error('No PDF save method available');
+      const blobUrl = (doc as any).output?.('bloburl');
+      if (blobUrl) {
+        const newWin = window.open(blobUrl, '_blank');
+        if (!newWin) {
+          const a = document.createElement('a');
+          a.href = blobUrl;
+          a.download = `order-${order?.human_uid}.pdf`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
         }
-      } catch (e) {
-        throw e;
+      } else if (typeof (doc as any).save === 'function') {
+        (doc as any).save(`order-${order?.human_uid}.pdf`);
+      } else {
+        throw new Error('No PDF save method available');
       }
       toast.success('PDF downloaded successfully');
     } catch (error) {

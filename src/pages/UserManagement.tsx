@@ -129,7 +129,15 @@ const UserManagement = () => {
         },
       });
 
-      if (authError) throw authError;
+      if (authError) {
+        // Check for duplicate email error
+        if (authError.message?.toLowerCase().includes('already registered') ||
+            authError.message?.toLowerCase().includes('already been registered') ||
+            authError.message?.toLowerCase().includes('user already exists')) {
+          throw new Error('An account with this email already exists.');
+        }
+        throw authError;
+      }
       if (!authData.user) throw new Error('User creation failed');
 
       // Assign role

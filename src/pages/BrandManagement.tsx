@@ -24,9 +24,9 @@ const hexToHsl = (hex: string): string => {
   const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
   if (!result) return '0 0% 0%';
   
-  let r = parseInt(result[1], 16) / 255;
-  let g = parseInt(result[2], 16) / 255;
-  let b = parseInt(result[3], 16) / 255;
+  const r = parseInt(result[1], 16) / 255;
+  const g = parseInt(result[2], 16) / 255;
+  const b = parseInt(result[3], 16) / 255;
 
   const max = Math.max(r, g, b);
   const min = Math.min(r, g, b);
@@ -62,9 +62,9 @@ const hslToHex = (hsl: string): string => {
     return '#000000';
   }
   
-  let h = parseFloat(match[1]) / 360;
-  let s = parseFloat(match[2]) / 100;
-  let l = parseFloat(match[3]) / 100;
+  const h = parseFloat(match[1]) / 360;
+  const s = parseFloat(match[2]) / 100;
+  const l = parseFloat(match[3]) / 100;
 
   let r, g, b;
 

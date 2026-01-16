@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -74,38 +74,7 @@ const Shipments = () => {
     notes: '',
   });
 
-  useEffect(() => {
-    fetchShipments();
-    fetchOrders();
-    
-    // Calculate next update time
-    const updateNextUpdateTime = () => {
-      const now = new Date();
-      const hours = now.getUTCHours();
-      const nextRun = new Date(now);
-      
-      // Cron runs at 00:00 and 12:00 UTC
-      if (hours < 12) {
-        nextRun.setUTCHours(12, 0, 0, 0);
-      } else {
-        nextRun.setUTCDate(nextRun.getUTCDate() + 1);
-        nextRun.setUTCHours(0, 0, 0, 0);
-      }
-      
-      const diff = nextRun.getTime() - now.getTime();
-      const hoursLeft = Math.floor(diff / (1000 * 60 * 60));
-      const minutesLeft = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-      
-      setNextUpdateTime(`${hoursLeft}h ${minutesLeft}m`);
-    };
-    
-    updateNextUpdateTime();
-    const interval = setInterval(updateNextUpdateTime, 60000); // Update every minute
-    
-    return () => clearInterval(interval);
-  }, []);
-
-  const fetchShipments = async () => {
+  const fetchShipments = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from('shipments')
@@ -130,9 +99,9 @@ const Shipments = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
 
-  const fetchOrders = async () => {
+  const fetchOrders = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from('sales_orders')
@@ -150,7 +119,38 @@ const Shipments = () => {
     } catch {
       // Order fetch errors are non-critical
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchShipments();
+    fetchOrders();
+
+    // Calculate next update time
+    const updateNextUpdateTime = () => {
+      const now = new Date();
+      const hours = now.getUTCHours();
+      const nextRun = new Date(now);
+
+      // Cron runs at 00:00 and 12:00 UTC
+      if (hours < 12) {
+        nextRun.setUTCHours(12, 0, 0, 0);
+      } else {
+        nextRun.setUTCDate(nextRun.getUTCDate() + 1);
+        nextRun.setUTCHours(0, 0, 0, 0);
+      }
+
+      const diff = nextRun.getTime() - now.getTime();
+      const hoursLeft = Math.floor(diff / (1000 * 60 * 60));
+      const minutesLeft = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+
+      setNextUpdateTime(`${hoursLeft}h ${minutesLeft}m`);
+    };
+
+    updateNextUpdateTime();
+    const interval = setInterval(updateNextUpdateTime, 60000); // Update every minute
+
+    return () => clearInterval(interval);
+  }, [fetchShipments, fetchOrders]);
 
   const filteredShipments = shipments.filter(shipment => {
     if (!searchQuery) return true;

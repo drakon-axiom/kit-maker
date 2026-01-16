@@ -170,6 +170,28 @@ serve(async (req) => {
       },
     });
 
+    if (authError || !authData.user) {
+      console.error('Error creating user:', authError);
+
+      // Check for duplicate email error
+      const errorMessage = authError?.message?.toLowerCase() || '';
+      if (errorMessage.includes('already registered') ||
+          errorMessage.includes('already been registered') ||
+          errorMessage.includes('user already exists') ||
+          errorMessage.includes('duplicate key')) {
+        return new Response(JSON.stringify({
+          error: 'An account with this email already exists. The applicant may already have an account.',
+          code: 'DUPLICATE_EMAIL'
+        }), {
+          status: 409,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      return new Response(JSON.stringify({ error: 'Failed to create user account', details: authError }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     if (authError) {
       // Check if user already exists
       if (authError.code === 'email_exists') {

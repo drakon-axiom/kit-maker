@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -156,6 +156,8 @@ const OrderDetail = () => {
     contentRef: labelRef,
   });
 
+  const fetchOrder = useCallback(async () => {
+    if (!id) return;
   useEffect(() => {
     if (id) {
       fetchOrder();
@@ -231,9 +233,10 @@ const OrderDetail = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id, toast]);
 
-  const fetchBatches = async () => {
+  const fetchBatches = useCallback(async () => {
+    if (!id) return;
     try {
       const { data, error } = await supabase
         .from('production_batches')
@@ -246,9 +249,10 @@ const OrderDetail = () => {
     } catch {
       // Batch fetch errors are non-critical
     }
-  };
+  }, [id]);
 
-  const fetchBatchAllocations = async () => {
+  const fetchBatchAllocations = useCallback(async () => {
+    if (!id) return;
     try {
       // 1) Get all batch ids for this order
       const { data: batchRows, error: batchesErr } = await supabase
@@ -269,7 +273,7 @@ const OrderDetail = () => {
       });
 
       // Start with allocations from explicit batch items if present
-      let allocations: Record<string, number> = {};
+      const allocations: Record<string, number> = {};
 
       if (batchIds.length > 0) {
         const { data: itemsRows, error: itemsErr } = await supabase
@@ -304,7 +308,15 @@ const OrderDetail = () => {
     } catch {
       setBatchAllocations({});
     }
-  };
+  }, [id, order]);
+
+  useEffect(() => {
+    if (id) {
+      fetchOrder();
+      fetchBatches();
+      fetchBatchAllocations();
+    }
+  }, [id, fetchOrder, fetchBatches, fetchBatchAllocations]);
 
   const formatStatus = (status: string) => {
     if (status === 'on_hold_customer') return 'On Hold (Customer Hold)';

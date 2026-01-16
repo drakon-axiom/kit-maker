@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
@@ -99,6 +99,7 @@ const Customers = () => {
   });
   const { toast } = useToast();
 
+  const fetchCustomers = useCallback(async () => {
   useEffect(() => {
     fetchCustomers();
     fetchBrands();
@@ -150,7 +151,11 @@ const Customers = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
+
+  useEffect(() => {
+    fetchCustomers();
+  }, [fetchCustomers]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

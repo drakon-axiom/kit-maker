@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import DOMPurify from 'dompurify';
@@ -35,12 +35,7 @@ const Notifications = () => {
   const { toast } = useToast();
   const { user } = useAuth();
 
-  useEffect(() => {
-    fetchTemplates();
-    fetchCompanyName();
-  }, []);
-
-  const fetchCompanyName = async () => {
+  const fetchCompanyName = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from('settings')
@@ -53,9 +48,9 @@ const Notifications = () => {
     } catch (error) {
       // Error handled silently
     }
-  };
+  }, []);
 
-  const fetchTemplates = async () => {
+  const fetchTemplates = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from('email_templates')
@@ -73,7 +68,12 @@ const Notifications = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
+
+  useEffect(() => {
+    fetchTemplates();
+    fetchCompanyName();
+  }, [fetchTemplates, fetchCompanyName]);
 
   const handleSaveTemplate = async () => {
     if (!selectedTemplate) return;

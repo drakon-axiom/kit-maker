@@ -157,13 +157,7 @@ const Orders = () => {
     contentRef: bulkPrintRef,
   });
 
-  useEffect(() => {
-    fetchOrders();
-    fetchCustomers();
-    fetchLabelSettings();
-  }, []);
-
-  const fetchLabelSettings = async () => {
+  const fetchLabelSettings = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from('label_settings')
@@ -179,9 +173,9 @@ const Orders = () => {
     } catch {
       // Label settings fetch errors are non-critical
     }
-  };
+  }, []);
 
-  const fetchCustomers = async () => {
+  const fetchCustomers = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from('customers')
@@ -193,7 +187,7 @@ const Orders = () => {
     } catch {
       // Customer fetch errors are non-critical
     }
-  };
+  }, []);
 
   const fetchOrders = useCallback(async () => {
     try {
@@ -218,6 +212,11 @@ const Orders = () => {
     }
   }, [toast]);
 
+  useEffect(() => {
+    fetchOrders();
+    fetchCustomers();
+    fetchLabelSettings();
+  }, [fetchOrders, fetchCustomers, fetchLabelSettings]);
   const handleRefresh = async () => {
     setLoading(true);
     await Promise.all([fetchOrders(), fetchCustomers()]);
