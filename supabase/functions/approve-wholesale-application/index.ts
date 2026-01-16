@@ -215,15 +215,50 @@ serve(async (req) => {
 
     console.log(isExistingUser ? 'Using existing user:' : 'User created:', userId);
 
-    // Check if customer record already exists for this user
-    const { data: existingCustomer } = await supabase
+    // Check if customer record already exists for this user OR this email
+    const { data: existingCustomerByUser } = await supabase
       .from('customers')
       .select('id')
       .eq('user_id', userId)
       .maybeSingle();
 
-    if (existingCustomer) {
+    const { data: existingCustomerByEmail } = await supabase
+      .from('customers')
+      .select('id, user_id, phone')
+      .ilike('email', application.email)
+      .maybeSingle();
+
+    if (existingCustomerByUser) {
       console.log('Customer record already exists for user:', userId);
+    } else if (existingCustomerByEmail) {
+      // Customer exists with this email but different/no user_id - link them
+      console.log('Customer record exists with this email, linking to user:', userId);
+      const { error: linkError } = await supabase
+        .from('customers')
+        .update({ 
+          user_id: userId,
+          name: application.company_name,
+          phone: application.phone || existingCustomerByEmail.phone,
+          shipping_address_line1: application.shipping_address_line1,
+          shipping_address_line2: application.shipping_address_line2,
+          shipping_city: application.shipping_city,
+          shipping_state: application.shipping_state,
+          shipping_zip: application.shipping_zip,
+          shipping_country: application.shipping_country,
+          billing_address_line1: application.billing_address_line1,
+          billing_address_line2: application.billing_address_line2,
+          billing_city: application.billing_city,
+          billing_state: application.billing_state,
+          billing_zip: application.billing_zip,
+          billing_country: application.billing_country,
+          billing_same_as_shipping: application.billing_same_as_shipping,
+        })
+        .eq('id', existingCustomerByEmail.id);
+
+      if (linkError) {
+        console.error('Error linking customer:', linkError);
+        await logFailure('wholesale_approval_failed', { stage: 'link_customer', userId, error: linkError });
+      }
     } else {
       // Get default brand for new customers
       const { data: defaultBrand } = await supabase
