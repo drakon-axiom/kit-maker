@@ -72,6 +72,32 @@ const WholesaleSignup = () => {
     setLoading(true);
 
     try {
+      // Check if email already exists in wholesale_applications or customers
+      const [{ data: existingApplication }, { data: existingCustomer }] = await Promise.all([
+        supabase
+          .from('wholesale_applications')
+          .select('id')
+          .ilike('email', formData.email)
+          .maybeSingle(),
+        supabase
+          .from('customers')
+          .select('id')
+          .ilike('email', formData.email)
+          .maybeSingle()
+      ]);
+
+      if (existingApplication) {
+        toast.error('An application with this email address has already been submitted.');
+        setLoading(false);
+        return;
+      }
+
+      if (existingCustomer) {
+        toast.error('An account with this email address already exists. Please sign in instead.');
+        setLoading(false);
+        return;
+      }
+
       const { error } = await supabase
         .from('wholesale_applications')
         .insert([formData]);

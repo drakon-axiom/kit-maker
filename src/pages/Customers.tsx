@@ -219,6 +219,25 @@ const Customers = () => {
       };
 
       if (editingCustomer) {
+        // Check if email is being changed to one that already exists
+        if (formData.email && formData.email !== editingCustomer.email) {
+          const { data: existingCustomer } = await supabase
+            .from('customers')
+            .select('id')
+            .ilike('email', formData.email)
+            .neq('id', editingCustomer.id)
+            .maybeSingle();
+
+          if (existingCustomer) {
+            toast({
+              title: 'Duplicate Email',
+              description: 'A customer with this email address already exists.',
+              variant: 'destructive',
+            });
+            return;
+          }
+        }
+
         const { error } = await supabase
           .from('customers')
           .update(customerData)
@@ -227,6 +246,24 @@ const Customers = () => {
         if (error) throw error;
         toast({ title: 'Success', description: 'Customer updated successfully' });
       } else {
+        // Check if email already exists before creating
+        if (formData.email) {
+          const { data: existingCustomer } = await supabase
+            .from('customers')
+            .select('id')
+            .ilike('email', formData.email)
+            .maybeSingle();
+
+          if (existingCustomer) {
+            toast({
+              title: 'Duplicate Email',
+              description: 'A customer with this email address already exists.',
+              variant: 'destructive',
+            });
+            return;
+          }
+        }
+
         const { error } = await supabase
           .from('customers')
           .insert([customerData]);
