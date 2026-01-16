@@ -158,13 +158,41 @@ const OrderDetail = () => {
 
   const fetchOrder = useCallback(async () => {
     if (!id) return;
+    try {
+      const { data, error } = await supabase
+        .from('sales_orders')
+        .select(`
+          *,
+          customer:customers(name, email, phone),
+          brand:brands(name, slug),
+          sales_order_lines(
+            *,
+            sku:skus(code, description, batch_prefix)
+          )
+        `)
+        .eq('id', id)
+        .single();
+
+      if (error) throw error;
+      setOrder(data as any);
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to load order',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
+  }, [id, toast]);
+
   useEffect(() => {
     if (id) {
       fetchOrder();
       fetchBatches();
       fetchBatchAllocations();
     }
-  }, [id]);
+  }, [id, fetchOrder]);
 
   // Subscribe to realtime status updates
   useEffect(() => {
@@ -204,35 +232,6 @@ const OrderDetail = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [id, toast]);
-
-  const fetchOrder = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('sales_orders')
-        .select(`
-          *,
-          customer:customers(name, email, phone),
-          brand:brands(name, slug),
-          sales_order_lines(
-            *,
-            sku:skus(code, description, batch_prefix)
-          )
-        `)
-        .eq('id', id)
-        .single();
-
-      if (error) throw error;
-      setOrder(data as any);
-    } catch (error) {
-      toast({
-        title: 'Error',
-        description: error instanceof Error ? error.message : 'Failed to load order',
-        variant: 'destructive',
-      });
-    } finally {
-      setLoading(false);
-    }
   }, [id, toast]);
 
   const fetchBatches = useCallback(async () => {
