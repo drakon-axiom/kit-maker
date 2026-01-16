@@ -107,6 +107,17 @@ const UserManagement = () => {
 
   const createUserMutation = useMutation({
     mutationFn: async ({ email, password, fullName, role }: { email: string; password: string; fullName: string; role: AppRole }) => {
+      // Check if email already exists in customers table
+      const { data: existingCustomer } = await supabase
+        .from('customers')
+        .select('id')
+        .ilike('email', email)
+        .maybeSingle();
+
+      if (existingCustomer) {
+        throw new Error('A customer with this email address already exists.');
+      }
+
       // Create user account
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email,
