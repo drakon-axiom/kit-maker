@@ -86,7 +86,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signUp = async (email: string, password: string, fullName: string, brandSlug?: string) => {
     try {
       const redirectUrl = `${window.location.origin}/`;
-      
+
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -98,7 +98,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         },
       });
 
-      if (error) throw error;
+      if (error) {
+        // Check for duplicate email error
+        if (error.message?.toLowerCase().includes('already registered') ||
+            error.message?.toLowerCase().includes('already been registered') ||
+            error.message?.toLowerCase().includes('user already exists')) {
+          throw new Error('An account with this email already exists. Please sign in or use a different email.');
+        }
+        throw error;
+      }
 
       if (data.user) {
         // Get brand ID if slug provided
