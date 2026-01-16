@@ -170,31 +170,19 @@ serve(async (req) => {
       },
     });
 
-    if (authError || !authData.user) {
+    if (authError) {
       console.error('Error creating user:', authError);
 
-      // Check for duplicate email error
+      // Check for duplicate email error - user might already exist
       const errorMessage = authError?.message?.toLowerCase() || '';
+      const errorCode = (authError as any)?.code?.toLowerCase() || '';
+      
       if (errorMessage.includes('already registered') ||
           errorMessage.includes('already been registered') ||
           errorMessage.includes('user already exists') ||
-          errorMessage.includes('duplicate key')) {
-        return new Response(JSON.stringify({
-          error: 'An account with this email already exists. The applicant may already have an account.',
-          code: 'DUPLICATE_EMAIL'
-        }), {
-          status: 409,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
-
-      return new Response(JSON.stringify({ error: 'Failed to create user account', details: authError }), {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    if (authError) {
-      // Check if user already exists
-      if (authError.code === 'email_exists') {
+          errorMessage.includes('duplicate key') ||
+          errorCode === 'email_exists') {
+        
         console.log('User already exists, looking up existing user');
         
         // Find existing user by email
@@ -224,7 +212,6 @@ serve(async (req) => {
         isExistingUser = true;
         console.log('Found existing user:', userId);
       } else {
-        console.error('Error creating user:', authError);
         await logFailure('wholesale_approval_failed', { stage: 'create_user', email: application.email, error: authError });
         return new Response(JSON.stringify({ error: 'Failed to create user account', details: authError }), {
           status: 500,
