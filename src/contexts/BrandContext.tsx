@@ -77,6 +77,12 @@ export const BrandProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   const fetchBrands = useCallback(async () => {
+  const fetchBrands = async (isCustomer: boolean = false) => {
+    // For customers, we don't fetch all brands - they should only see their own
+    if (isCustomer) {
+      return [];
+    }
+    
     const { data, error } = await supabase
       .from('brands')
       .select('*')
@@ -113,25 +119,48 @@ export const BrandProvider = ({ children }: { children: React.ReactNode }) => {
 
   const refreshBrands = useCallback(async () => {
     const brands = await fetchBrands();
+  const refreshBrands = async () => {
+    // Check if user is a customer - customers shouldn't see all brands
+    const isCustomer = await checkIfCustomer();
+    const brands = await fetchBrands(isCustomer);
     setAllBrands(brands);
   }, [fetchBrands]);
+
+  const checkIfCustomer = async (): Promise<boolean> => {
+    if (!user) return false;
+    
+    const { data: roles } = await supabase
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', user.id);
+    
+    // If user has only customer role (or no admin/operator role), they are a customer
+    const hasAdminOrOperator = roles?.some(r => r.role === 'admin' || r.role === 'operator');
+    return !hasAdminOrOperator;
+  };
 
   useEffect(() => {
     const initializeBrand = async () => {
       setLoading(true);
-      const brands = await fetchBrands();
+      
+      // Check if user is a customer
+      const isCustomer = await checkIfCustomer();
+      
+      // For customers, don't expose all brands
+      const brands = await fetchBrands(isCustomer);
       setAllBrands(brands);
 
       let brandToUse: Brand | null = null;
 
-      // 1. Detect brand from custom domain (highest priority) - only b2b subdomain
+      // 1. Detect brand from custom domain (highest priority)
       const currentHostname = window.location.hostname;
       
-      // Only match b2b subdomain of configured domains
+      // Match configured domain directly (supports full domain like b2b.nexusaminos.com)
       const domainBrand = brands.find(b => {
         if (!b.domain) return false;
-        const expectedSubdomain = `b2b.${b.domain}`;
-        return currentHostname === expectedSubdomain;
+        // Remove protocol if present and compare
+        const cleanDomain = b.domain.replace(/^https?:\/\//, '').replace(/\/$/, '');
+        return currentHostname === cleanDomain;
       });
       
       if (domainBrand) {

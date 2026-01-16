@@ -158,6 +158,55 @@ const OrderDetail = () => {
 
   const fetchOrder = useCallback(async () => {
     if (!id) return;
+  useEffect(() => {
+    if (id) {
+      fetchOrder();
+      fetchBatches();
+      fetchBatchAllocations();
+    }
+  }, [id]);
+
+  // Subscribe to realtime status updates
+  useEffect(() => {
+    if (!id) return;
+
+    const channel = supabase
+      .channel(`order-status-${id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'sales_orders',
+          filter: `id=eq.${id}`,
+        },
+        (payload) => {
+          const newStatus = payload.new?.status;
+          const oldStatus = payload.old?.status;
+          
+          if (newStatus && oldStatus && newStatus !== oldStatus) {
+            // Update local state
+            setOrder((prev) => prev ? { ...prev, status: newStatus } : prev);
+            
+            // Show toast notification
+            toast({
+              title: '🔄 Status Updated',
+              description: `Order status changed from ${formatStatus(oldStatus)} to ${formatStatus(newStatus)}`,
+            });
+            
+            // Refetch to get any related data changes
+            fetchBatches();
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [id, toast]);
+
+  const fetchOrder = async () => {
     try {
       const { data, error } = await supabase
         .from('sales_orders')
@@ -360,6 +409,7 @@ const OrderDetail = () => {
   const handleStatusChange = async (newStatus: string, overrideNote?: string) => {
     if (!order || newStatus === order.status) return;
     
+    const oldStatus = order.status;
     setUpdatingStatus(true);
     try {
       const { error: updateError } = await supabase
@@ -375,12 +425,37 @@ const OrderDetail = () => {
         entity_id: id,
         action: overrideNote ? 'status_changed_override' : 'status_changed',
         actor_id: (await supabase.auth.getUser()).data.user?.id,
-        before: { status: order.status },
+        before: { status: oldStatus },
         after: { 
           status: newStatus,
           override_note: overrideNote || null
         },
       });
+
+      // Send email notification (fire and forget - errors logged but not blocking)
+      supabase.functions.invoke('send-order-notification', {
+        body: {
+          orderId: order.id,
+          newStatus: newStatus,
+          oldStatus: oldStatus,
+        },
+      }).then(({ error }) => {
+        if (error) console.error('Email notification failed:', error);
+      });
+
+      // Send SMS notification if customer has phone and SMS enabled
+      if (order.customer?.phone) {
+        supabase.functions.invoke('send-sms-notification', {
+          body: {
+            orderId: order.id,
+            newStatus: newStatus,
+            phoneNumber: order.customer.phone,
+            eventType: 'order_status',
+          },
+        }).then(({ error }) => {
+          if (error) console.error('SMS notification failed:', error);
+        });
+      }
 
       toast({
         title: 'Status Updated',
@@ -983,7 +1058,92 @@ const OrderDetail = () => {
               <span className="text-sm text-muted-foreground">Subtotal</span>
               <span className="font-medium">${order.subtotal.toFixed(2)}</span>
             </div>
-            {order.deposit_required && (
+            
+            {/* Deposit Configuration - editable for admin on awaiting_approval orders */}
+            {userRole === 'admin' && order.status === 'awaiting_approval' && (
+              <>
+                <Separator />
+                <div className="space-y-3 py-2 px-3 bg-muted/50 rounded-md">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="deposit-toggle" className="text-sm font-medium">Require Deposit</Label>
+                    <input
+                      id="deposit-toggle"
+                      type="checkbox"
+                      checked={order.deposit_required}
+                      className="h-4 w-4 rounded border-gray-300"
+                      onChange={async (e) => {
+                        const newValue = e.target.checked;
+                        try {
+                          const depositAmount = newValue ? order.subtotal * 0.5 : 0;
+                          const { error } = await supabase
+                            .from('sales_orders')
+                            .update({ 
+                              deposit_required: newValue,
+                              deposit_amount: depositAmount
+                            })
+                            .eq('id', id);
+                          if (error) throw error;
+                          fetchOrder();
+                          toast({
+                            title: 'Deposit Updated',
+                            description: newValue ? 'Deposit requirement enabled' : 'Deposit requirement disabled',
+                          });
+                        } catch (error) {
+                          toast({
+                            title: 'Error',
+                            description: error instanceof Error ? error.message : 'Failed to update deposit',
+                            variant: 'destructive',
+                          });
+                        }
+                      }}
+                    />
+                  </div>
+                  {order.deposit_required && (
+                    <div className="space-y-2">
+                      <Label htmlFor="deposit-percent" className="text-sm text-muted-foreground">Deposit Percentage</Label>
+                      <div className="flex items-center gap-2">
+                        <Input
+                          id="deposit-percent"
+                          type="number"
+                          min="1"
+                          max="100"
+                          defaultValue={order.deposit_amount > 0 ? Math.round((order.deposit_amount / order.subtotal) * 100) : 50}
+                          className="h-8 w-20"
+                          onBlur={async (e) => {
+                            const percent = parseInt(e.target.value) || 50;
+                            const clampedPercent = Math.min(100, Math.max(1, percent));
+                            const newDepositAmount = (order.subtotal * clampedPercent) / 100;
+                            try {
+                              const { error } = await supabase
+                                .from('sales_orders')
+                                .update({ deposit_amount: newDepositAmount })
+                                .eq('id', id);
+                              if (error) throw error;
+                              fetchOrder();
+                              toast({
+                                title: 'Deposit Amount Updated',
+                                description: `Deposit set to ${clampedPercent}% ($${newDepositAmount.toFixed(2)})`,
+                              });
+                            } catch (error) {
+                              toast({
+                                title: 'Error',
+                                description: error instanceof Error ? error.message : 'Failed to update deposit',
+                                variant: 'destructive',
+                              });
+                            }
+                          }}
+                        />
+                        <span className="text-sm text-muted-foreground">%</span>
+                        <span className="text-sm font-medium ml-auto">${order.deposit_amount.toFixed(2)}</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+            
+            {/* Display deposit info for non-awaiting_approval orders */}
+            {order.deposit_required && order.status !== 'awaiting_approval' && (
               <>
                 <Separator />
                 <div className="flex justify-between items-center">
@@ -997,6 +1157,20 @@ const OrderDetail = () => {
                 </div>
               </>
             )}
+            
+            {/* Also show deposit in awaiting_approval if set */}
+            {order.deposit_required && order.status === 'awaiting_approval' && userRole !== 'admin' && (
+              <>
+                <Separator />
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-muted-foreground">Deposit</span>
+                  <div className="text-right">
+                    <div className="font-medium">${order.deposit_amount.toFixed(2)}</div>
+                  </div>
+                </div>
+              </>
+            )}
+            
             <Separator />
             <div className="flex justify-between text-lg font-bold pt-2">
               <span>Order Total</span>

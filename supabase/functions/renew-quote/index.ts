@@ -12,6 +12,52 @@ interface RenewQuoteRequest {
   additionalDays?: number; // Optional: extend by specific days, defaults to original quote_expiration_days
 }
 
+interface SmtpConfig {
+  host: string;
+  port: number;
+  user: string;
+  password: string;
+}
+
+// Helper function to get SMTP config: brand-specific first, then global fallback
+async function getSmtpConfig(supabase: any, brandId?: string | null): Promise<SmtpConfig | null> {
+  // Try brand-specific SMTP first
+  if (brandId) {
+    const { data: brand } = await supabase
+      .from('brands')
+      .select('smtp_host, smtp_port, smtp_user, smtp_password')
+      .eq('id', brandId)
+      .single();
+
+    if (brand?.smtp_host && brand?.smtp_user && brand?.smtp_password) {
+      console.log('Using brand-specific SMTP configuration');
+      return {
+        host: brand.smtp_host,
+        port: brand.smtp_port || 465,
+        user: brand.smtp_user,
+        password: brand.smtp_password,
+      };
+    }
+  }
+
+  // Fallback to global SMTP from environment variables
+  const smtpHost = Deno.env.get('SMTP_HOST');
+  const smtpUser = Deno.env.get('SMTP_USER');
+  const smtpPassword = Deno.env.get('SMTP_PASSWORD');
+
+  if (smtpHost && smtpUser && smtpPassword) {
+    console.log('Using global SMTP configuration');
+    return {
+      host: smtpHost,
+      port: parseInt(Deno.env.get('SMTP_PORT') || '465'),
+      user: smtpUser,
+      password: smtpPassword,
+    };
+  }
+
+  return null;
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -50,7 +96,7 @@ serve(async (req) => {
     // Use service role key for database operations after auth check
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Fetch the order details and verify authorization
+    // Fetch the order details and verify authorization (include brand_id)
     const { data: order, error: orderError } = await supabase
       .from('sales_orders')
       .select(`
@@ -132,8 +178,7 @@ serve(async (req) => {
     const { data: emailSettings } = await supabase
       .from('settings')
       .select('key, value')
-      .in('key', ['smtp_host', 'smtp_port', 'smtp_user', 'smtp_password', 
-                  'company_name', 'company_email', 'email_header_bg_color', 
+      .in('key', ['company_name', 'company_email', 'email_header_bg_color', 
                   'email_header_text_color', 'email_footer_text', 'company_logo_url']);
 
     const settings: Record<string, string> = {};
@@ -164,71 +209,81 @@ serve(async (req) => {
     // Try to send email notification (non-blocking - quote renewal succeeds even if email fails)
     let emailSent = false;
     try {
-      // Build email HTML
-      const emailHtml = template?.custom_html
-        ? template.custom_html
-            .replace(/\{\{company_name\}\}/g, settings.company_name || 'Company')
-            .replace(/\{\{company_email\}\}/g, settings.company_email || '')
-            .replace(/\{\{customer_name\}\}/g, order.customer.name)
-            .replace(/\{\{quote_number\}\}/g, order.human_uid)
-            .replace(/\{\{date\}\}/g, new Date().toLocaleDateString())
-            .replace(/\{\{expires_at\}\}/g, newExpirationDate.toLocaleDateString())
-            .replace(/\{\{customer_email\}\}/g, order.customer.email)
-            .replace(/\{\{line_items\}\}/g, lineItemsHtml)
-            .replace(/\{\{subtotal\}\}/g, `$${order.subtotal.toFixed(2)}`)
-            .replace(/\{\{logo_url\}\}/g, settings.company_logo_url || '')
-            .replace(/\{\{approval_link\}\}/g, approvalLink)
-            .replace(/\{\{expiration_warning\}\}/g, `<div style="background: #d1fae5; border: 1px solid #10b981; border-radius: 6px; padding: 12px; margin: 16px 0; text-align: center;">
-              <p style="margin: 0; color: #065f46; font-size: 14px;">✓ <strong>Quote Extended! New expiration date: ${newExpirationDate.toLocaleDateString()}</strong></p>
-            </div>`)
-        : `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <div style="background: ${settings.email_header_bg_color || '#000'}; color: ${settings.email_header_text_color || '#fff'}; padding: 20px; text-align: center;">
-              <h1>Quote Renewed</h1>
-            </div>
-            <div style="padding: 20px;">
-              <p>Dear ${order.customer.name},</p>
-              <p>Good news! Your quote <strong>${order.human_uid}</strong> has been extended.</p>
-              <div style="background: #d1fae5; border: 1px solid #10b981; border-radius: 6px; padding: 12px; margin: 16px 0; text-align: center;">
-                <p style="margin: 0; color: #065f46; font-size: 14px;">✓ <strong>New expiration date: ${newExpirationDate.toLocaleDateString()}</strong></p>
-              </div>
-              <div style="text-align: center; margin: 32px 0;">
-                <a href="${approvalLink}" style="display: inline-block; background: #28a745; color: white; padding: 16px 32px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 16px;">
-                  View & Accept Quote
-                </a>
-              </div>
-              <p>If you have any questions, please contact us at ${settings.company_email || 'support@company.com'}</p>
-            </div>
-            <div style="background: #f3f4f6; padding: 20px; text-align: center; font-size: 12px; color: #666;">
-              ${settings.email_footer_text || ''}
-            </div>
-          </div>
-        `;
+      // Get SMTP config (brand-specific or global fallback)
+      const smtpConfig = await getSmtpConfig(supabase, order.brand_id);
 
-      // Send email
-      const client = new SMTPClient({
-        connection: {
-          hostname: settings.smtp_host,
-          port: parseInt(settings.smtp_port),
-          tls: true,
-          auth: {
-            username: settings.smtp_user,
-            password: settings.smtp_password,
+      if (!smtpConfig) {
+        console.log('SMTP not configured, skipping email notification');
+      } else {
+        // Build email HTML
+        const emailHtml = template?.custom_html
+          ? template.custom_html
+              .replace(/\{\{company_name\}\}/g, settings.company_name || 'Company')
+              .replace(/\{\{company_email\}\}/g, settings.company_email || '')
+              .replace(/\{\{customer_name\}\}/g, order.customer.name)
+              .replace(/\{\{quote_number\}\}/g, order.human_uid)
+              .replace(/\{\{date\}\}/g, new Date().toLocaleDateString())
+              .replace(/\{\{expires_at\}\}/g, newExpirationDate.toLocaleDateString())
+              .replace(/\{\{customer_email\}\}/g, order.customer.email)
+              .replace(/\{\{line_items\}\}/g, lineItemsHtml)
+              .replace(/\{\{subtotal\}\}/g, `$${order.subtotal.toFixed(2)}`)
+              .replace(/\{\{logo_url\}\}/g, settings.company_logo_url || '')
+              .replace(/\{\{approval_link\}\}/g, approvalLink)
+              .replace(/\{\{expiration_warning\}\}/g, `<div style="background: #d1fae5; border: 1px solid #10b981; border-radius: 6px; padding: 12px; margin: 16px 0; text-align: center;">
+                <p style="margin: 0; color: #065f46; font-size: 14px;">✓ <strong>Quote Extended! New expiration date: ${newExpirationDate.toLocaleDateString()}</strong></p>
+              </div>`)
+          : `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+              <div style="background: ${settings.email_header_bg_color || '#000'}; color: ${settings.email_header_text_color || '#fff'}; padding: 20px; text-align: center;">
+                <h1>Quote Renewed</h1>
+              </div>
+              <div style="padding: 20px;">
+                <p>Dear ${order.customer.name},</p>
+                <p>Good news! Your quote <strong>${order.human_uid}</strong> has been extended.</p>
+                <div style="background: #d1fae5; border: 1px solid #10b981; border-radius: 6px; padding: 12px; margin: 16px 0; text-align: center;">
+                  <p style="margin: 0; color: #065f46; font-size: 14px;">✓ <strong>New expiration date: ${newExpirationDate.toLocaleDateString()}</strong></p>
+                </div>
+                <div style="text-align: center; margin: 32px 0;">
+                  <a href="${approvalLink}" style="display: inline-block; background: #28a745; color: white; padding: 16px 32px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 16px;">
+                    View & Accept Quote
+                  </a>
+                </div>
+                <p>If you have any questions, please contact us at ${settings.company_email || 'support@company.com'}</p>
+              </div>
+              <div style="background: #f3f4f6; padding: 20px; text-align: center; font-size: 12px; color: #666;">
+                ${settings.email_footer_text || ''}
+              </div>
+            </div>
+          `;
+
+        const effectivePort = smtpConfig.host.includes("protonmail") ? 465 : smtpConfig.port;
+        const useTls = effectivePort === 465;
+
+        // Send email
+        const client = new SMTPClient({
+          connection: {
+            hostname: smtpConfig.host,
+            port: effectivePort,
+            tls: useTls,
+            auth: {
+              username: smtpConfig.user,
+              password: smtpConfig.password,
+            },
           },
-        },
-      });
+        });
 
-      await client.send({
-        from: settings.company_email || settings.smtp_user,
-        to: order.customer.email,
-        subject: template?.subject?.replace(/\{\{quote_number\}\}/g, order.human_uid) || `Quote ${order.human_uid} Extended`,
-        content: emailHtml,
-        html: emailHtml,
-      });
+        await client.send({
+          from: settings.company_email || smtpConfig.user,
+          to: order.customer.email,
+          subject: template?.subject?.replace(/\{\{quote_number\}\}/g, order.human_uid) || `Quote ${order.human_uid} Extended`,
+          content: emailHtml,
+          mimeContent: [{ mimeType: 'text/html', content: emailHtml, transferEncoding: '8bit' }],
+        });
 
-      await client.close();
-      emailSent = true;
-      console.log(`Quote renewal email sent to ${order.customer.email}`);
+        await client.close();
+        emailSent = true;
+        console.log(`Quote renewal email sent to ${order.customer.email}`);
+      }
     } catch (emailError: any) {
       console.error('Failed to send email notification:', emailError.message);
       console.log('Quote renewal successful, but email notification could not be sent');

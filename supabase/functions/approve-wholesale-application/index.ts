@@ -1,14 +1,62 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
+import { SMTPClient } from "https://deno.land/x/denomailer@1.6.0/mod.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-webhook-secret',
 };
 
 interface ApprovalRequest {
   applicationId: string;
   reviewNotes?: string;
+  siteUrl?: string;
+}
+
+interface SmtpConfig {
+  host: string;
+  port: number;
+  user: string;
+  password: string;
+}
+
+// Helper function to get SMTP config: brand-specific first, then global fallback
+async function getSmtpConfig(supabase: any, brandId?: string | null): Promise<SmtpConfig | null> {
+  // Try brand-specific SMTP first
+  if (brandId) {
+    const { data: brand } = await supabase
+      .from('brands')
+      .select('smtp_host, smtp_port, smtp_user, smtp_password')
+      .eq('id', brandId)
+      .single();
+
+    if (brand?.smtp_host && brand?.smtp_user && brand?.smtp_password) {
+      console.log('Using brand-specific SMTP configuration');
+      return {
+        host: brand.smtp_host,
+        port: brand.smtp_port || 465,
+        user: brand.smtp_user,
+        password: brand.smtp_password,
+      };
+    }
+  }
+
+  // Fallback to global SMTP from environment variables
+  const smtpHost = Deno.env.get('SMTP_HOST');
+  const smtpUser = Deno.env.get('SMTP_USER');
+  const smtpPassword = Deno.env.get('SMTP_PASSWORD');
+
+  if (smtpHost && smtpUser && smtpPassword) {
+    console.log('Using global SMTP configuration');
+    return {
+      host: smtpHost,
+      port: parseInt(Deno.env.get('SMTP_PORT') || '465'),
+      user: smtpUser,
+      password: smtpPassword,
+    };
+  }
+
+  return null;
 }
 
 serve(async (req) => {
@@ -22,20 +70,67 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Verify webhook secret
-    const webhookSecret = Deno.env.get('INTERNAL_WEBHOOK_SECRET');
-    const providedSecret = req.headers.get('x-webhook-secret');
-    
-    if (webhookSecret && providedSecret !== webhookSecret) {
-      console.error('Invalid webhook secret');
+    // Require authenticated admin/operator (no shared secret header)
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
+    const authHeader = req.headers.get('Authorization') ?? '';
+
+    if (!authHeader.startsWith('Bearer ')) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    const { applicationId, reviewNotes }: ApprovalRequest = await req.json();
-    console.log('Processing application approval:', applicationId);
+    const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } },
+      auth: { persistSession: false },
+    });
+
+    // IMPORTANT: pass the JWT explicitly to avoid "AuthSessionMissingError" in edge runtime
+    const token = authHeader.replace('Bearer ', '');
+    const { data: userData, error: userError } = await supabaseAuth.auth.getUser(token);
+    const caller = userData?.user;
+
+    if (userError || !caller) {
+      console.error('Unauthorized caller:', userError);
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    const { data: roles, error: rolesError } = await supabase
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', caller.id)
+      .in('role', ['admin', 'operator']);
+
+    if (rolesError || !roles || roles.length === 0) {
+      console.error('Forbidden: caller lacks admin/operator role', rolesError);
+      return new Response(JSON.stringify({ error: 'Forbidden' }), {
+        status: 403,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    const { applicationId, reviewNotes, siteUrl }: ApprovalRequest = await req.json();
+    console.log('Processing application approval:', applicationId, 'siteUrl:', siteUrl);
+
+    // Helper to log failures to audit_log
+    const logFailure = async (action: string, errorDetails: unknown) => {
+      try {
+        await supabase.from('audit_log').insert({
+          action,
+          entity: 'wholesale_application',
+          entity_id: applicationId,
+          actor_id: caller.id,
+          before: null,
+          after: { error: errorDetails },
+        });
+      } catch (logErr) {
+        console.error('Failed to write audit log:', logErr);
+      }
+    };
 
     // Get application details
     const { data: application, error: appError } = await supabase
@@ -46,6 +141,7 @@ serve(async (req) => {
 
     if (appError || !application) {
       console.error('Application not found:', appError);
+      await logFailure('wholesale_approval_failed', { stage: 'fetch_application', error: appError });
       return new Response(JSON.stringify({ error: 'Application not found' }), {
         status: 404,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -60,7 +156,10 @@ serve(async (req) => {
 
     console.log('Creating user account for:', application.email);
 
-    // Create user account
+    let userId: string;
+    let isExistingUser = false;
+
+    // Try to create user account
     const { data: authData, error: authError } = await supabase.auth.admin.createUser({
       email: application.email,
       password: tempPassword,
@@ -93,65 +192,178 @@ serve(async (req) => {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
+    if (authError) {
+      // Check if user already exists
+      if (authError.code === 'email_exists') {
+        console.log('User already exists, looking up existing user');
+        
+        // Find existing user by email
+        const { data: existingUsers, error: listError } = await supabase.auth.admin.listUsers();
+        
+        if (listError) {
+          console.error('Error listing users:', listError);
+          await logFailure('wholesale_approval_failed', { stage: 'list_users', email: application.email, error: listError });
+          return new Response(JSON.stringify({ error: 'Failed to lookup existing user' }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+        
+        const existingUser = existingUsers.users.find(u => u.email === application.email);
+        
+        if (!existingUser) {
+          console.error('User exists but could not be found');
+          await logFailure('wholesale_approval_failed', { stage: 'find_user', email: application.email });
+          return new Response(JSON.stringify({ error: 'User exists but could not be found' }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+        
+        userId = existingUser.id;
+        isExistingUser = true;
+        console.log('Found existing user:', userId);
+      } else {
+        console.error('Error creating user:', authError);
+        await logFailure('wholesale_approval_failed', { stage: 'create_user', email: application.email, error: authError });
+        return new Response(JSON.stringify({ error: 'Failed to create user account', details: authError }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+    } else {
+      userId = authData.user!.id;
     }
 
-    console.log('User created:', authData.user.id);
+    console.log(isExistingUser ? 'Using existing user:' : 'User created:', userId);
 
-    // Create customer record
-    const { error: customerError } = await supabase
+    // Check if customer record already exists for this user OR this email
+    const { data: existingCustomerByUser } = await supabase
       .from('customers')
-      .insert({
-        user_id: authData.user.id,
-        name: application.company_name,
-        email: application.email,
-        phone: application.phone,
-        default_terms: 'Net 30',
-        shipping_address_line1: application.shipping_address_line1,
-        shipping_address_line2: application.shipping_address_line2,
-        shipping_city: application.shipping_city,
-        shipping_state: application.shipping_state,
-        shipping_zip: application.shipping_zip,
-        shipping_country: application.shipping_country,
-        billing_address_line1: application.billing_address_line1,
-        billing_address_line2: application.billing_address_line2,
-        billing_city: application.billing_city,
-        billing_state: application.billing_state,
-        billing_zip: application.billing_zip,
-        billing_country: application.billing_country,
-        billing_same_as_shipping: application.billing_same_as_shipping,
-      });
+      .select('id')
+      .eq('user_id', userId)
+      .maybeSingle();
 
-    if (customerError) {
-      console.error('Error creating customer:', customerError);
-      // Clean up user if customer creation fails
-      await supabase.auth.admin.deleteUser(authData.user.id);
-      return new Response(JSON.stringify({ error: 'Failed to create customer record' }), {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+    const { data: existingCustomerByEmail } = await supabase
+      .from('customers')
+      .select('id, user_id, phone')
+      .ilike('email', application.email)
+      .maybeSingle();
+
+    if (existingCustomerByUser) {
+      console.log('Customer record already exists for user:', userId);
+    } else if (existingCustomerByEmail) {
+      // Customer exists with this email but different/no user_id - link them
+      console.log('Customer record exists with this email, linking to user:', userId);
+      const { error: linkError } = await supabase
+        .from('customers')
+        .update({ 
+          user_id: userId,
+          name: application.company_name,
+          phone: application.phone || existingCustomerByEmail.phone,
+          shipping_address_line1: application.shipping_address_line1,
+          shipping_address_line2: application.shipping_address_line2,
+          shipping_city: application.shipping_city,
+          shipping_state: application.shipping_state,
+          shipping_zip: application.shipping_zip,
+          shipping_country: application.shipping_country,
+          billing_address_line1: application.billing_address_line1,
+          billing_address_line2: application.billing_address_line2,
+          billing_city: application.billing_city,
+          billing_state: application.billing_state,
+          billing_zip: application.billing_zip,
+          billing_country: application.billing_country,
+          billing_same_as_shipping: application.billing_same_as_shipping,
+        })
+        .eq('id', existingCustomerByEmail.id);
+
+      if (linkError) {
+        console.error('Error linking customer:', linkError);
+        await logFailure('wholesale_approval_failed', { stage: 'link_customer', userId, error: linkError });
+      }
+    } else {
+      // Get default brand for new customers
+      const { data: defaultBrand } = await supabase
+        .from('brands')
+        .select('id')
+        .eq('is_default', true)
+        .single();
+
+      // Create customer record with brand assignment
+      const { error: customerError } = await supabase
+        .from('customers')
+        .insert({
+          user_id: userId,
+          name: application.company_name,
+          email: application.email,
+          phone: application.phone,
+          default_terms: 'Net 30',
+          brand_id: defaultBrand?.id || null,
+          shipping_address_line1: application.shipping_address_line1,
+          shipping_address_line2: application.shipping_address_line2,
+          shipping_city: application.shipping_city,
+          shipping_state: application.shipping_state,
+          shipping_zip: application.shipping_zip,
+          shipping_country: application.shipping_country,
+          billing_address_line1: application.billing_address_line1,
+          billing_address_line2: application.billing_address_line2,
+          billing_city: application.billing_city,
+          billing_state: application.billing_state,
+          billing_zip: application.billing_zip,
+          billing_country: application.billing_country,
+          billing_same_as_shipping: application.billing_same_as_shipping,
+        });
+
+      if (customerError) {
+        console.error('Error creating customer:', customerError);
+        await logFailure('wholesale_approval_failed', { stage: 'create_customer', userId, error: customerError });
+        // Only clean up user if we created it
+        if (!isExistingUser) {
+          await supabase.auth.admin.deleteUser(userId);
+        }
+        return new Response(JSON.stringify({ error: 'Failed to create customer record' }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
     }
 
-    console.log('Customer created successfully');
+    console.log('Customer created/verified successfully');
 
-    // Assign customer role
-    const { error: roleError } = await supabase
+    // Check if role already exists
+    const { data: existingRole } = await supabase
       .from('user_roles')
-      .insert({
-        user_id: authData.user.id,
-        role: 'customer',
-      });
+      .select('id')
+      .eq('user_id', userId)
+      .eq('role', 'customer')
+      .maybeSingle();
 
-    if (roleError) {
-      console.error('Error assigning role:', roleError);
+    if (existingRole) {
+      console.log('Customer role already assigned');
+    } else {
+      // Assign customer role
+      const { error: roleError } = await supabase
+        .from('user_roles')
+        .insert({
+          user_id: userId,
+          role: 'customer',
+        });
+
+      if (roleError) {
+        console.error('Error assigning role:', roleError);
+      }
     }
 
-    // Send welcome email with credentials
-    const smtpHost = Deno.env.get('SMTP_HOST');
-    const smtpPort = parseInt(Deno.env.get('SMTP_PORT') || '587');
-    const smtpUser = Deno.env.get('SMTP_USER');
-    const smtpPassword = Deno.env.get('SMTP_PASSWORD');
+    // Get default brand for SMTP config (wholesale applications don't have a brand_id yet)
+    const { data: defaultBrand } = await supabase
+      .from('brands')
+      .select('id')
+      .eq('is_default', true)
+      .single();
 
-    if (smtpHost && smtpUser && smtpPassword) {
+    const smtpConfig = await getSmtpConfig(supabase, defaultBrand?.id);
+
+    if (smtpConfig) {
       try {
         console.log('Sending welcome email to:', application.email);
         
@@ -182,7 +394,7 @@ serve(async (req) => {
       <p>Your account has been created and you can now access our wholesale portal using the credentials below:</p>
       
       <div class="credentials">
-        <p><strong>Login URL:</strong> ${supabaseUrl.replace('https://dfaafbwhdnoaknuxonig.supabase.co', window.location.origin)}/auth</p>
+        <p><strong>Login URL:</strong> ${siteUrl || 'https://b2b.nexusaminos.com'}/auth</p>
         <p><strong>Email:</strong> ${application.email}</p>
         <p><strong>Temporary Password:</strong> <code>${tempPassword}</code></p>
       </div>
@@ -211,30 +423,38 @@ serve(async (req) => {
 </body>
 </html>`;
 
-        // Simple SMTP implementation using fetch
-        const response = await fetch(`https://${smtpHost}:${smtpPort}`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
+        // Use proper SMTP client for Proton SMTP
+        const effectivePort = smtpConfig.host.includes("protonmail") ? 465 : smtpConfig.port;
+        const useTls = effectivePort === 465;
+
+        const client = new SMTPClient({
+          connection: {
+            hostname: smtpConfig.host,
+            port: effectivePort,
+            tls: useTls,
+            auth: {
+              username: smtpConfig.user,
+              password: smtpConfig.password,
+            },
           },
-          body: JSON.stringify({
-            from: smtpUser,
-            to: application.email,
-            subject: 'Wholesale Account Approved - Login Credentials',
-            html: emailBody,
-          }),
-        }).catch(err => {
-          console.error('SMTP error:', err);
-          return null;
         });
 
-        if (response) {
-          console.log('Welcome email sent successfully');
-        }
+        await client.send({
+          from: `Wholesale Portal <${smtpConfig.user}>`,
+          to: application.email,
+          subject: 'Wholesale Account Approved - Login Credentials',
+          content: emailBody,
+          mimeContent: [{ mimeType: 'text/html', content: emailBody, transferEncoding: '8bit' }],
+        });
+
+        await client.close();
+        console.log('Welcome email sent successfully via SMTP');
       } catch (emailError) {
         console.error('Error sending email:', emailError);
         // Don't fail the whole operation if email fails
       }
+    } else {
+      console.log('SMTP not configured, skipping welcome email');
     }
 
     console.log('Application approval complete');
@@ -242,8 +462,9 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         success: true, 
-        userId: authData.user.id,
-        tempPassword, // Return this for admin reference
+        userId,
+        tempPassword: isExistingUser ? '(existing user - password unchanged)' : tempPassword,
+        isExistingUser,
       }),
       {
         status: 200,
@@ -254,6 +475,26 @@ serve(async (req) => {
   } catch (error) {
     console.error('Error in approve-wholesale-application:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+
+    // Attempt to log unhandled errors (may not have supabase or applicationId in scope)
+    try {
+      const supabaseUrl = Deno.env.get('SUPABASE_URL');
+      const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+      if (supabaseUrl && supabaseServiceKey) {
+        const supabaseFallback = createClient(supabaseUrl, supabaseServiceKey);
+        await supabaseFallback.from('audit_log').insert({
+          action: 'wholesale_approval_failed',
+          entity: 'wholesale_application',
+          entity_id: null,
+          actor_id: null,
+          before: null,
+          after: { stage: 'unhandled_exception', error: errorMessage },
+        });
+      }
+    } catch (_) {
+      // ignore logging failure
+    }
+
     return new Response(
       JSON.stringify({ error: errorMessage }),
       {

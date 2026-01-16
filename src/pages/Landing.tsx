@@ -147,44 +147,44 @@ const Landing = () => {
 
       <div className="min-h-screen bg-gradient-to-b from-background to-muted">
         {/* Header */}
-        <header className="border-b bg-card/50 backdrop-blur">
-          <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-            <div className="flex items-center gap-2">
+        <header className="border-b bg-card/50 backdrop-blur sticky top-0 z-50">
+          <div className="container mx-auto px-4 py-3 md:py-4 flex justify-between items-center">
+            <div className="flex items-center gap-2 min-w-0">
               {currentBrand?.logo_url ? (
-                <img src={currentBrand.logo_url} alt={currentBrand.name} className="h-8" />
+                <img src={currentBrand.logo_url} alt={currentBrand.name} className="h-6 md:h-8" />
               ) : (
-                <h1 className="text-xl font-bold">{currentBrand?.name}</h1>
+                <h1 className="text-lg md:text-xl font-bold truncate">{currentBrand?.name}</h1>
               )}
             </div>
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={() => navigate('/admin-login')} className="text-xs">
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              <Button variant="outline" size="sm" onClick={() => navigate('/admin-login')} className="text-xs hidden sm:inline-flex">
                 Admin
               </Button>
-              <Button variant="ghost" onClick={() => navigate('/auth')}>
-                Customer Sign In
+              <Button variant="ghost" size="sm" onClick={() => navigate('/auth')} className="text-xs sm:text-sm px-2 sm:px-3">
+                <span className="hidden sm:inline">Customer </span>Sign In
               </Button>
-              <Button onClick={() => navigate('/wholesale-signup')}>
-                Apply Now
+              <Button size="sm" onClick={() => navigate('/wholesale-signup')} className="text-xs sm:text-sm px-2 sm:px-4">
+                Apply<span className="hidden sm:inline"> Now</span>
               </Button>
             </div>
           </div>
         </header>
 
         {/* Hero Section */}
-        <section className="container mx-auto px-4 py-20 text-center">
-          <div className="max-w-4xl mx-auto space-y-6">
-            <h1 className="text-5xl md:text-6xl font-bold tracking-tight">
+        <section className="container mx-auto px-4 py-12 sm:py-16 md:py-20 text-center">
+          <div className="max-w-4xl mx-auto space-y-4 sm:space-y-6">
+            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight leading-tight">
               {content.hero.headline}
             </h1>
-            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+            <p className="text-base sm:text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto px-2">
               {content.hero.subheadline}
             </p>
-            <div className="flex gap-4 justify-center pt-4">
-              <Button size="lg" onClick={() => navigate('/auth')} className="gap-2">
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center pt-4 px-4 sm:px-0">
+              <Button size="lg" onClick={() => navigate('/auth')} className="gap-2 w-full sm:w-auto">
                 {content.hero.cta}
                 <ArrowRight className="h-4 w-4" />
               </Button>
-              <Button size="lg" variant="outline" onClick={() => navigate('/wholesale-signup')}>
+              <Button size="lg" variant="outline" onClick={() => navigate('/wholesale-signup')} className="w-full sm:w-auto">
                 Apply for Wholesale
               </Button>
             </div>
@@ -192,16 +192,16 @@ const Landing = () => {
         </section>
 
         {/* Features Section */}
-        <section className="container mx-auto px-4 py-20">
-          <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+        <section className="container mx-auto px-4 py-12 sm:py-16 md:py-20">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6 md:gap-8 max-w-5xl mx-auto">
             {content.features.map((feature, index) => (
               <Card key={index} className="border-2">
-                <CardHeader>
-                  <feature.icon className="h-12 w-12 mb-4 text-primary" />
-                  <CardTitle>{feature.title}</CardTitle>
+                <CardHeader className="pb-2 sm:pb-4">
+                  <feature.icon className="h-8 w-8 sm:h-10 md:h-12 sm:w-10 md:w-12 mb-2 sm:mb-4 text-primary" />
+                  <CardTitle className="text-lg sm:text-xl">{feature.title}</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <CardDescription className="text-base">
+                  <CardDescription className="text-sm sm:text-base">
                     {feature.description}
                   </CardDescription>
                 </CardContent>
@@ -211,14 +211,14 @@ const Landing = () => {
         </section>
 
         {/* Benefits Section */}
-        <section className="container mx-auto px-4 py-20 bg-card/50 rounded-lg">
+        <section className="container mx-auto px-4 py-12 sm:py-16 md:py-20 bg-card/50 rounded-lg mx-2 sm:mx-4">
           <div className="max-w-4xl mx-auto">
-            <h2 className="text-3xl font-bold text-center mb-12">Why Choose Us?</h2>
-            <div className="grid md:grid-cols-2 gap-4">
+            <h2 className="text-2xl sm:text-3xl font-bold text-center mb-6 sm:mb-8 md:mb-12">Why Choose Us?</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
               {content.benefits.map((benefit, index) => (
-                <div key={index} className="flex items-start gap-3">
-                  <CheckCircle className="h-6 w-6 text-primary flex-shrink-0 mt-1" />
-                  <p className="text-lg">{benefit}</p>
+                <div key={index} className="flex items-start gap-2 sm:gap-3">
+                  <CheckCircle className="h-5 w-5 sm:h-6 sm:w-6 text-primary flex-shrink-0 mt-0.5" />
+                  <p className="text-sm sm:text-base md:text-lg">{benefit}</p>
                 </div>
               ))}
             </div>
@@ -226,14 +226,14 @@ const Landing = () => {
         </section>
 
         {/* CTA Section */}
-        <section className="container mx-auto px-4 py-20 text-center">
-          <div className="max-w-2xl mx-auto space-y-6">
-            <h2 className="text-4xl font-bold">Ready to Get Started?</h2>
-            <p className="text-xl text-muted-foreground">
+        <section className="container mx-auto px-4 py-12 sm:py-16 md:py-20 text-center">
+          <div className="max-w-2xl mx-auto space-y-4 sm:space-y-6">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold">Ready to Get Started?</h2>
+            <p className="text-base sm:text-lg md:text-xl text-muted-foreground px-2">
               Join hundreds of satisfied customers who trust us for their needs
             </p>
-            <div className="flex gap-4 justify-center pt-4">
-              <Button size="lg" onClick={() => navigate('/auth')} className="gap-2">
+            <div className="flex justify-center pt-4 px-4 sm:px-0">
+              <Button size="lg" onClick={() => navigate('/auth')} className="gap-2 w-full sm:w-auto">
                 Create Account
                 <ArrowRight className="h-4 w-4" />
               </Button>
@@ -242,8 +242,8 @@ const Landing = () => {
         </section>
 
         {/* Footer */}
-        <footer className="border-t bg-card/50 backdrop-blur mt-20">
-          <div className="container mx-auto px-4 py-8 text-center text-muted-foreground">
+        <footer className="border-t bg-card/50 backdrop-blur mt-12 sm:mt-16 md:mt-20">
+          <div className="container mx-auto px-4 py-6 sm:py-8 text-center text-muted-foreground text-sm sm:text-base">
             <p>&copy; {new Date().getFullYear()} {currentBrand?.name}. All rights reserved.</p>
           </div>
         </footer>

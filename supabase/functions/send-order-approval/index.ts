@@ -16,6 +16,52 @@ const RequestSchema = z.object({
   testEmail: z.string().email().optional(),
 });
 
+interface SmtpConfig {
+  host: string;
+  port: number;
+  user: string;
+  password: string;
+}
+
+// Helper function to get SMTP config: brand-specific first, then global fallback
+async function getSmtpConfig(supabase: any, brandId?: string | null): Promise<SmtpConfig | null> {
+  // Try brand-specific SMTP first
+  if (brandId) {
+    const { data: brand } = await supabase
+      .from('brands')
+      .select('smtp_host, smtp_port, smtp_user, smtp_password')
+      .eq('id', brandId)
+      .single();
+
+    if (brand?.smtp_host && brand?.smtp_user && brand?.smtp_password) {
+      console.log('Using brand-specific SMTP configuration');
+      return {
+        host: brand.smtp_host,
+        port: brand.smtp_port || 465,
+        user: brand.smtp_user,
+        password: brand.smtp_password,
+      };
+    }
+  }
+
+  // Fallback to global SMTP from environment variables
+  const smtpHost = Deno.env.get('SMTP_HOST');
+  const smtpUser = Deno.env.get('SMTP_USER');
+  const smtpPassword = Deno.env.get('SMTP_PASSWORD');
+
+  if (smtpHost && smtpUser && smtpPassword) {
+    console.log('Using global SMTP configuration');
+    return {
+      host: smtpHost,
+      port: parseInt(Deno.env.get('SMTP_PORT') || '465'),
+      user: smtpUser,
+      password: smtpPassword,
+    };
+  }
+
+  return null;
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -29,7 +75,7 @@ serve(async (req) => {
     const body = await req.json();
     const { orderId, approved, rejectionReason, testMode, testEmail } = RequestSchema.parse(body);
 
-    // Fetch order details
+    // Fetch order details with brand_id
     const { data: order, error: orderError } = await supabase
       .from('sales_orders')
       .select(`
@@ -38,6 +84,7 @@ serve(async (req) => {
         subtotal,
         deposit_required,
         deposit_amount,
+        brand_id,
         customers!inner(name, email)
       `)
       .eq('id', orderId)
@@ -90,29 +137,35 @@ serve(async (req) => {
       htmlContent = htmlContent.replace(new RegExp(key, 'g'), value);
     });
 
+    // Get SMTP config (brand-specific or global fallback)
+    const smtpConfig = await getSmtpConfig(supabase, order.brand_id);
+
+    if (!smtpConfig) {
+      throw new Error('SMTP configuration not available');
+    }
+
     // Send email with Proton SMTP configuration
-    const smtpHost = Deno.env.get("SMTP_HOST")!;
-    const envPort = parseInt(Deno.env.get("SMTP_PORT") || "0");
-    const effectivePort = smtpHost?.includes("protonmail") ? 465 : (envPort || 465);
+    const effectivePort = smtpConfig.host.includes("protonmail") ? 465 : smtpConfig.port;
     const useTls = effectivePort === 465;
 
     const smtpClient = new SMTPClient({
       connection: {
-        hostname: smtpHost,
+        hostname: smtpConfig.host,
         port: effectivePort,
         tls: useTls,
         auth: {
-          username: Deno.env.get("SMTP_USER")!,
-          password: Deno.env.get("SMTP_PASSWORD")!,
+          username: smtpConfig.user,
+          password: smtpConfig.password,
         },
       },
     });
 
     await smtpClient.send({
-      from: `${companyName} <${Deno.env.get("SMTP_USER")!}>`,
+      from: `${companyName} <${smtpConfig.user}>`,
       to: recipientEmail,
       subject: testMode ? `[TEST] ${subject}` : subject,
-      html: htmlContent,
+      content: htmlContent,
+      mimeContent: [{ mimeType: 'text/html', content: htmlContent, transferEncoding: '8bit' }],
     });
 
     await smtpClient.close();

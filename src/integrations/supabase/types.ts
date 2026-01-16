@@ -54,6 +54,7 @@ export type Database = {
           active: boolean | null
           background_color: string
           card_color: string
+          cashapp_tag: string | null
           contact_address: string | null
           contact_email: string | null
           contact_phone: string | null
@@ -65,12 +66,24 @@ export type Database = {
           logo_url: string | null
           muted_color: string
           name: string
+          paypal_checkout_enabled: boolean | null
+          paypal_client_id: string | null
+          paypal_client_secret: string | null
+          paypal_email: string | null
           primary_color: string
           primary_foreground: string
           secondary_color: string
           secondary_foreground: string
           slug: string
+          smtp_host: string | null
+          smtp_password: string | null
+          smtp_port: number | null
+          smtp_user: string | null
+          stripe_enabled: boolean | null
           updated_at: string | null
+          wire_account_number: string | null
+          wire_bank_name: string | null
+          wire_routing_number: string | null
         }
         Insert: {
           accent_color?: string
@@ -78,6 +91,7 @@ export type Database = {
           active?: boolean | null
           background_color?: string
           card_color?: string
+          cashapp_tag?: string | null
           contact_address?: string | null
           contact_email?: string | null
           contact_phone?: string | null
@@ -89,12 +103,24 @@ export type Database = {
           logo_url?: string | null
           muted_color?: string
           name: string
+          paypal_checkout_enabled?: boolean | null
+          paypal_client_id?: string | null
+          paypal_client_secret?: string | null
+          paypal_email?: string | null
           primary_color?: string
           primary_foreground?: string
           secondary_color?: string
           secondary_foreground?: string
           slug: string
+          smtp_host?: string | null
+          smtp_password?: string | null
+          smtp_port?: number | null
+          smtp_user?: string | null
+          stripe_enabled?: boolean | null
           updated_at?: string | null
+          wire_account_number?: string | null
+          wire_bank_name?: string | null
+          wire_routing_number?: string | null
         }
         Update: {
           accent_color?: string
@@ -102,6 +128,7 @@ export type Database = {
           active?: boolean | null
           background_color?: string
           card_color?: string
+          cashapp_tag?: string | null
           contact_address?: string | null
           contact_email?: string | null
           contact_phone?: string | null
@@ -113,12 +140,24 @@ export type Database = {
           logo_url?: string | null
           muted_color?: string
           name?: string
+          paypal_checkout_enabled?: boolean | null
+          paypal_client_id?: string | null
+          paypal_client_secret?: string | null
+          paypal_email?: string | null
           primary_color?: string
           primary_foreground?: string
           secondary_color?: string
           secondary_foreground?: string
           slug?: string
+          smtp_host?: string | null
+          smtp_password?: string | null
+          smtp_port?: number | null
+          smtp_user?: string | null
+          stripe_enabled?: boolean | null
           updated_at?: string | null
+          wire_account_number?: string | null
+          wire_bank_name?: string | null
+          wire_routing_number?: string | null
         }
         Relationships: []
       }
@@ -362,6 +401,7 @@ export type Database = {
       email_templates: {
         Row: {
           available_variables: string[]
+          brand_id: string | null
           created_at: string
           custom_html: string | null
           description: string | null
@@ -373,6 +413,7 @@ export type Database = {
         }
         Insert: {
           available_variables?: string[]
+          brand_id?: string | null
           created_at?: string
           custom_html?: string | null
           description?: string | null
@@ -384,6 +425,7 @@ export type Database = {
         }
         Update: {
           available_variables?: string[]
+          brand_id?: string | null
           created_at?: string
           custom_html?: string | null
           description?: string | null
@@ -393,7 +435,15 @@ export type Database = {
           template_type?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "email_templates_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       invoice_payments: {
         Row: {
@@ -1350,6 +1400,7 @@ export type Database = {
           category_id: string | null
           code: string
           created_at: string
+          default_bottle_size_ml: number | null
           description: string
           id: string
           inserts_optional: boolean | null
@@ -1373,6 +1424,7 @@ export type Database = {
           category_id?: string | null
           code: string
           created_at?: string
+          default_bottle_size_ml?: number | null
           description: string
           id?: string
           inserts_optional?: boolean | null
@@ -1396,6 +1448,7 @@ export type Database = {
           category_id?: string | null
           code?: string
           created_at?: string
+          default_bottle_size_ml?: number | null
           description?: string
           id?: string
           inserts_optional?: boolean | null

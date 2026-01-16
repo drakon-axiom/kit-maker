@@ -41,6 +41,7 @@ import UserManagement from "./pages/UserManagement";
 import EmailHistory from "./pages/EmailHistory";
 import ManualPaymentRecording from "./pages/ManualPaymentRecording";
 import OrderRequestManagement from "./pages/OrderRequestManagement";
+import PendingPaymentVerification from "./pages/PendingPaymentVerification";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Layout from "./components/Layout";
 import { CustomerLayout } from "./components/CustomerLayout";
@@ -130,7 +131,7 @@ const App = () => (
             <Route
               path="/dashboard"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute requiredRole="operator">
                   <Layout>
                     <Dashboard />
                   </Layout>
@@ -200,7 +201,7 @@ const App = () => (
             <Route
               path="/orders"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute requiredRole="operator">
                   <Layout>
                     <Orders />
                   </Layout>
@@ -210,7 +211,7 @@ const App = () => (
             <Route
               path="/orders/new"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute requiredRole="operator">
                   <Layout>
                     <OrderNew />
                   </Layout>
@@ -230,7 +231,7 @@ const App = () => (
             <Route
               path="/orders/:id"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute requiredRole="operator">
                   <Layout>
                     <OrderDetail />
                   </Layout>
@@ -250,7 +251,7 @@ const App = () => (
             <Route
               path="/queue"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute requiredRole="operator">
                   <Layout>
                     <Queue />
                   </Layout>
@@ -260,7 +261,7 @@ const App = () => (
             <Route
               path="/operator"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute requiredRole="operator">
                   <Layout>
                     <Operator />
                   </Layout>
@@ -270,7 +271,7 @@ const App = () => (
             <Route
               path="/production-display"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute requiredRole="operator">
                   <ProductionDisplay />
                 </ProtectedRoute>
               }
@@ -278,7 +279,7 @@ const App = () => (
             <Route
               path="/shipments"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute requiredRole="operator">
                   <Layout>
                     <Shipments />
                   </Layout>
@@ -311,6 +312,16 @@ const App = () => (
                 <ProtectedRoute requiredRole="admin">
                   <Layout>
                     <ManualPaymentRecording />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/pending-payments"
+              element={
+                <ProtectedRoute requiredRole="admin">
+                  <Layout>
+                    <PendingPaymentVerification />
                   </Layout>
                 </ProtectedRoute>
               }

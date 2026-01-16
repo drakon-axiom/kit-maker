@@ -300,7 +300,8 @@ async function sendAdminNotification(supabase: any, order: any): Promise<void> {
       from: `${companyName} <${smtpUser}>`,
       to: companyEmail,
       subject: `Quote Approved - Order ${order.human_uid}`,
-      html: emailHtml,
+      content: emailHtml,
+      mimeContent: [{ mimeType: 'text/html', content: emailHtml, transferEncoding: '8bit' }],
     });
 
     await client.close();

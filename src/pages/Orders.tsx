@@ -20,6 +20,9 @@ import OrderLabel from '@/components/OrderLabel';
 import ShippingLabel from '@/components/ShippingLabel';
 import BatchLabel from '@/components/BatchLabel';
 import { OrderCard } from '@/components/mobile/OrderCard';
+import { SwipeableOrderCard } from '@/components/mobile/SwipeableOrderCard';
+import { PullToRefresh } from '@/components/mobile/PullToRefresh';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface Order {
   id: string;
@@ -94,6 +97,7 @@ type SortField = 'created_at' | 'subtotal' | 'status' | 'customer_name' | 'human
 type SortDirection = 'asc' | 'desc';
 
 const Orders = () => {
+  const isMobile = useIsMobile();
   const [orders, setOrders] = useState<Order[]>([]);
   const [customers, setCustomers] = useState<Array<{ id: string; name: string }>>([]);
   const [loading, setLoading] = useState(true);
@@ -213,6 +217,10 @@ const Orders = () => {
     fetchCustomers();
     fetchLabelSettings();
   }, [fetchOrders, fetchCustomers, fetchLabelSettings]);
+  const handleRefresh = async () => {
+    setLoading(true);
+    await Promise.all([fetchOrders(), fetchCustomers()]);
+  };
 
   const fetchOrderDetails = async (orderId: string) => {
     try {
@@ -511,7 +519,7 @@ const Orders = () => {
     }, 100);
   };
 
-  return (
+  const pageContent = (
     <div className="p-4 md:p-6 space-y-4 md:space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
@@ -770,17 +778,15 @@ const Orders = () => {
             </div>
           ) : (
             <>
-              {/* Mobile Card View */}
-              <div className="md:hidden p-4">
+              {/* Mobile Card View with Swipeable Cards */}
+              <div className="md:hidden px-2">
                 {paginatedOrders.map((order) => (
-                  <OrderCard
+                  <SwipeableOrderCard
                     key={order.id}
                     order={order}
-                    selected={selectedOrders.has(order.id)}
-                    onSelect={toggleSelectOrder}
-                    onPrintLabel={handlePrintLabel}
                     statusColors={statusColors}
                     formatStatus={formatStatus}
+                    onPrintLabel={handlePrintLabel}
                   />
                 ))}
               </div>
@@ -1089,6 +1095,16 @@ const Orders = () => {
       )}
     </div>
   );
+
+  if (isMobile) {
+    return (
+      <PullToRefresh onRefresh={handleRefresh} className="h-full">
+        {pageContent}
+      </PullToRefresh>
+    );
+  }
+
+  return pageContent;
 };
 
 export default Orders;

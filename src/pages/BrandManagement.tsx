@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
-import { Plus, Save, Trash2, TestTube, CheckCircle, XCircle } from 'lucide-react';
+import { Plus, Save, Trash2, TestTube, CheckCircle, XCircle, Send, Loader2, Mail, CreditCard, DollarSign, Building2 } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -16,6 +16,8 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { BrandEmailTemplates } from '@/components/BrandEmailTemplates';
 
 // Helper functions to convert between hex and HSL
 const hexToHsl = (hex: string): string => {
@@ -106,6 +108,19 @@ interface Brand {
   contact_email: string | null;
   contact_phone: string | null;
   contact_address: string | null;
+  smtp_host: string | null;
+  smtp_port: number | null;
+  smtp_user: string | null;
+  smtp_password: string | null;
+  stripe_enabled: boolean;
+  cashapp_tag: string | null;
+  paypal_email: string | null;
+  paypal_checkout_enabled: boolean;
+  paypal_client_id: string | null;
+  paypal_client_secret: string | null;
+  wire_bank_name: string | null;
+  wire_routing_number: string | null;
+  wire_account_number: string | null;
 }
 
 const BrandManagement = () => {
@@ -115,6 +130,37 @@ const BrandManagement = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [testUrl, setTestUrl] = useState('');
   const [testResult, setTestResult] = useState<{ brand: Brand | null; method: string } | null>(null);
+  const [testingSmtp, setTestingSmtp] = useState(false);
+
+  const handleTestSmtp = async () => {
+    if (!editingBrand?.smtp_host || !editingBrand?.smtp_user || !editingBrand?.smtp_password) {
+      toast.error('Please fill in SMTP host, username, and password first');
+      return;
+    }
+
+    setTestingSmtp(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('email-test', {
+        body: {
+          smtp_host: editingBrand.smtp_host,
+          smtp_port: editingBrand.smtp_port || 465,
+          smtp_user: editingBrand.smtp_user,
+          smtp_password: editingBrand.smtp_password,
+          brand_name: editingBrand.name || 'Brand Test',
+        },
+      });
+
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      toast.success(`Test email sent to ${data.sentTo || editingBrand.smtp_user}`);
+    } catch (error: any) {
+      console.error('SMTP test failed:', error);
+      toast.error(`SMTP test failed: ${error.message}`);
+    } finally {
+      setTestingSmtp(false);
+    }
+  };
 
   const fetchBrands = async () => {
     const { data, error } = await supabase
@@ -152,6 +198,19 @@ const BrandManagement = () => {
       contact_email: editingBrand.contact_email || null,
       contact_phone: editingBrand.contact_phone || null,
       contact_address: editingBrand.contact_address || null,
+      smtp_host: editingBrand.smtp_host || null,
+      smtp_port: editingBrand.smtp_port || null,
+      smtp_user: editingBrand.smtp_user || null,
+      smtp_password: editingBrand.smtp_password || null,
+      stripe_enabled: editingBrand.stripe_enabled !== false,
+      cashapp_tag: editingBrand.cashapp_tag || null,
+      paypal_email: editingBrand.paypal_email || null,
+      paypal_checkout_enabled: editingBrand.paypal_checkout_enabled || false,
+      paypal_client_id: editingBrand.paypal_client_id || null,
+      paypal_client_secret: editingBrand.paypal_client_secret || null,
+      wire_bank_name: editingBrand.wire_bank_name || null,
+      wire_routing_number: editingBrand.wire_routing_number || null,
+      wire_account_number: editingBrand.wire_account_number || null,
     };
 
     if (editingBrand.id) {
@@ -268,20 +327,20 @@ const BrandManagement = () => {
   }
 
   return (
-    <div className="container mx-auto py-8 space-y-6">
-      <div className="flex justify-between items-center">
+    <div className="container mx-auto p-4 md:py-8 space-y-4 md:space-y-6">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
         <div>
-          <h1 className="text-3xl font-bold">Brand Management</h1>
-          <p className="text-muted-foreground">Manage your business brands and their visual identity</p>
+          <h1 className="text-2xl md:text-3xl font-bold">Brand Management</h1>
+          <p className="text-sm text-muted-foreground mt-1">Manage your business brands and their visual identity</p>
         </div>
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
-            <Button onClick={() => setEditingBrand({})}>
+            <Button onClick={() => setEditingBrand({})} className="w-full sm:w-auto">
               <Plus className="h-4 w-4 mr-2" />
               Add Brand
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-2xl">
+          <DialogContent className="max-w-[95vw] sm:max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>{editingBrand?.id ? 'Edit Brand' : 'Create New Brand'}</DialogTitle>
               <DialogDescription>
@@ -379,6 +438,207 @@ const BrandManagement = () => {
                   />
                 </div>
               </div>
+              {/* SMTP Configuration Section */}
+              <div className="border-t pt-4 mt-4">
+                <h4 className="font-medium mb-3">SMTP Configuration (Optional)</h4>
+                <p className="text-xs text-muted-foreground mb-4">
+                  Configure brand-specific SMTP for sending emails. Leave empty to use global SMTP settings.
+                </p>
+                <div className="grid gap-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="grid gap-2">
+                      <Label htmlFor="smtp-host">SMTP Host</Label>
+                      <Input
+                        id="smtp-host"
+                        value={editingBrand?.smtp_host || ''}
+                        onChange={(e) => setEditingBrand({ ...editingBrand, smtp_host: e.target.value })}
+                        placeholder="smtp.proton.me"
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="smtp-port">SMTP Port</Label>
+                      <Input
+                        id="smtp-port"
+                        type="number"
+                        value={editingBrand?.smtp_port || ''}
+                        onChange={(e) => setEditingBrand({ ...editingBrand, smtp_port: e.target.value ? parseInt(e.target.value) : null })}
+                        placeholder="465"
+                      />
+                    </div>
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="smtp-user">SMTP Username</Label>
+                    <Input
+                      id="smtp-user"
+                      value={editingBrand?.smtp_user || ''}
+                      onChange={(e) => setEditingBrand({ ...editingBrand, smtp_user: e.target.value })}
+                      placeholder="noreply@brand.com"
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="smtp-password">SMTP Password</Label>
+                    <Input
+                      id="smtp-password"
+                      type="password"
+                      value={editingBrand?.smtp_password || ''}
+                      onChange={(e) => setEditingBrand({ ...editingBrand, smtp_password: e.target.value })}
+                      placeholder="••••••••"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      For Proton Mail, use an app-specific password from Settings → Security → SMTP tokens
+                    </p>
+                  </div>
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    onClick={handleTestSmtp}
+                    disabled={testingSmtp || !editingBrand?.smtp_host || !editingBrand?.smtp_user || !editingBrand?.smtp_password}
+                  >
+                    {testingSmtp ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <Send className="h-4 w-4 mr-2" />
+                    )}
+                    {testingSmtp ? 'Sending...' : 'Test SMTP'}
+                  </Button>
+                </div>
+              </div>
+
+              {/* Payment Configuration Section */}
+              <div className="border-t pt-4 mt-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <DollarSign className="h-4 w-4" />
+                  <h4 className="font-medium">Payment Configuration</h4>
+                </div>
+                <p className="text-xs text-muted-foreground mb-4">
+                  Configure payment methods and details for this brand
+                </p>
+                <div className="grid gap-4">
+                  <div className="flex items-center space-x-2">
+                    <Switch
+                      id="stripe-enabled"
+                      checked={editingBrand?.stripe_enabled !== false}
+                      onCheckedChange={(checked) => setEditingBrand({ ...editingBrand, stripe_enabled: checked })}
+                    />
+                    <Label htmlFor="stripe-enabled" className="flex items-center gap-2">
+                      <CreditCard className="h-4 w-4" />
+                      Enable Credit Card Payments (Stripe)
+                    </Label>
+                  </div>
+                  
+                  <div className="grid gap-2">
+                    <Label htmlFor="cashapp-tag">CashApp Tag</Label>
+                    <Input
+                      id="cashapp-tag"
+                      value={editingBrand?.cashapp_tag || ''}
+                      onChange={(e) => setEditingBrand({ ...editingBrand, cashapp_tag: e.target.value })}
+                      placeholder="$YourCashTag"
+                    />
+                  </div>
+
+                  <div className="border-t pt-4 mt-2">
+                    <p className="text-sm font-medium mb-3">PayPal Configuration</p>
+                    <div className="grid gap-4">
+                      <div className="grid gap-2">
+                        <Label htmlFor="paypal-email">PayPal Email (Manual Payments)</Label>
+                        <Input
+                          id="paypal-email"
+                          type="email"
+                          value={editingBrand?.paypal_email || ''}
+                          onChange={(e) => setEditingBrand({ ...editingBrand, paypal_email: e.target.value })}
+                          placeholder="payments@brand.com"
+                        />
+                        <p className="text-xs text-muted-foreground">Customers will send payments to this email manually</p>
+                      </div>
+                      
+                      <div className="flex items-center space-x-2">
+                        <Switch
+                          id="paypal-checkout-enabled"
+                          checked={editingBrand?.paypal_checkout_enabled || false}
+                          onCheckedChange={(checked) => setEditingBrand({ ...editingBrand, paypal_checkout_enabled: checked })}
+                        />
+                        <Label htmlFor="paypal-checkout-enabled">Enable PayPal Checkout</Label>
+                      </div>
+                      
+                      {editingBrand?.paypal_checkout_enabled && (
+                        <div className="grid gap-4 pl-6 border-l-2 border-blue-200 ml-2">
+                          <div className="grid gap-2">
+                            <Label htmlFor="paypal-client-id">PayPal Client ID</Label>
+                            <Input
+                              id="paypal-client-id"
+                              value={editingBrand?.paypal_client_id || ''}
+                              onChange={(e) => setEditingBrand({ ...editingBrand, paypal_client_id: e.target.value })}
+                              placeholder="AWq3v..."
+                            />
+                          </div>
+                          <div className="grid gap-2">
+                            <Label htmlFor="paypal-client-secret">PayPal Client Secret</Label>
+                            <Input
+                              id="paypal-client-secret"
+                              type="password"
+                              value={editingBrand?.paypal_client_secret || ''}
+                              onChange={(e) => setEditingBrand({ ...editingBrand, paypal_client_secret: e.target.value })}
+                              placeholder="••••••••••••••••"
+                            />
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            Get these from your{' '}
+                            <a 
+                              href="https://developer.paypal.com/dashboard/applications/live" 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="text-blue-600 hover:underline"
+                            >
+                              PayPal Developer Dashboard
+                            </a>
+                          </p>
+                          {editingBrand?.paypal_client_id && !editingBrand?.paypal_client_secret && (
+                            <div className="p-2 bg-yellow-100 border border-yellow-300 rounded text-xs text-yellow-800">
+                              ⚠️ Both Client ID and Client Secret are required for PayPal SDK checkout to work.
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="border-t pt-4 mt-2">
+                    <p className="text-sm font-medium mb-3">Wire Transfer Details</p>
+                    <div className="grid gap-4">
+                      <div className="grid gap-2">
+                        <Label htmlFor="wire-bank-name">Bank Name</Label>
+                        <Input
+                          id="wire-bank-name"
+                          value={editingBrand?.wire_bank_name || ''}
+                          onChange={(e) => setEditingBrand({ ...editingBrand, wire_bank_name: e.target.value })}
+                          placeholder="Chase Bank"
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="grid gap-2">
+                          <Label htmlFor="wire-routing">Routing Number</Label>
+                          <Input
+                            id="wire-routing"
+                            value={editingBrand?.wire_routing_number || ''}
+                            onChange={(e) => setEditingBrand({ ...editingBrand, wire_routing_number: e.target.value })}
+                            placeholder="XXXXXXXXX"
+                          />
+                        </div>
+                        <div className="grid gap-2">
+                          <Label htmlFor="wire-account">Account Number</Label>
+                          <Input
+                            id="wire-account"
+                            value={editingBrand?.wire_account_number || ''}
+                            onChange={(e) => setEditingBrand({ ...editingBrand, wire_account_number: e.target.value })}
+                            placeholder="XXXXXXXXXXXX"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               <div className="flex items-center space-x-2">
                 <Switch
                   id="default"
@@ -407,132 +667,185 @@ const BrandManagement = () => {
         </Dialog>
       </div>
 
-      {/* Domain Tester Section */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <TestTube className="h-5 w-5 text-primary" />
-            <CardTitle>Domain Tester</CardTitle>
-          </div>
-          <CardDescription>
-            Test which brand will be detected for a given URL before setting up DNS
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex gap-2">
-            <Input
-              placeholder="Enter URL (e.g., b2b.nexusaminos.com or portal.axc.llc/nexus_aminos)"
-              value={testUrl}
-              onChange={(e) => setTestUrl(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleTestUrl()}
-            />
-            <Button onClick={handleTestUrl}>
-              <TestTube className="h-4 w-4 mr-2" />
-              Test
-            </Button>
-          </div>
+      <Tabs defaultValue="brands" className="w-full">
+        <TabsList className="grid w-full grid-cols-2 max-w-md">
+          <TabsTrigger value="brands">Brands</TabsTrigger>
+          <TabsTrigger value="templates">
+            <Mail className="h-4 w-4 mr-2" />
+            Email Templates
+          </TabsTrigger>
+        </TabsList>
 
-          {testResult && (
-            <Alert className={testResult.brand ? 'border-green-500' : 'border-yellow-500'}>
-              <div className="flex items-start gap-3">
-                {testResult.brand ? (
-                  <CheckCircle className="h-5 w-5 text-green-500 flex-shrink-0 mt-0.5" />
-                ) : (
-                  <XCircle className="h-5 w-5 text-yellow-500 flex-shrink-0 mt-0.5" />
-                )}
-                <div className="flex-1 space-y-2">
-                  <AlertTitle className="font-semibold">
-                    {testResult.brand ? `Brand Detected: ${testResult.brand.name}` : 'No Brand Detected'}
-                  </AlertTitle>
-                  <AlertDescription className="space-y-2">
-                    <p className="text-sm">
-                      <span className="font-medium">Detection Method:</span> {testResult.method}
-                    </p>
-                    {testResult.brand && (
-                      <>
-                        <p className="text-sm">
-                          <span className="font-medium">Slug:</span> {testResult.brand.slug}
-                        </p>
-                        {testResult.brand.domain && (
-                          <p className="text-sm">
-                            <span className="font-medium">Configured Domain:</span> {testResult.brand.domain}
-                          </p>
-                        )}
-                        <div className="flex items-center gap-2 mt-3">
-                          <div 
-                            className="w-8 h-8 rounded border"
-                            style={{ backgroundColor: `hsl(${testResult.brand.primary_color})` }}
-                          />
-                          <span className="text-xs text-muted-foreground">Primary color preview</span>
-                        </div>
-                      </>
-                    )}
-                  </AlertDescription>
-                </div>
-              </div>
-            </Alert>
-          )}
-
-          <div className="text-sm text-muted-foreground space-y-1">
-            <p className="font-medium">Detection Priority:</p>
-            <ol className="list-decimal list-inside space-y-1 ml-2">
-              <li>Exact domain match (e.g., nexusaminos.com)</li>
-              <li>Subdomain match (e.g., b2b.nexusaminos.com)</li>
-              <li>URL path match (e.g., portal.axc.llc/nexus_aminos)</li>
-              <li>User's assigned brand (when logged in)</li>
-              <li>Cookie from previous visit</li>
-              <li>Default brand (fallback)</li>
-            </ol>
-          </div>
-        </CardContent>
-      </Card>
-
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {brands.map((brand) => (
-          <Card key={brand.id}>
+        <TabsContent value="brands" className="space-y-6 mt-6">
+          {/* Domain Tester Section */}
+          <Card>
             <CardHeader>
-              <div className="flex justify-between items-start">
-                <div>
-                  <CardTitle>{brand.name}</CardTitle>
-                  <CardDescription>/{brand.slug}</CardDescription>
-                </div>
-                {brand.is_default && (
-                  <span className="text-xs bg-primary text-primary-foreground px-2 py-1 rounded">
-                    Default
-                  </span>
-                )}
+              <div className="flex items-center gap-2">
+                <TestTube className="h-5 w-5 text-primary" />
+                <CardTitle>Domain Tester</CardTitle>
               </div>
+              <CardDescription>
+                Test which brand will be detected for a given URL before setting up DNS
+              </CardDescription>
             </CardHeader>
-            <CardContent>
-              {brand.logo_url && (
-                <img src={brand.logo_url} alt={brand.name} className="h-12 mb-4 object-contain" />
-              )}
-              <div className="flex gap-2 mt-4">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="flex-1"
-                  onClick={() => {
-                    setEditingBrand(brand);
-                    setDialogOpen(true);
-                  }}
-                >
-                  Edit
+            <CardContent className="space-y-4">
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Enter URL (e.g., b2b.nexusaminos.com or portal.axc.llc/nexus_aminos)"
+                  value={testUrl}
+                  onChange={(e) => setTestUrl(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleTestUrl()}
+                />
+                <Button onClick={handleTestUrl}>
+                  <TestTube className="h-4 w-4 mr-2" />
+                  Test
                 </Button>
-                {!brand.is_default && (
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    onClick={() => handleDeleteBrand(brand.id)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                )}
+              </div>
+
+              {testResult && (
+                <Alert className={testResult.brand ? 'border-green-500' : 'border-yellow-500'}>
+                  <div className="flex items-start gap-3">
+                    {testResult.brand ? (
+                      <CheckCircle className="h-5 w-5 text-green-500 flex-shrink-0 mt-0.5" />
+                    ) : (
+                      <XCircle className="h-5 w-5 text-yellow-500 flex-shrink-0 mt-0.5" />
+                    )}
+                    <div className="flex-1 space-y-2">
+                      <AlertTitle className="font-semibold">
+                        {testResult.brand ? `Brand Detected: ${testResult.brand.name}` : 'No Brand Detected'}
+                      </AlertTitle>
+                      <AlertDescription className="space-y-2">
+                        <p className="text-sm">
+                          <span className="font-medium">Detection Method:</span> {testResult.method}
+                        </p>
+                        {testResult.brand && (
+                          <>
+                            <p className="text-sm">
+                              <span className="font-medium">Slug:</span> {testResult.brand.slug}
+                            </p>
+                            {testResult.brand.domain && (
+                              <p className="text-sm">
+                                <span className="font-medium">Configured Domain:</span> {testResult.brand.domain}
+                              </p>
+                            )}
+                            <div className="flex items-center gap-2 mt-3">
+                              <div 
+                                className="w-8 h-8 rounded border"
+                                style={{ backgroundColor: `hsl(${testResult.brand.primary_color})` }}
+                              />
+                              <span className="text-xs text-muted-foreground">Primary color preview</span>
+                            </div>
+                          </>
+                        )}
+                      </AlertDescription>
+                    </div>
+                  </div>
+                </Alert>
+              )}
+
+              <div className="text-sm text-muted-foreground space-y-1">
+                <p className="font-medium">Detection Priority:</p>
+                <ol className="list-decimal list-inside space-y-1 ml-2">
+                  <li>Exact domain match (e.g., nexusaminos.com)</li>
+                  <li>Subdomain match (e.g., b2b.nexusaminos.com)</li>
+                  <li>URL path match (e.g., portal.axc.llc/nexus_aminos)</li>
+                  <li>User&apos;s assigned brand (when logged in)</li>
+                  <li>Cookie from previous visit</li>
+                  <li>Default brand (fallback)</li>
+                </ol>
               </div>
             </CardContent>
           </Card>
-        ))}
-      </div>
+
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {brands.map((brand) => (
+              <Card key={brand.id}>
+                <CardHeader>
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <CardTitle>{brand.name}</CardTitle>
+                      <CardDescription>/{brand.slug}</CardDescription>
+                    </div>
+                    {brand.is_default && (
+                      <span className="text-xs bg-primary text-primary-foreground px-2 py-1 rounded">
+                        Default
+                      </span>
+                    )}
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  {brand.logo_url && (
+                    <img src={brand.logo_url} alt={brand.name} className="h-12 mb-4 object-contain" />
+                  )}
+                  
+                  {/* Payment Methods Preview */}
+                  <div className="mt-3 mb-4">
+                    <p className="text-xs text-muted-foreground mb-2">Payment Methods</p>
+                    <div className="flex flex-wrap gap-1">
+                      {brand.stripe_enabled !== false && (
+                        <span className="text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded-full flex items-center gap-1">
+                          <CreditCard className="h-3 w-3" />
+                          Card
+                        </span>
+                      )}
+                      {brand.cashapp_tag && (
+                        <span className="text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded-full flex items-center gap-1">
+                          <DollarSign className="h-3 w-3" />
+                          CashApp
+                        </span>
+                      )}
+                      {brand.paypal_email && (
+                        <span className="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full flex items-center gap-1">
+                          <DollarSign className="h-3 w-3" />
+                          PayPal
+                        </span>
+                      )}
+                      {brand.wire_bank_name && brand.wire_routing_number && brand.wire_account_number && (
+                        <span className="text-xs bg-purple-100 text-purple-800 px-2 py-0.5 rounded-full flex items-center gap-1">
+                          <Building2 className="h-3 w-3" />
+                          Wire
+                        </span>
+                      )}
+                      {brand.stripe_enabled === false && !brand.cashapp_tag && !brand.paypal_email && !brand.wire_bank_name && (
+                        <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">
+                          No methods
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex-1"
+                      onClick={() => {
+                        setEditingBrand(brand);
+                        setDialogOpen(true);
+                      }}
+                    >
+                      Edit
+                    </Button>
+                    {!brand.is_default && (
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => handleDeleteBrand(brand.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="templates" className="mt-6">
+          <BrandEmailTemplates />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };

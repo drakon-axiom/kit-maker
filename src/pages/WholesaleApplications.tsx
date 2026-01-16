@@ -70,8 +70,25 @@ const WholesaleApplications = () => {
     setActionLoading(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      
-      // Update application status first
+
+      // If approved, create the account first; only then mark the application as approved.
+      // This prevents "approved" applications that have no associated account.
+      if (newStatus === 'approved') {
+        const { error: functionError } = await supabase.functions.invoke('approve-wholesale-application', {
+          body: {
+            applicationId: appId,
+            reviewNotes: reviewNotes || undefined,
+            siteUrl: window.location.origin,
+          },
+        });
+
+        if (functionError) {
+          toast.error(`Account creation failed: ${functionError.message ?? 'Unknown error'}`);
+          return;
+        }
+      }
+
+      // Update application status
       const { error: updateError } = await supabase
         .from('wholesale_applications')
         .update({
@@ -84,31 +101,7 @@ const WholesaleApplications = () => {
 
       if (updateError) throw updateError;
 
-      // If approved, call edge function to create account and send email
       if (newStatus === 'approved') {
-        const webhookSecret = await supabase
-          .from('settings')
-          .select('value')
-          .eq('key', 'internal_webhook_secret')
-          .single();
-
-        const { data, error: functionError } = await supabase.functions.invoke('approve-wholesale-application', {
-          body: {
-            applicationId: appId,
-            reviewNotes: reviewNotes || undefined,
-          },
-          headers: webhookSecret?.data?.value ? {
-            'x-webhook-secret': webhookSecret.data.value
-          } : undefined
-        });
-
-        if (functionError) {
-          // Error handled silently
-          toast.error('Application approved but failed to create account. Please contact support.');
-          return;
-        }
-
-        // Debug log removed
         toast.success(`Application approved! Login credentials sent to ${applications.find(a => a.id === appId)?.email}`);
       } else {
         toast.success('Application rejected');
@@ -118,7 +111,6 @@ const WholesaleApplications = () => {
       setReviewNotes('');
       fetchApplications();
     } catch (error) {
-      // Error handled silently
       toast.error('Failed to update application');
     } finally {
       setActionLoading(false);
@@ -150,13 +142,13 @@ const WholesaleApplications = () => {
 
   return (
     <Layout>
-      <div className="container mx-auto py-8 space-y-6">
+      <div className="container mx-auto p-4 md:py-8 space-y-4 md:space-y-6">
         <div>
-          <h1 className="text-3xl font-bold">Wholesale Applications</h1>
-          <p className="text-muted-foreground">Review and manage wholesale account applications</p>
+          <h1 className="text-2xl md:text-3xl font-bold">Wholesale Applications</h1>
+          <p className="text-sm text-muted-foreground mt-1">Review and manage wholesale account applications</p>
         </div>
 
-        <div className="grid gap-4">
+        <div className="grid gap-3 md:gap-4">
           {applications.length === 0 ? (
             <Card>
               <CardContent className="py-8 text-center text-muted-foreground">
@@ -178,7 +170,7 @@ const WholesaleApplications = () => {
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 text-sm">
                     {app.phone && (
                       <div>
                         <span className="font-medium">Phone:</span> {app.phone}

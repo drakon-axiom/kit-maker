@@ -39,6 +39,7 @@ interface SKU {
   bundle_overhead_price: number | null;
   bundle_packaging_price: number | null;
   bundle_inserts_price: number | null;
+  default_bottle_size_ml: number | null;
 }
 
 interface OrderLine {
@@ -46,6 +47,7 @@ interface OrderLine {
   sku_code: string;
   sku_description: string;
   sell_mode: 'kit' | 'piece';
+  volume_unit: 'bottle' | 'ml' | 'L' | '2L' | '5L' | '10L';
   qty_entered: number;
   unit_price: number;
   line_subtotal: number;
@@ -118,6 +120,31 @@ const InternalOrderNew = () => {
     return costPerKit / packSize;
   };
 
+  // Get volume in ml for a given unit
+  const getVolumeMultiplier = (unit: OrderLine['volume_unit']): number => {
+    switch (unit) {
+      case 'bottle': return 1; // 1 bottle
+      case 'ml': return 1; // 1ml per unit entered
+      case 'L': return 1000;
+      case '2L': return 2000;
+      case '5L': return 5000;
+      case '10L': return 10000;
+      default: return 1;
+    }
+  };
+
+  // Calculate bottles from volume entry (assumes bottle size in ml from SKU)
+  const calculateBottlesFromVolume = (qtyEntered: number, volumeUnit: OrderLine['volume_unit'], bottleSizeMl: number): number => {
+    if (volumeUnit === 'bottle') return qtyEntered;
+    const totalMl = qtyEntered * getVolumeMultiplier(volumeUnit);
+    return Math.ceil(totalMl / bottleSizeMl);
+  };
+
+  // Get bottle size from SKU or use default
+  const getBottleSizeForSku = (sku: SKU): number => {
+    return sku.default_bottle_size_ml || 10;
+  };
+
   const addLine = () => {
     if (skus.length === 0) return;
     
@@ -128,6 +155,7 @@ const InternalOrderNew = () => {
       sku_code: defaultSKU.code,
       sku_description: defaultSKU.description,
       sell_mode: 'kit',
+      volume_unit: 'bottle',
       qty_entered: 1,
       unit_price: costPerKit,
       line_subtotal: costPerKit,
@@ -146,42 +174,55 @@ const InternalOrderNew = () => {
         line.sku_id = sku.id;
         line.sku_code = sku.code;
         line.sku_description = sku.description;
-        const costPerKit = getCostPerKit(sku);
-        line.unit_price = costPerKit;
-        line.line_subtotal = line.qty_entered * costPerKit;
+        recalculateLine(line, sku);
       }
     } else if (field === 'qty_entered') {
-      const qty = parseInt(value) || 0;
+      const qty = parseFloat(value) || 0;
       line.qty_entered = qty;
-      
       const sku = skus.find(s => s.id === line.sku_id);
       if (sku) {
-        const cost = line.sell_mode === 'kit' ? getCostPerKit(sku) : getCostPerPiece(sku);
-        line.unit_price = cost;
-        line.line_subtotal = qty * cost;
-      }
-      
-      if (line.sell_mode === 'kit') {
-        line.bottle_qty = qty * kitSize;
-      } else {
-        line.bottle_qty = qty;
+        recalculateLine(line, sku);
       }
     } else if (field === 'sell_mode') {
       line.sell_mode = value;
+      // Reset volume unit when switching modes
+      if (value === 'kit') {
+        line.volume_unit = 'bottle';
+      }
       const sku = skus.find(s => s.id === line.sku_id);
       if (sku) {
-        if (value === 'kit') {
-          line.unit_price = getCostPerKit(sku);
-          line.bottle_qty = line.qty_entered * kitSize;
-        } else {
-          line.unit_price = getCostPerPiece(sku);
-          line.bottle_qty = line.qty_entered;
-        }
-        line.line_subtotal = line.qty_entered * line.unit_price;
+        recalculateLine(line, sku);
+      }
+    } else if (field === 'volume_unit') {
+      line.volume_unit = value;
+      const sku = skus.find(s => s.id === line.sku_id);
+      if (sku) {
+        recalculateLine(line, sku);
       }
     }
 
     setLines(newLines);
+  };
+
+  const recalculateLine = (line: OrderLine, sku: SKU) => {
+    const bottleSizeMl = getBottleSizeForSku(sku);
+    if (line.sell_mode === 'kit') {
+      line.unit_price = getCostPerKit(sku);
+      line.bottle_qty = line.qty_entered * kitSize;
+      line.line_subtotal = line.qty_entered * line.unit_price;
+    } else {
+      // Piece mode with volume unit
+      const costPerPiece = getCostPerPiece(sku);
+      
+      if (line.volume_unit === 'bottle') {
+        line.bottle_qty = Math.round(line.qty_entered);
+      } else {
+        line.bottle_qty = calculateBottlesFromVolume(line.qty_entered, line.volume_unit, bottleSizeMl);
+      }
+      
+      line.unit_price = costPerPiece;
+      line.line_subtotal = line.bottle_qty * costPerPiece;
+    }
   };
 
   const removeLine = (index: number) => {
@@ -296,27 +337,27 @@ const InternalOrderNew = () => {
   };
 
   return (
-    <div className="container mx-auto py-6 space-y-6">
-      <div className="flex items-center gap-4">
+    <div className="container mx-auto px-4 py-4 md:py-6 space-y-4 md:space-y-6">
+      <div className="flex items-center gap-3 md:gap-4">
         <Button variant="ghost" size="icon" onClick={() => navigate('/orders')}>
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <div>
-          <h1 className="text-3xl font-bold">New Internal Order</h1>
-          <p className="text-muted-foreground">Create internal production runs for retail stock</p>
+          <h1 className="text-xl md:text-3xl font-bold">New Internal Order</h1>
+          <p className="text-xs md:text-base text-muted-foreground">Create internal production runs for retail stock</p>
         </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <form onSubmit={handleSubmit} className="space-y-4 md:space-y-6">
         <Card>
-          <CardHeader>
-            <CardTitle>Order Details</CardTitle>
-            <CardDescription>Configure the internal production run</CardDescription>
+          <CardHeader className="p-4 md:p-6">
+            <CardTitle className="text-base md:text-lg">Order Details</CardTitle>
+            <CardDescription className="text-xs md:text-sm">Configure the internal production run</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="p-4 pt-0 md:p-6 md:pt-0 space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="brand">Brand *</Label>
+                <Label htmlFor="brand" className="text-sm">Brand *</Label>
                 <Select value={selectedBrand} onValueChange={setSelectedBrand}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select brand" />
@@ -337,39 +378,29 @@ const InternalOrderNew = () => {
                   checked={labelRequired}
                   onCheckedChange={setLabelRequired}
                 />
-                <Label htmlFor="label-required">Label Required</Label>
+                <Label htmlFor="label-required" className="text-sm">Label Required</Label>
               </div>
             </div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader>
-            <CardTitle>Product Lines</CardTitle>
-            <CardDescription>Add products to this internal order</CardDescription>
+          <CardHeader className="p-4 md:p-6">
+            <CardTitle className="text-base md:text-lg">Product Lines</CardTitle>
+            <CardDescription className="text-xs md:text-sm">Add products to this internal order</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>SKU</TableHead>
-                  <TableHead>Mode</TableHead>
-                  <TableHead>Quantity</TableHead>
-                  <TableHead>My Cost</TableHead>
-                  <TableHead>Bottles</TableHead>
-                  <TableHead>Subtotal</TableHead>
-                  <TableHead></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {lines.map((line, index) => (
-                  <TableRow key={index}>
-                    <TableCell>
+          <CardContent className="p-4 pt-0 md:p-6 md:pt-0 space-y-4">
+            {/* Mobile Card Layout */}
+            <div className="md:hidden space-y-3">
+              {lines.map((line, index) => (
+                <Card key={index} className="p-3 space-y-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1 min-w-0">
                       <Select
                         value={line.sku_id}
                         onValueChange={(value) => updateLine(index, 'sku_id', value)}
                       >
-                        <SelectTrigger className="w-[200px]">
+                        <SelectTrigger className="w-full">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent className="max-h-[300px] overflow-y-auto bg-background z-50">
@@ -380,13 +411,26 @@ const InternalOrderNew = () => {
                           ))}
                         </SelectContent>
                       </Select>
-                    </TableCell>
-                    <TableCell>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 flex-shrink-0"
+                      onClick={() => removeLine(index)}
+                    >
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-1">
+                      <Label className="text-xs text-muted-foreground">Mode</Label>
                       <Select
                         value={line.sell_mode}
                         onValueChange={(value) => updateLine(index, 'sell_mode', value)}
                       >
-                        <SelectTrigger className="w-[100px]">
+                        <SelectTrigger className="h-9">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent className="bg-background z-50">
@@ -394,57 +438,192 @@ const InternalOrderNew = () => {
                           <SelectItem value="piece">Piece</SelectItem>
                         </SelectContent>
                       </Select>
-                    </TableCell>
-                    <TableCell>
+                    </div>
+                    
+                    <div className="space-y-1">
+                      <Label className="text-xs text-muted-foreground">Unit</Label>
+                      {line.sell_mode === 'piece' ? (
+                        <Select
+                          value={line.volume_unit}
+                          onValueChange={(value) => updateLine(index, 'volume_unit', value)}
+                        >
+                          <SelectTrigger className="h-9">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent className="bg-background z-50">
+                            <SelectItem value="bottle">Bottles</SelectItem>
+                            <SelectItem value="ml">ml</SelectItem>
+                            <SelectItem value="L">L</SelectItem>
+                            <SelectItem value="2L">2L</SelectItem>
+                            <SelectItem value="5L">5L</SelectItem>
+                            <SelectItem value="10L">10L</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <div className="h-9 flex items-center text-sm text-muted-foreground">—</div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-1">
+                      <Label className="text-xs text-muted-foreground">Quantity</Label>
                       <Input
                         type="number"
                         min="1"
+                        step="any"
                         value={line.qty_entered}
                         onChange={(e) => updateLine(index, 'qty_entered', e.target.value)}
-                        className="w-20"
+                        className="h-9"
                       />
-                    </TableCell>
-                    <TableCell>${line.unit_price.toFixed(2)}</TableCell>
-                    <TableCell>{line.bottle_qty}</TableCell>
-                    <TableCell>${line.line_subtotal.toFixed(2)}</TableCell>
-                    <TableCell>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => removeLine(index)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs text-muted-foreground">Bottles</Label>
+                      <div className="h-9 flex items-center text-sm font-medium">{line.bottle_qty}</div>
+                    </div>
+                  </div>
 
-            <Button type="button" variant="outline" onClick={addLine}>
+                  <div className="flex items-center justify-between pt-2 border-t">
+                    <div className="text-xs text-muted-foreground">
+                      Cost: ${line.unit_price.toFixed(2)} each
+                    </div>
+                    <div className="text-sm font-semibold">
+                      ${line.line_subtotal.toFixed(2)}
+                    </div>
+                  </div>
+                </Card>
+              ))}
+
+              {lines.length === 0 && (
+                <div className="text-center py-6 text-muted-foreground text-sm">
+                  No products added yet
+                </div>
+              )}
+            </div>
+
+            {/* Desktop Table Layout */}
+            <div className="hidden md:block">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>SKU</TableHead>
+                    <TableHead>Mode</TableHead>
+                    <TableHead>Unit</TableHead>
+                    <TableHead>Quantity</TableHead>
+                    <TableHead>My Cost</TableHead>
+                    <TableHead>Bottles</TableHead>
+                    <TableHead>Subtotal</TableHead>
+                    <TableHead></TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {lines.map((line, index) => (
+                    <TableRow key={index}>
+                      <TableCell>
+                        <Select
+                          value={line.sku_id}
+                          onValueChange={(value) => updateLine(index, 'sku_id', value)}
+                        >
+                          <SelectTrigger className="w-[200px]">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent className="max-h-[300px] overflow-y-auto bg-background z-50">
+                            {skus.map(sku => (
+                              <SelectItem key={sku.id} value={sku.id}>
+                                {sku.code} - {sku.description}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </TableCell>
+                      <TableCell>
+                        <Select
+                          value={line.sell_mode}
+                          onValueChange={(value) => updateLine(index, 'sell_mode', value)}
+                        >
+                          <SelectTrigger className="w-[100px]">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent className="bg-background z-50">
+                            <SelectItem value="kit">Kit</SelectItem>
+                            <SelectItem value="piece">Piece</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </TableCell>
+                      <TableCell>
+                        {line.sell_mode === 'piece' ? (
+                          <Select
+                            value={line.volume_unit}
+                            onValueChange={(value) => updateLine(index, 'volume_unit', value)}
+                          >
+                            <SelectTrigger className="w-[90px]">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent className="bg-background z-50">
+                              <SelectItem value="bottle">Bottles</SelectItem>
+                              <SelectItem value="ml">ml</SelectItem>
+                              <SelectItem value="L">L</SelectItem>
+                              <SelectItem value="2L">2L</SelectItem>
+                              <SelectItem value="5L">5L</SelectItem>
+                              <SelectItem value="10L">10L</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        ) : (
+                          <span className="text-muted-foreground text-sm">—</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          type="number"
+                          min="1"
+                          step="any"
+                          value={line.qty_entered}
+                          onChange={(e) => updateLine(index, 'qty_entered', e.target.value)}
+                          className="w-20"
+                        />
+                      </TableCell>
+                      <TableCell>${line.unit_price.toFixed(2)}</TableCell>
+                      <TableCell>{line.bottle_qty}</TableCell>
+                      <TableCell>${line.line_subtotal.toFixed(2)}</TableCell>
+                      <TableCell>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => removeLine(index)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+
+            <Button type="button" variant="outline" onClick={addLine} className="w-full md:w-auto">
               <Plus className="h-4 w-4 mr-2" />
               Add Line
             </Button>
 
-            <div className="flex justify-end space-x-6 pt-4 border-t">
-              <div className="space-y-1 text-right">
-                <p className="text-sm text-muted-foreground">Total Bottles</p>
-                <p className="text-2xl font-bold">{calculateTotalBottles()}</p>
+            <div className="flex flex-col sm:flex-row justify-end gap-4 sm:gap-6 pt-4 border-t">
+              <div className="flex justify-between sm:block sm:text-right">
+                <p className="text-xs md:text-sm text-muted-foreground">Total Bottles</p>
+                <p className="text-lg md:text-2xl font-bold">{calculateTotalBottles()}</p>
               </div>
-              <div className="space-y-1 text-right">
-                <p className="text-sm text-muted-foreground">Total Cost</p>
-                <p className="text-2xl font-bold">${calculateSubtotal().toFixed(2)}</p>
+              <div className="flex justify-between sm:block sm:text-right">
+                <p className="text-xs md:text-sm text-muted-foreground">Total Cost</p>
+                <p className="text-lg md:text-2xl font-bold">${calculateSubtotal().toFixed(2)}</p>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <div className="flex justify-end gap-4">
-          <Button type="button" variant="outline" onClick={() => navigate('/orders')}>
+        <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 md:gap-4">
+          <Button type="button" variant="outline" onClick={() => navigate('/orders')} className="w-full sm:w-auto">
             Cancel
           </Button>
-          <Button type="submit" disabled={loading}>
+          <Button type="submit" disabled={loading} className="w-full sm:w-auto">
             {loading ? 'Creating...' : 'Create Internal Order'}
           </Button>
         </div>

@@ -17,6 +17,52 @@ const EmailRequestSchema = z.object({
 
 type EmailRequest = z.infer<typeof EmailRequestSchema>;
 
+interface SmtpConfig {
+  host: string;
+  port: number;
+  user: string;
+  password: string;
+}
+
+// Helper function to get SMTP config: brand-specific first, then global fallback
+async function getSmtpConfig(supabase: any, brandId?: string | null): Promise<SmtpConfig | null> {
+  // Try brand-specific SMTP first
+  if (brandId) {
+    const { data: brand } = await supabase
+      .from('brands')
+      .select('smtp_host, smtp_port, smtp_user, smtp_password')
+      .eq('id', brandId)
+      .single();
+
+    if (brand?.smtp_host && brand?.smtp_user && brand?.smtp_password) {
+      console.log('Using brand-specific SMTP configuration');
+      return {
+        host: brand.smtp_host,
+        port: brand.smtp_port || 465,
+        user: brand.smtp_user,
+        password: brand.smtp_password,
+      };
+    }
+  }
+
+  // Fallback to global SMTP from environment variables
+  const smtpHost = Deno.env.get('SMTP_HOST');
+  const smtpUser = Deno.env.get('SMTP_USER');
+  const smtpPassword = Deno.env.get('SMTP_PASSWORD');
+
+  if (smtpHost && smtpUser && smtpPassword) {
+    console.log('Using global SMTP configuration');
+    return {
+      host: smtpHost,
+      port: parseInt(Deno.env.get('SMTP_PORT') || '465'),
+      user: smtpUser,
+      password: smtpPassword,
+    };
+  }
+
+  return null;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -56,13 +102,14 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Get shipment details with order and customer info
+    // Get shipment details with order and customer info (include brand_id)
     const { data: shipment, error: shipmentError } = await supabase
       .from("shipments")
       .select(`
         *,
         sales_orders!inner (
           human_uid,
+          brand_id,
           customers!inner (
             name,
             email
@@ -89,17 +136,15 @@ serve(async (req) => {
       );
     }
 
-    // Get SMTP configuration
-    const smtpHost = Deno.env.get("SMTP_HOST");
-    const envPort = parseInt(Deno.env.get("SMTP_PORT") || "0");
-    const smtpUser = Deno.env.get("SMTP_USER");
-    const smtpPassword = Deno.env.get("SMTP_PASSWORD");
-    const effectivePort = smtpHost?.includes("protonmail") ? 465 : (envPort || 465);
-    const useTls = effectivePort === 465;
+    // Get SMTP configuration (brand-specific or global fallback)
+    const smtpConfig = await getSmtpConfig(supabase, order.brand_id);
 
-    if (!smtpHost || !smtpUser || !smtpPassword) {
+    if (!smtpConfig) {
       throw new Error("SMTP configuration missing");
     }
+
+    const effectivePort = smtpConfig.host.includes("protonmail") ? 465 : smtpConfig.port;
+    const useTls = effectivePort === 465;
 
     // Prepare email content based on status
     let subject = "";
@@ -335,106 +380,98 @@ strong { font-weight: bold !important; }
 </html>`;
     };
 
-    if (status === "Delivered" || status === "delivered") {
+    // Set email content based on status
+    const isDelivered = status.toLowerCase() === 'delivered';
+    
+    if (isDelivered) {
       subject = `Your Order ${order.human_uid} Has Been Delivered!`;
-      preheader = `Great news! Your order ${order.human_uid} has been delivered.`;
-      body = buildEmailTemplate(true);
+      preheader = `Great news! Your order has been delivered.`;
     } else {
       subject = `Shipment Update for Order ${order.human_uid}`;
-      preheader = `Your order ${order.human_uid} has a shipment update.`;
-      body = buildEmailTemplate(false);
+      preheader = `Your order status has been updated to: ${status}`;
     }
 
-    // Send email using SMTP
-    console.log(`Sending email to ${recipientEmail}`);
+    body = buildEmailTemplate(isDelivered);
 
-    // Build a clean plain-text alternative (no HTML artifacts)
-    const plainText = body
-      .replace(/<\/(p|div|h\d)>/gi, '\n')
-      .replace(/<br\s*\/?>(\s*)/gi, '\n')
-      .replace(/<li>/gi, '• ')
-      .replace(/<[^>]+>/g, '')
-      .replace(/\n{3,}/g, '\n\n')
-      .trim();
-    const cleanedText = plainText.split('\n').map(l => l.replace(/\s+$/g, '')).join('\n');
-    
-    try {
-      const client = new SMTPClient({
-        connection: {
-          hostname: smtpHost,
-          port: effectivePort,
-          tls: useTls,
-          auth: {
-            username: smtpUser,
-            password: smtpPassword,
-          },
+    // Plain text version
+    const plainText = isDelivered 
+      ? `Great news, ${customer.name}! Your order ${order.human_uid} has been delivered. Tracking: ${shipment.tracking_no}`
+      : `Hello ${customer.name}, your order ${order.human_uid} has a shipment update. Status: ${status}. Tracking: ${shipment.tracking_no}`;
+
+    // Send email
+    const smtpClient = new SMTPClient({
+      connection: {
+        hostname: smtpConfig.host,
+        port: effectivePort,
+        tls: useTls,
+        auth: {
+          username: smtpConfig.user,
+          password: smtpConfig.password,
         },
-      });
+      },
+    });
 
-      await client.send({
-        from: `Nexus Aminos <${smtpUser}>`,
-        to: recipientEmail,
-        subject: subject,
-        html: body,
-      });
+    await smtpClient.send({
+      from: smtpConfig.user,
+      to: recipientEmail,
+      subject: subject,
+      content: plainText,
+      mimeContent: [{ mimeType: 'text/html', content: body, transferEncoding: '8bit' }],
+    });
 
-      await client.close();
-      console.log(`Email sent successfully to ${recipientEmail}`);
+    await smtpClient.close();
 
-      // Send SMS notification if enabled
-      try {
-        const { data: customerData } = await supabase
-          .from('customers')
-          .select('id')
-          .eq('email', recipientEmail)
+    console.log(`Shipment notification email sent to ${recipientEmail}`);
+
+    // Check if SMS notification should be sent
+    try {
+      const { data: customerData } = await supabase
+        .from('customers')
+        .select('id')
+        .eq('email', customer.email)
+        .single();
+
+      if (customerData) {
+        const { data: prefs } = await supabase
+          .from('notification_preferences')
+          .select('sms_enabled, sms_phone_number, sms_shipment_updates')
+          .eq('customer_id', customerData.id)
           .single();
 
-        if (customerData) {
-          const { data: prefs } = await supabase
-            .from('notification_preferences')
-            .select('sms_enabled, sms_phone_number, sms_shipment_updates')
-            .eq('customer_id', customerData.id)
-            .single();
-
-          if (prefs?.sms_enabled && prefs?.sms_shipment_updates && prefs?.sms_phone_number) {
-            const TEXTBELT_API_KEY = Deno.env.get("TEXTBELT_API_KEY");
-            const isDelivered = status.toLowerCase() === 'delivered';
-            const message = isDelivered 
-              ? `Hi ${customer.name}, your order ${order.human_uid} has been delivered!`
-              : `Hi ${customer.name}, your order ${order.human_uid} has shipped! Tracking: ${shipment.tracking_no}`;
-            
-            const smsResponse = await fetch("https://textbelt.com/text", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                phone: prefs.sms_phone_number,
-                message: message,
-                key: TEXTBELT_API_KEY,
-              }),
-            });
-            
-            const smsResult = await smsResponse.json();
-            console.log('SMS sent:', smsResult);
-          }
+        if (prefs?.sms_enabled && prefs?.sms_shipment_updates && prefs?.sms_phone_number) {
+          const TEXTBELT_API_KEY = Deno.env.get("TEXTBELT_API_KEY");
+          const smsMessage = isDelivered 
+            ? `Your order ${order.human_uid} has been delivered!`
+            : `Shipment update for order ${order.human_uid}: ${status}`;
+          
+          const smsResponse = await fetch("https://textbelt.com/text", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              phone: prefs.sms_phone_number,
+              message: smsMessage,
+              key: TEXTBELT_API_KEY,
+            }),
+          });
+          
+          const smsResult = await smsResponse.json();
+          console.log('SMS sent:', smsResult);
         }
-      } catch (smsError) {
-        console.error('SMS notification failed but continuing:', smsError);
       }
-    } catch (smtpError: any) {
-      console.error("SMTP Error details:", smtpError);
-      throw new Error(`Failed to send email: ${smtpError.message}`);
+    } catch (smsError) {
+      console.error('SMS notification failed but continuing:', smsError);
     }
 
     return new Response(
-      JSON.stringify({ success: true, message: "Email sent successfully" }),
+      JSON.stringify({ success: true, message: "Notification sent" }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
     );
 
   } catch (error: any) {
-    console.error("Error in send-shipment-notification:", error);
+    console.error("Error sending shipment notification:", error);
     return new Response(
       JSON.stringify({ error: error.message }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 });

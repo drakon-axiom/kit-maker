@@ -52,6 +52,7 @@ interface SKU {
   bundle_overhead_price?: number;
   inserts_optional: boolean;
   categories?: { id: string; name: string };
+  default_bottle_size_ml: number;
 }
 
 interface ImportRow {
@@ -127,6 +128,7 @@ const SKUs = () => {
     bundle_labor_price: '',
     bundle_overhead_price: '',
     inserts_optional: true,
+    default_bottle_size_ml: 10,
   });
   const [pricingTiers, setPricingTiers] = useState<PricingTier[]>([
     { min_quantity: 5, max_quantity: 10, price_per_kit: 0 },
@@ -136,6 +138,8 @@ const SKUs = () => {
     { min_quantity: 100, max_quantity: null, price_per_kit: 0 },
   ]);
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+  const [customSizeInput, setCustomSizeInput] = useState('');
+  const [customSizeUnit, setCustomSizeUnit] = useState<'ml' | 'L'>('ml');
   const { toast } = useToast();
 
   const fetchCategories = useCallback(async () => {
@@ -210,6 +214,7 @@ const SKUs = () => {
         bundle_labor_price: parseFloat(formData.bundle_labor_price) || 0,
         bundle_overhead_price: parseFloat(formData.bundle_overhead_price) || 0,
         inserts_optional: formData.inserts_optional,
+        default_bottle_size_ml: formData.default_bottle_size_ml,
       };
 
       let skuId = editingSKU?.id;
@@ -411,10 +416,9 @@ const SKUs = () => {
       const sizeStr = row.sizes.toString().trim();
       if (sizeStr) {
         const sizes = sizeStr.split(',').map((s: string) => parseInt(s.trim()));
-        const validSizes = [3, 5, 10, 20, 30, 50, 100];
         for (const size of sizes) {
-          if (isNaN(size) || !validSizes.includes(size)) {
-            errors.push(`Invalid size: ${size}. Must be one of: 3, 5, 10, 20, 30, 50, 100`);
+          if (isNaN(size) || size < 1 || size > 10000) {
+            errors.push(`Invalid size: ${size}. Must be between 1 and 10000 ml`);
           } else {
             sizesArray.push(size);
           }
@@ -842,6 +846,7 @@ const SKUs = () => {
       bundle_labor_price: '',
       bundle_overhead_price: '',
       inserts_optional: true,
+      default_bottle_size_ml: 10,
     });
     setPricingTiers([
       { min_quantity: 5, max_quantity: 10, price_per_kit: 0 },
@@ -874,6 +879,7 @@ const SKUs = () => {
       bundle_labor_price: sku.bundle_labor_price?.toString() || '',
       bundle_overhead_price: sku.bundle_overhead_price?.toString() || '',
       inserts_optional: sku.inserts_optional,
+      default_bottle_size_ml: sku.default_bottle_size_ml || 10,
     });
     
     // Load pricing tiers or use defaults
@@ -1079,8 +1085,8 @@ const SKUs = () => {
               
               <div className="space-y-2">
                 <Label>Size Variants (ml)</Label>
-                <div className="grid grid-cols-4 gap-2">
-                  {[3, 5, 10, 20, 30, 50, 100].map((size) => (
+                <div className="grid grid-cols-5 gap-2">
+                  {[3, 5, 10, 20, 30, 50, 100, 500, 1000, 2000].map((size) => (
                     <div key={size} className="flex items-center space-x-2">
                       <Checkbox
                         id={`size-${size}`}
@@ -1088,13 +1094,116 @@ const SKUs = () => {
                         onCheckedChange={() => toggleSize(size)}
                       />
                       <Label htmlFor={`size-${size}`} className="cursor-pointer">
-                        {size} ml
+                        {size >= 1000 ? `${size / 1000}L` : `${size}ml`}
                       </Label>
                     </div>
                   ))}
                 </div>
+                <div className="flex items-center gap-2 mt-2">
+                  <Input
+                    type="number"
+                    placeholder={`Custom size (${customSizeUnit})`}
+                    value={customSizeInput}
+                    onChange={(e) => setCustomSizeInput(e.target.value)}
+                    className="w-28"
+                    min={customSizeUnit === 'L' ? '0.001' : '1'}
+                    max={customSizeUnit === 'L' ? '10' : '10000'}
+                    step={customSizeUnit === 'L' ? '0.1' : '1'}
+                  />
+                  <div className="flex border rounded-md overflow-hidden">
+                    <Button
+                      type="button"
+                      variant={customSizeUnit === 'ml' ? 'default' : 'ghost'}
+                      size="sm"
+                      className="rounded-none px-3 h-9"
+                      onClick={() => setCustomSizeUnit('ml')}
+                    >
+                      ml
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={customSizeUnit === 'L' ? 'default' : 'ghost'}
+                      size="sm"
+                      className="rounded-none px-3 h-9"
+                      onClick={() => setCustomSizeUnit('L')}
+                    >
+                      L
+                    </Button>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const inputValue = parseFloat(customSizeInput);
+                      if (isNaN(inputValue) || inputValue <= 0) {
+                        toast({
+                          title: 'Invalid size',
+                          description: 'Please enter a valid positive number',
+                          variant: 'destructive',
+                        });
+                        return;
+                      }
+                      // Convert to ml for storage
+                      const sizeInMl = customSizeUnit === 'L' ? Math.round(inputValue * 1000) : Math.round(inputValue);
+                      if (sizeInMl < 1 || sizeInMl > 10000) {
+                        toast({
+                          title: 'Invalid size',
+                          description: 'Size must be between 1ml and 10L',
+                          variant: 'destructive',
+                        });
+                        return;
+                      }
+                      if (!formData.sizes.includes(sizeInMl)) {
+                        setFormData({
+                          ...formData,
+                          sizes: [...formData.sizes, sizeInMl].sort((a, b) => a - b),
+                        });
+                      }
+                      setCustomSizeInput('');
+                    }}
+                  >
+                    Add
+                  </Button>
+                </div>
+                {formData.sizes.filter(s => ![3, 5, 10, 20, 30, 50, 100, 500, 1000, 2000].includes(s)).length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-2">
+                    <span className="text-xs text-muted-foreground">Custom:</span>
+                    {formData.sizes.filter(s => ![3, 5, 10, 20, 30, 50, 100, 500, 1000, 2000].includes(s)).map(size => (
+                      <Badge key={size} variant="secondary" className="text-xs cursor-pointer" onClick={() => toggleSize(size)}>
+                        {size >= 1000 ? `${size / 1000}L` : `${size}ml`} ×
+                      </Badge>
+                    ))}
+                  </div>
+                )}
                 <p className="text-xs text-muted-foreground">
-                  Select one or more size variants for this product
+                  Select preset sizes or add custom sizes
+                </p>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="default_bottle_size_ml">Default Bottle Size (ml)</Label>
+                <Select
+                  value={formData.default_bottle_size_ml.toString()}
+                  onValueChange={(value) => setFormData({ ...formData, default_bottle_size_ml: parseInt(value) })}
+                >
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Select size" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-background z-50">
+                    <SelectItem value="3">3ml</SelectItem>
+                    <SelectItem value="5">5ml</SelectItem>
+                    <SelectItem value="10">10ml</SelectItem>
+                    <SelectItem value="20">20ml</SelectItem>
+                    <SelectItem value="30">30ml</SelectItem>
+                    <SelectItem value="50">50ml</SelectItem>
+                    <SelectItem value="100">100ml</SelectItem>
+                    <SelectItem value="500">500ml</SelectItem>
+                    <SelectItem value="1000">1L (1000ml)</SelectItem>
+                    <SelectItem value="2000">2L (2000ml)</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  Used for volume calculations in internal orders
                 </p>
               </div>
               <div className="grid grid-cols-2 gap-4">
@@ -1328,7 +1437,7 @@ const SKUs = () => {
                           <div className="flex flex-wrap gap-1">
                             {sku.sizes.map((size) => (
                               <Badge key={size.id} variant="outline" className="text-xs">
-                                {size.size_ml}ml
+                                {size.size_ml >= 1000 ? `${size.size_ml / 1000}L` : `${size.size_ml}ml`}
                               </Badge>
                             ))}
                           </div>
@@ -1634,7 +1743,7 @@ const SKUs = () => {
             <div className="space-y-2">
               <Label>Size Variants (ml)</Label>
               <div className="flex flex-wrap gap-2">
-                {[3, 5, 10, 20, 30, 50, 100].map((size) => (
+                {[3, 5, 10, 20, 30, 50, 100, 500, 1000, 2000].map((size) => (
                   <Button
                     key={size}
                     type="button"
@@ -1647,7 +1756,7 @@ const SKUs = () => {
                       setBulkFormData({ ...bulkFormData, sizes: newSizes });
                     }}
                   >
-                    {size}ml
+                    {size >= 1000 ? `${size / 1000}L` : `${size}ml`}
                   </Button>
                 ))}
               </div>

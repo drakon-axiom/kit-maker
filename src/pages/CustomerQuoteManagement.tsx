@@ -13,6 +13,7 @@ import { toast } from 'sonner';
 import { differenceInHours, differenceInDays, formatDistanceToNow } from 'date-fns';
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from '@/components/ui/breadcrumb';
 import { Link } from 'react-router-dom';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface Quote {
   id: string;
@@ -28,6 +29,7 @@ interface Quote {
 export default function CustomerQuoteManagement() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
   const [quotes, setQuotes] = useState<Quote[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
@@ -55,7 +57,6 @@ export default function CustomerQuoteManagement() {
       if (error) throw error;
       setQuotes(data || []);
     } catch (error) {
-      // Error handled silently
       toast.error('Failed to load quotes');
     } finally {
       setLoading(false);
@@ -82,29 +83,13 @@ export default function CustomerQuoteManagement() {
     const days = differenceInDays(expiryDate, now);
     
     if (days > 2) {
-      return { 
-        expired: false, 
-        text: `${days} days remaining`, 
-        color: 'text-green-600' 
-      };
+      return { expired: false, text: `${days}d left`, color: 'text-green-600' };
     } else if (hours > 24) {
-      return { 
-        expired: false, 
-        text: `${Math.floor(hours / 24)} days remaining`, 
-        color: 'text-yellow-600' 
-      };
+      return { expired: false, text: `${Math.floor(hours / 24)}d left`, color: 'text-yellow-600' };
     } else if (hours > 0) {
-      return { 
-        expired: false, 
-        text: `${hours} hours remaining`, 
-        color: 'text-orange-600' 
-      };
+      return { expired: false, text: `${hours}h left`, color: 'text-orange-600' };
     } else {
-      return { 
-        expired: false, 
-        text: 'Less than 1 hour', 
-        color: 'text-red-600' 
-      };
+      return { expired: false, text: '< 1h left', color: 'text-red-600' };
     }
   };
 
@@ -113,7 +98,6 @@ export default function CustomerQuoteManagement() {
 
     setActionLoading(true);
     try {
-      // Record quote action
       await supabase.from('quote_actions').insert({
         so_id: selectedQuote.id,
         action: actionType === 'accept' ? 'accepted' : 'rejected',
@@ -121,7 +105,6 @@ export default function CustomerQuoteManagement() {
         notes: notes || null,
       });
 
-      // Update order status
       const newStatus = actionType === 'accept' 
         ? (selectedQuote.deposit_required ? 'deposit_due' : 'in_queue')
         : 'cancelled';
@@ -137,19 +120,96 @@ export default function CustomerQuoteManagement() {
           : 'Quote rejected'
       );
 
-      // Refresh quotes
       await fetchQuotes();
-      
-      // Close dialog
       setSelectedQuote(null);
       setActionType(null);
       setNotes('');
     } catch (error) {
-      // Error handled silently
       toast.error('Failed to process quote action');
     } finally {
       setActionLoading(false);
     }
+  };
+
+  // Mobile Quote Card
+  const QuoteCard = ({ quote }: { quote: Quote }) => {
+    const timeInfo = getTimeRemaining(quote.quote_expires_at);
+    
+    return (
+      <Card className="mb-3">
+        <CardContent className="p-4">
+          <div className="flex items-start justify-between mb-3">
+            <div className="min-w-0 flex-1">
+              <p className="font-semibold text-sm">{quote.human_uid}</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {formatDistanceToNow(new Date(quote.created_at), { addSuffix: true })}
+              </p>
+            </div>
+            <Badge variant="outline" className="bg-blue-500/10 text-blue-700 text-xs shrink-0">
+              {quote.status === 'quoted' ? 'Awaiting' : 'Review'}
+            </Badge>
+          </div>
+          
+          <div className="grid grid-cols-2 gap-2 mb-3 text-sm">
+            <div>
+              <span className="text-muted-foreground">Amount: </span>
+              <span className="font-bold">${quote.subtotal.toFixed(2)}</span>
+            </div>
+            <div>
+              <span className="text-muted-foreground">Deposit: </span>
+              <span className="font-medium">
+                {quote.deposit_required ? `$${(quote.deposit_amount || 0).toFixed(2)}` : 'None'}
+              </span>
+            </div>
+          </div>
+          
+          {timeInfo && (
+            <div className={`text-xs font-medium mb-3 ${timeInfo.color}`}>
+              {timeInfo.expired ? '❌ ' : '⏰ '}{timeInfo.text}
+            </div>
+          )}
+          
+          <div className="flex gap-2 pt-3 border-t">
+            <Button
+              size="sm"
+              variant="outline"
+              className="flex-1"
+              onClick={() => navigate(`/customer/orders/${quote.id}`)}
+            >
+              <Eye className="h-4 w-4 mr-1" />
+              View
+            </Button>
+            {quote.status === 'quoted' && (
+              <>
+                <Button
+                  size="sm"
+                  variant="default"
+                  className="flex-1"
+                  onClick={() => {
+                    setSelectedQuote(quote);
+                    setActionType('accept');
+                  }}
+                  disabled={timeInfo?.expired}
+                >
+                  <CheckCircle className="h-4 w-4 mr-1" />
+                  Accept
+                </Button>
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  onClick={() => {
+                    setSelectedQuote(quote);
+                    setActionType('reject');
+                  }}
+                >
+                  <XCircle className="h-4 w-4" />
+                </Button>
+              </>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+    );
   };
 
   if (loading) {
@@ -161,7 +221,7 @@ export default function CustomerQuoteManagement() {
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 md:p-6 space-y-4 md:space-y-6">
       {/* Breadcrumb Navigation */}
       <Breadcrumb>
         <BreadcrumbList>
@@ -178,34 +238,43 @@ export default function CustomerQuoteManagement() {
       </Breadcrumb>
 
       <div>
-        <h1 className="text-3xl font-bold">Quote Management</h1>
-        <p className="text-muted-foreground mt-1">
+        <h1 className="text-2xl md:text-3xl font-bold">Quote Management</h1>
+        <p className="text-sm text-muted-foreground mt-1">
           Review and respond to your pending quotes
         </p>
       </div>
 
-        {quotes.length === 0 ? (
-          <Card>
-            <CardContent className="text-center py-12">
-              <Clock className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-              <h3 className="text-lg font-semibold mb-2">No pending quotes</h3>
-              <p className="text-muted-foreground mb-4">
-                You don't have any quotes awaiting your response
-              </p>
-              <Button onClick={() => navigate('/customer')}>
-                Back to Orders
-              </Button>
-            </CardContent>
-          </Card>
-        ) : (
-          <Card>
-            <CardHeader>
-              <CardTitle>Pending Quotes</CardTitle>
-              <CardDescription>
-                Review details and accept or reject quotes before they expire
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
+      {quotes.length === 0 ? (
+        <Card>
+          <CardContent className="text-center py-12">
+            <Clock className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+            <h3 className="text-lg font-semibold mb-2">No pending quotes</h3>
+            <p className="text-sm text-muted-foreground mb-4">
+              You don't have any quotes awaiting your response
+            </p>
+            <Button onClick={() => navigate('/customer')}>
+              Back to Orders
+            </Button>
+          </CardContent>
+        </Card>
+      ) : (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg">Pending Quotes</CardTitle>
+            <CardDescription className="text-sm">
+              Review details and accept or reject quotes before they expire
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {isMobile ? (
+              // Mobile Card View
+              <div>
+                {quotes.map((quote) => (
+                  <QuoteCard key={quote.id} quote={quote} />
+                ))}
+              </div>
+            ) : (
+              // Desktop Table View
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -296,84 +365,87 @@ export default function CustomerQuoteManagement() {
                   })}
                 </TableBody>
               </Table>
-            </CardContent>
-          </Card>
-        )}
+            )}
+          </CardContent>
+        </Card>
+      )}
 
-        {/* Action Confirmation Dialog */}
-        <Dialog open={!!selectedQuote && !!actionType} onOpenChange={(open) => {
-          if (!open) {
-            setSelectedQuote(null);
-            setActionType(null);
-            setNotes('');
-          }
-        }}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>
-                {actionType === 'accept' ? 'Accept Quote' : 'Reject Quote'}
-              </DialogTitle>
-              <DialogDescription>
-                {actionType === 'accept' 
-                  ? `You are about to accept quote ${selectedQuote?.human_uid}. ${selectedQuote?.deposit_required ? 'You will be able to pay the deposit after accepting.' : 'The order will move to production queue.'}`
-                  : `You are about to reject quote ${selectedQuote?.human_uid}. This action cannot be undone.`
-                }
-              </DialogDescription>
-            </DialogHeader>
+      {/* Action Confirmation Dialog */}
+      <Dialog open={!!selectedQuote && !!actionType} onOpenChange={(open) => {
+        if (!open) {
+          setSelectedQuote(null);
+          setActionType(null);
+          setNotes('');
+        }
+      }}>
+        <DialogContent className="max-w-[90vw] sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {actionType === 'accept' ? 'Accept Quote' : 'Reject Quote'}
+            </DialogTitle>
+            <DialogDescription>
+              {actionType === 'accept' 
+                ? `You are about to accept quote ${selectedQuote?.human_uid}. ${selectedQuote?.deposit_required ? 'You will be able to pay the deposit after accepting.' : 'The order will move to production queue.'}`
+                : `You are about to reject quote ${selectedQuote?.human_uid}. This action cannot be undone.`
+              }
+            </DialogDescription>
+          </DialogHeader>
 
-            <div className="space-y-4">
-              <div>
-                <label className="text-sm font-medium">Notes (Optional)</label>
-                <Textarea
-                  placeholder={actionType === 'accept' ? 'Any additional instructions...' : 'Reason for rejection...'}
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  rows={3}
-                />
-              </div>
+          <div className="space-y-4">
+            <div>
+              <label className="text-sm font-medium">Notes (Optional)</label>
+              <Textarea
+                placeholder={actionType === 'accept' ? 'Any additional instructions...' : 'Reason for rejection...'}
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                rows={3}
+              />
             </div>
+          </div>
 
-            <DialogFooter>
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setSelectedQuote(null);
-                  setActionType(null);
-                  setNotes('');
-                }}
-                disabled={actionLoading}
-              >
-                Cancel
-              </Button>
-              <Button
-                variant={actionType === 'accept' ? 'default' : 'destructive'}
-                onClick={handleQuoteAction}
-                disabled={actionLoading}
-              >
-                {actionLoading ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Processing...
-                  </>
-                ) : (
-                  <>
-                    {actionType === 'accept' ? (
-                      <>
-                        <CheckCircle className="h-4 w-4 mr-2" />
-                        Accept Quote
-                      </>
-                    ) : (
-                      <>
-                        <XCircle className="h-4 w-4 mr-2" />
-                        Reject Quote
-                      </>
-                    )}
-                  </>
-                )}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setSelectedQuote(null);
+                setActionType(null);
+                setNotes('');
+              }}
+              disabled={actionLoading}
+              className="w-full sm:w-auto"
+            >
+              Cancel
+            </Button>
+            <Button
+              variant={actionType === 'accept' ? 'default' : 'destructive'}
+              onClick={handleQuoteAction}
+              disabled={actionLoading}
+              className="w-full sm:w-auto"
+            >
+              {actionLoading ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Processing...
+                </>
+              ) : (
+                <>
+                  {actionType === 'accept' ? (
+                    <>
+                      <CheckCircle className="h-4 w-4 mr-2" />
+                      Accept Quote
+                    </>
+                  ) : (
+                    <>
+                      <XCircle className="h-4 w-4 mr-2" />
+                      Reject Quote
+                    </>
+                  )}
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

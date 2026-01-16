@@ -1,8 +1,55 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Webhook } from 'https://esm.sh/standardwebhooks@1.0.0';
 import { SMTPClient } from "https://deno.land/x/denomailer@1.6.0/mod.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.80.0";
 
 const hookSecret = Deno.env.get('SEND_VERIFICATION_EMAIL_HOOK_SECRET') as string;
+
+interface SmtpConfig {
+  host: string;
+  port: number;
+  user: string;
+  password: string;
+}
+
+// Helper function to get SMTP config: brand-specific first, then global fallback
+async function getSmtpConfig(supabase: any, brandId?: string | null): Promise<SmtpConfig | null> {
+  // Try brand-specific SMTP first
+  if (brandId) {
+    const { data: brand } = await supabase
+      .from('brands')
+      .select('smtp_host, smtp_port, smtp_user, smtp_password')
+      .eq('id', brandId)
+      .single();
+
+    if (brand?.smtp_host && brand?.smtp_user && brand?.smtp_password) {
+      console.log('Using brand-specific SMTP configuration');
+      return {
+        host: brand.smtp_host,
+        port: brand.smtp_port || 465,
+        user: brand.smtp_user,
+        password: brand.smtp_password,
+      };
+    }
+  }
+
+  // Fallback to global SMTP from environment variables
+  const smtpHost = Deno.env.get('SMTP_HOST');
+  const smtpUser = Deno.env.get('SMTP_USER');
+  const smtpPassword = Deno.env.get('SMTP_PASSWORD');
+
+  if (smtpHost && smtpUser && smtpPassword) {
+    console.log('Using global SMTP configuration');
+    return {
+      host: smtpHost,
+      port: parseInt(Deno.env.get('SMTP_PORT') || '465'),
+      user: smtpUser,
+      password: smtpPassword,
+    };
+  }
+
+  return null;
+}
 
 const generateVerificationEmailHTML = (verificationUrl: string) => `
 <!DOCTYPE html>
@@ -61,6 +108,9 @@ serve(async (req) => {
     } = wh.verify(payload, headers) as {
       user: {
         email: string;
+        user_metadata?: {
+          brand_id?: string;
+        };
       };
       email_data: {
         token_hash: string;
@@ -70,33 +120,57 @@ serve(async (req) => {
     };
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
     const verificationUrl = `${supabaseUrl}/auth/v1/verify?token=${token_hash}&type=${email_action_type}&redirect_to=${redirect_to}`;
     
     const html = generateVerificationEmailHTML(verificationUrl);
 
-    // Get SMTP configuration from environment
-    const smtpHost = Deno.env.get('SMTP_HOST') as string;
-    const smtpPort = parseInt(Deno.env.get('SMTP_PORT') || '587');
-    const smtpUser = Deno.env.get('SMTP_USER') as string;
-    const smtpPassword = Deno.env.get('SMTP_PASSWORD') as string;
+    // Try to get brand_id from user metadata or find customer's brand
+    let brandId = user.user_metadata?.brand_id;
+    
+    if (!brandId) {
+      // Try to find customer by email to get their brand_id
+      const { data: customer } = await supabase
+        .from('customers')
+        .select('brand_id')
+        .eq('email', user.email)
+        .single();
+      
+      if (customer?.brand_id) {
+        brandId = customer.brand_id;
+      }
+    }
+
+    // Get SMTP configuration (brand-specific or global fallback)
+    const smtpConfig = await getSmtpConfig(supabase, brandId);
+
+    if (!smtpConfig) {
+      throw new Error('SMTP configuration not available');
+    }
+
+    const effectivePort = smtpConfig.host.includes("protonmail") ? 465 : smtpConfig.port;
+    const useTls = effectivePort === 465;
 
     const client = new SMTPClient({
       connection: {
-        hostname: smtpHost,
-        port: smtpPort,
-        tls: true,
+        hostname: smtpConfig.host,
+        port: effectivePort,
+        tls: useTls,
         auth: {
-          username: smtpUser,
-          password: smtpPassword,
+          username: smtpConfig.user,
+          password: smtpConfig.password,
         },
       },
     });
 
     await client.send({
-      from: smtpUser,
+      from: smtpConfig.user,
       to: user.email,
       subject: 'Verify your email address',
-      html,
+      content: html,
+      mimeContent: [{ mimeType: 'text/html', content: html, transferEncoding: '8bit' }],
     });
 
     await client.close();

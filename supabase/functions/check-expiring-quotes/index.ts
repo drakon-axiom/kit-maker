@@ -7,15 +7,58 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-webhook-secret",
 };
 
+interface SmtpConfig {
+  host: string;
+  port: number;
+  user: string;
+  password: string;
+}
+
+// Helper function to get SMTP config: brand-specific first, then global fallback
+async function getSmtpConfig(supabase: any, brandId?: string | null): Promise<SmtpConfig | null> {
+  // Try brand-specific SMTP first
+  if (brandId) {
+    const { data: brand } = await supabase
+      .from('brands')
+      .select('smtp_host, smtp_port, smtp_user, smtp_password')
+      .eq('id', brandId)
+      .single();
+
+    if (brand?.smtp_host && brand?.smtp_user && brand?.smtp_password) {
+      console.log('Using brand-specific SMTP configuration for brand:', brandId);
+      return {
+        host: brand.smtp_host,
+        port: brand.smtp_port || 465,
+        user: brand.smtp_user,
+        password: brand.smtp_password,
+      };
+    }
+  }
+
+  // Fallback to global SMTP from environment variables
+  const smtpHost = Deno.env.get('SMTP_HOST');
+  const smtpUser = Deno.env.get('SMTP_USER');
+  const smtpPassword = Deno.env.get('SMTP_PASSWORD');
+
+  if (smtpHost && smtpUser && smtpPassword) {
+    console.log('Using global SMTP configuration');
+    return {
+      host: smtpHost,
+      port: parseInt(Deno.env.get('SMTP_PORT') || '465'),
+      user: smtpUser,
+      password: smtpPassword,
+    };
+  }
+
+  return null;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    // JWT authentication is handled by Supabase (verify_jwt = true in config.toml)
-    // This function should only be called with proper service role authentication
-
     console.log("Starting quote expiration check...");
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
@@ -25,7 +68,7 @@ serve(async (req) => {
     const now = new Date();
     const reminderThreshold = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000); // 3 days from now
 
-    // Fetch quotes that are expired
+    // Fetch quotes that are expired (include brand_id)
     const { data: expiredQuotes, error: expiredError } = await supabase
       .from("sales_orders")
       .select(`
@@ -44,7 +87,7 @@ serve(async (req) => {
       throw expiredError;
     }
 
-    // Fetch quotes expiring soon (within 24 hours)
+    // Fetch quotes expiring soon (within 3 days) - include brand_id
     const { data: expiringSoonQuotes, error: expiringSoonError } = await supabase
       .from("sales_orders")
       .select(`
@@ -130,35 +173,30 @@ async function sendExpirationNotification(
   type: "expired" | "expiring_soon"
 ) {
   try {
-    const { data: settings } = await supabase
-      .from("settings")
-      .select("key, value")
-      .in("key", ["smtp_host", "smtp_port", "smtp_user", "smtp_from_email"]);
-
-    const settingsMap = settings?.reduce((acc: any, s: any) => {
-      acc[s.key] = s.value;
-      return acc;
-    }, {});
-
-    if (!settingsMap?.smtp_host || !order.customer?.email) {
-      console.log("SMTP not configured or customer email missing, skipping email");
+    if (!order.customer?.email) {
+      console.log("Customer email missing, skipping email");
       return;
     }
 
-    const smtpPassword = Deno.env.get("SMTP_PASSWORD");
-    if (!smtpPassword) {
-      console.error("SMTP_PASSWORD not configured");
+    // Get SMTP config (brand-specific or global fallback)
+    const smtpConfig = await getSmtpConfig(supabase, order.brand_id);
+
+    if (!smtpConfig) {
+      console.log("SMTP not configured, skipping email");
       return;
     }
+
+    const effectivePort = smtpConfig.host.includes("protonmail") ? 465 : smtpConfig.port;
+    const useTls = effectivePort === 465;
 
     const client = new SMTPClient({
       connection: {
-        hostname: settingsMap.smtp_host,
-        port: parseInt(settingsMap.smtp_port || "587"),
-        tls: true,
+        hostname: smtpConfig.host,
+        port: effectivePort,
+        tls: useTls,
         auth: {
-          username: settingsMap.smtp_user,
-          password: smtpPassword,
+          username: smtpConfig.user,
+          password: smtpConfig.password,
         },
       },
     });
@@ -264,10 +302,11 @@ async function sendExpirationNotification(
     }
 
     await client.send({
-      from: settingsMap.smtp_from_email || settingsMap.smtp_user,
+      from: smtpConfig.user,
       to: order.customer.email,
       subject: subject,
-      html: body,
+      content: body,
+      mimeContent: [{ mimeType: 'text/html', content: body, transferEncoding: '8bit' }],
     });
 
     await client.close();
@@ -287,32 +326,37 @@ async function sendAdminExpirationNotification(
     const { data: settings } = await supabase
       .from("settings")
       .select("key, value")
-      .in("key", ["smtp_host", "smtp_port", "smtp_user", "smtp_from_email", "company_email"]);
+      .in("key", ["company_email"]);
 
     const settingsMap = settings?.reduce((acc: any, s: any) => {
       acc[s.key] = s.value;
       return acc;
     }, {});
 
-    if (!settingsMap?.smtp_host || !settingsMap?.company_email) {
-      console.log("SMTP not configured or company email missing, skipping admin email");
+    if (!settingsMap?.company_email) {
+      console.log("Company email missing, skipping admin email");
       return;
     }
 
-    const smtpPassword = Deno.env.get("SMTP_PASSWORD");
-    if (!smtpPassword) {
-      console.error("SMTP_PASSWORD not configured");
+    // Get SMTP config (brand-specific or global fallback)
+    const smtpConfig = await getSmtpConfig(supabase, order.brand_id);
+
+    if (!smtpConfig) {
+      console.log("SMTP not configured, skipping admin email");
       return;
     }
+
+    const effectivePort = smtpConfig.host.includes("protonmail") ? 465 : smtpConfig.port;
+    const useTls = effectivePort === 465;
 
     const client = new SMTPClient({
       connection: {
-        hostname: settingsMap.smtp_host,
-        port: parseInt(settingsMap.smtp_port || "587"),
-        tls: true,
+        hostname: smtpConfig.host,
+        port: effectivePort,
+        tls: useTls,
         auth: {
-          username: settingsMap.smtp_user,
-          password: smtpPassword,
+          username: smtpConfig.user,
+          password: smtpConfig.password,
         },
       },
     });
@@ -361,10 +405,11 @@ async function sendAdminExpirationNotification(
     `;
 
     await client.send({
-      from: settingsMap.smtp_from_email || settingsMap.smtp_user,
+      from: smtpConfig.user,
       to: settingsMap.company_email,
       subject: subject,
-      html: body,
+      content: body,
+      mimeContent: [{ mimeType: 'text/html', content: body, transferEncoding: '8bit' }],
     });
 
     await client.close();

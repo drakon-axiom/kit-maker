@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Checkbox } from '@/components/ui/checkbox';
-import { ArrowLeft, Loader2, Save } from 'lucide-react';
+import { Loader2, Save } from 'lucide-react';
 import { toast } from 'sonner';
 import { useForm } from 'react-hook-form';
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from '@/components/ui/breadcrumb';
@@ -118,7 +118,6 @@ export default function CustomerProfile() {
       };
 
       if (customerId) {
-        // Update existing customer
         const { error } = await supabase
           .from('customers')
           .update(customerData)
@@ -126,7 +125,6 @@ export default function CustomerProfile() {
 
         if (error) throw error;
       } else {
-        // Create new customer
         const { data: newCustomer, error } = await supabase
           .from('customers')
           .insert(customerData)
@@ -143,7 +141,6 @@ export default function CustomerProfile() {
       navigate('/customer/orders/new');
     } catch (error) {
       toast.error('Failed to save profile');
-      // Error handled silently
     } finally {
       setSaving(false);
     }
@@ -158,7 +155,7 @@ export default function CustomerProfile() {
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 md:p-6 space-y-4 md:space-y-6">
       {/* Breadcrumb Navigation */}
       <Breadcrumb>
         <BreadcrumbList>
@@ -175,139 +172,139 @@ export default function CustomerProfile() {
       </Breadcrumb>
 
       <div>
-        <h1 className="text-3xl font-bold">Profile Settings</h1>
-        <p className="text-muted-foreground mt-1">Manage your account and addresses</p>
+        <h1 className="text-2xl md:text-3xl font-bold">Profile Settings</h1>
+        <p className="text-sm text-muted-foreground mt-1">Manage your account and addresses</p>
       </div>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Contact Information</CardTitle>
-              <CardDescription>Your basic contact details</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="name">Company/Name</Label>
-                  <Input id="name" {...register('name')} required />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
-                  <Input id="email" type="email" {...register('email')} required />
-                </div>
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 md:space-y-6">
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg">Contact Information</CardTitle>
+            <CardDescription className="text-sm">Your basic contact details</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="name" className="text-sm">Company/Name</Label>
+                <Input id="name" {...register('name')} required />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="phone">Phone</Label>
-                <Input id="phone" type="tel" {...register('phone')} />
+                <Label htmlFor="email" className="text-sm">Email</Label>
+                <Input id="email" type="email" {...register('email')} required />
               </div>
-            </CardContent>
-          </Card>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="phone" className="text-sm">Phone</Label>
+              <Input id="phone" type="tel" {...register('phone')} />
+            </div>
+          </CardContent>
+        </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Shipping Address</CardTitle>
-              <CardDescription>Where we'll send your orders</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="shipping_address_line1">Address Line 1</Label>
-                <Input id="shipping_address_line1" {...register('shipping_address_line1')} required />
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg">Shipping Address</CardTitle>
+            <CardDescription className="text-sm">Where we'll send your orders</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="shipping_address_line1" className="text-sm">Address Line 1</Label>
+              <Input id="shipping_address_line1" {...register('shipping_address_line1')} required />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="shipping_address_line2" className="text-sm">Address Line 2</Label>
+              <Input id="shipping_address_line2" {...register('shipping_address_line2')} />
+            </div>
+            <div className="grid gap-4 grid-cols-2 sm:grid-cols-3">
+              <div className="space-y-2 col-span-2 sm:col-span-1">
+                <Label htmlFor="shipping_city" className="text-sm">City</Label>
+                <Input id="shipping_city" {...register('shipping_city')} required />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="shipping_address_line2">Address Line 2</Label>
-                <Input id="shipping_address_line2" {...register('shipping_address_line2')} />
-              </div>
-              <div className="grid gap-4 md:grid-cols-3">
-                <div className="space-y-2">
-                  <Label htmlFor="shipping_city">City</Label>
-                  <Input id="shipping_city" {...register('shipping_city')} required />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="shipping_state">State</Label>
-                  <Input id="shipping_state" {...register('shipping_state')} required />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="shipping_zip">ZIP Code</Label>
-                  <Input id="shipping_zip" {...register('shipping_zip')} required />
-                </div>
+                <Label htmlFor="shipping_state" className="text-sm">State</Label>
+                <Input id="shipping_state" {...register('shipping_state')} required />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="shipping_country">Country</Label>
-                <Input id="shipping_country" {...register('shipping_country')} required />
+                <Label htmlFor="shipping_zip" className="text-sm">ZIP Code</Label>
+                <Input id="shipping_zip" {...register('shipping_zip')} required />
               </div>
-            </CardContent>
-          </Card>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="shipping_country" className="text-sm">Country</Label>
+              <Input id="shipping_country" {...register('shipping_country')} required />
+            </div>
+          </CardContent>
+        </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Billing Address</CardTitle>
-              <CardDescription>Address for invoices and payments</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center space-x-2">
-                <Checkbox 
-                  id="billing_same_as_shipping"
-                  checked={billingSameAsShipping}
-                  onCheckedChange={(checked) => setValue('billing_same_as_shipping', checked as boolean)}
-                />
-                <Label htmlFor="billing_same_as_shipping" className="cursor-pointer">
-                  Same as shipping address
-                </Label>
-              </div>
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg">Billing Address</CardTitle>
+            <CardDescription className="text-sm">Address for invoices and payments</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center space-x-2">
+              <Checkbox 
+                id="billing_same_as_shipping"
+                checked={billingSameAsShipping}
+                onCheckedChange={(checked) => setValue('billing_same_as_shipping', checked as boolean)}
+              />
+              <Label htmlFor="billing_same_as_shipping" className="cursor-pointer text-sm">
+                Same as shipping address
+              </Label>
+            </div>
 
-              {!billingSameAsShipping && (
-                <>
-                  <Separator className="my-4" />
-                  <div className="space-y-2">
-                    <Label htmlFor="billing_address_line1">Address Line 1</Label>
-                    <Input id="billing_address_line1" {...register('billing_address_line1')} />
+            {!billingSameAsShipping && (
+              <>
+                <Separator className="my-4" />
+                <div className="space-y-2">
+                  <Label htmlFor="billing_address_line1" className="text-sm">Address Line 1</Label>
+                  <Input id="billing_address_line1" {...register('billing_address_line1')} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="billing_address_line2" className="text-sm">Address Line 2</Label>
+                  <Input id="billing_address_line2" {...register('billing_address_line2')} />
+                </div>
+                <div className="grid gap-4 grid-cols-2 sm:grid-cols-3">
+                  <div className="space-y-2 col-span-2 sm:col-span-1">
+                    <Label htmlFor="billing_city" className="text-sm">City</Label>
+                    <Input id="billing_city" {...register('billing_city')} />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="billing_address_line2">Address Line 2</Label>
-                    <Input id="billing_address_line2" {...register('billing_address_line2')} />
-                  </div>
-                  <div className="grid gap-4 md:grid-cols-3">
-                    <div className="space-y-2">
-                      <Label htmlFor="billing_city">City</Label>
-                      <Input id="billing_city" {...register('billing_city')} />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="billing_state">State</Label>
-                      <Input id="billing_state" {...register('billing_state')} />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="billing_zip">ZIP Code</Label>
-                      <Input id="billing_zip" {...register('billing_zip')} />
-                    </div>
+                    <Label htmlFor="billing_state" className="text-sm">State</Label>
+                    <Input id="billing_state" {...register('billing_state')} />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="billing_country">Country</Label>
-                    <Input id="billing_country" {...register('billing_country')} />
+                    <Label htmlFor="billing_zip" className="text-sm">ZIP Code</Label>
+                    <Input id="billing_zip" {...register('billing_zip')} />
                   </div>
-                </>
-              )}
-            </CardContent>
-          </Card>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="billing_country" className="text-sm">Country</Label>
+                  <Input id="billing_country" {...register('billing_country')} />
+                </div>
+              </>
+            )}
+          </CardContent>
+        </Card>
 
-          <div className="flex justify-end gap-4">
-            <Button type="button" variant="outline" onClick={() => navigate('/customer')}>
-              Cancel
-            </Button>
-            <Button type="submit" disabled={saving}>
-              {saving ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Saving...
-                </>
-              ) : (
-                <>
-                  <Save className="h-4 w-4 mr-2" />
-                  Save Changes
-                </>
-              )}
-            </Button>
-          </div>
-        </form>
+        <div className="flex flex-col sm:flex-row sm:justify-end gap-3">
+          <Button type="button" variant="outline" onClick={() => navigate('/customer')} className="w-full sm:w-auto">
+            Cancel
+          </Button>
+          <Button type="submit" disabled={saving} className="w-full sm:w-auto">
+            {saving ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Saving...
+              </>
+            ) : (
+              <>
+                <Save className="h-4 w-4 mr-2" />
+                Save Changes
+              </>
+            )}
+          </Button>
+        </div>
+      </form>
     </div>
   );
 }
