@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Loader2, CheckCircle, XCircle, Clock, Archive } from 'lucide-react';
 import { format } from 'date-fns';
 import Layout from '@/components/Layout';
@@ -52,6 +53,8 @@ const WholesaleApplications = () => {
   const [reviewNotes, setReviewNotes] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('pending');
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [archivingSelected, setArchivingSelected] = useState(false);
 
   useEffect(() => {
     fetchApplications();
@@ -165,16 +168,121 @@ const WholesaleApplications = () => {
   };
 
   const pendingCount = applications.filter(a => a.status === 'pending').length;
+  const processedApplications = applications.filter(a => a.status === 'approved' || a.status === 'rejected');
 
-  const renderApplicationCard = (app: Application | ArchivedApplication, isArchived = false) => (
-    <Card key={app.id}>
+  const toggleSelection = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  const toggleSelectAll = (apps: Application[]) => {
+    const allSelected = apps.every(app => selectedIds.has(app.id));
+    if (allSelected) {
+      setSelectedIds(prev => {
+        const next = new Set(prev);
+        apps.forEach(app => next.delete(app.id));
+        return next;
+      });
+    } else {
+      setSelectedIds(prev => {
+        const next = new Set(prev);
+        apps.forEach(app => next.add(app.id));
+        return next;
+      });
+    }
+  };
+
+  const handleArchiveSelected = async () => {
+    if (selectedIds.size === 0) return;
+    
+    setArchivingSelected(true);
+    try {
+      const toArchive = applications.filter(app => selectedIds.has(app.id));
+      
+      // Insert into archive table
+      const archiveData = toArchive.map(app => ({
+        id: app.id,
+        company_name: app.company_name,
+        contact_name: app.contact_name,
+        email: app.email,
+        phone: app.phone,
+        business_type: app.business_type,
+        website: app.website,
+        message: app.message,
+        status: app.status,
+        created_at: app.created_at,
+        reviewed_at: app.reviewed_at,
+        reviewed_by: null,
+        notes: app.notes,
+        shipping_address_line1: app.shipping_address_line1,
+        shipping_address_line2: app.shipping_address_line2,
+        shipping_city: app.shipping_city,
+        shipping_state: app.shipping_state,
+        shipping_zip: app.shipping_zip,
+        shipping_country: app.shipping_country,
+        billing_address_line1: app.billing_address_line1,
+        billing_address_line2: app.billing_address_line2,
+        billing_city: app.billing_city,
+        billing_state: app.billing_state,
+        billing_zip: app.billing_zip,
+        billing_country: app.billing_country,
+        billing_same_as_shipping: app.billing_same_as_shipping,
+      }));
+
+      const { error: archiveError } = await supabase
+        .from('wholesale_applications_archive')
+        .insert(archiveData);
+
+      if (archiveError) throw archiveError;
+
+      // Delete from active table
+      const { error: deleteError } = await supabase
+        .from('wholesale_applications')
+        .delete()
+        .in('id', Array.from(selectedIds));
+
+      if (deleteError) throw deleteError;
+
+      toast.success(`${selectedIds.size} application(s) archived successfully`);
+      setSelectedIds(new Set());
+      fetchApplications();
+      // Refresh archived if viewing
+      if (activeTab === 'archived') {
+        fetchArchivedApplications();
+      }
+    } catch (error) {
+      console.error('Archive error:', error);
+      toast.error('Failed to archive selected applications');
+    } finally {
+      setArchivingSelected(false);
+    }
+  };
+
+  const renderApplicationCard = (app: Application | ArchivedApplication, isArchived = false, showCheckbox = false) => (
+    <Card key={app.id} className={selectedIds.has(app.id) ? 'ring-2 ring-primary' : ''}>
       <CardHeader>
         <div className="flex items-start justify-between">
-          <div className="space-y-1">
-            <CardTitle>{app.company_name}</CardTitle>
-            <CardDescription>
-              {app.contact_name} • {app.email}
-            </CardDescription>
+          <div className="flex items-start gap-3">
+            {showCheckbox && (
+              <Checkbox
+                checked={selectedIds.has(app.id)}
+                onCheckedChange={() => toggleSelection(app.id)}
+                className="mt-1"
+              />
+            )}
+            <div className="space-y-1">
+              <CardTitle>{app.company_name}</CardTitle>
+              <CardDescription>
+                {app.contact_name} • {app.email}
+              </CardDescription>
+            </div>
           </div>
           <div className="flex items-center gap-2">
             {isArchived && (
@@ -340,7 +448,34 @@ const WholesaleApplications = () => {
             </div>
           </TabsContent>
 
-          <TabsContent value="all" className="mt-4">
+          <TabsContent value="all" className="mt-4 space-y-4">
+            {processedApplications.length > 0 && (
+              <div className="flex items-center justify-between bg-muted/50 p-3 rounded-lg">
+                <div className="flex items-center gap-3">
+                  <Checkbox
+                    checked={processedApplications.length > 0 && processedApplications.every(app => selectedIds.has(app.id))}
+                    onCheckedChange={() => toggleSelectAll(processedApplications)}
+                  />
+                  <span className="text-sm text-muted-foreground">
+                    {selectedIds.size > 0 ? `${selectedIds.size} selected` : 'Select approved/rejected to archive'}
+                  </span>
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handleArchiveSelected}
+                  disabled={selectedIds.size === 0 || archivingSelected}
+                  className="gap-2"
+                >
+                  {archivingSelected ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Archive className="h-4 w-4" />
+                  )}
+                  Archive Selected
+                </Button>
+              </div>
+            )}
             <div className="grid gap-3 md:gap-4">
               {applications.length === 0 ? (
                 <Card>
@@ -349,7 +484,7 @@ const WholesaleApplications = () => {
                   </CardContent>
                 </Card>
               ) : (
-                applications.map((app) => renderApplicationCard(app))
+                applications.map((app) => renderApplicationCard(app, false, app.status !== 'pending'))
               )}
             </div>
           </TabsContent>
