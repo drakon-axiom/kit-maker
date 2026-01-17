@@ -72,27 +72,30 @@ const WholesaleSignup = () => {
     setLoading(true);
 
     try {
-      // Check if email already exists in wholesale_applications or customers
-      const [{ data: existingApplication }, { data: existingCustomer }] = await Promise.all([
+      // Check if email already exists in PENDING wholesale_applications or customers
+      // Only block pending applications - approved/rejected applications should not block reapplication
+      const [{ data: existingPendingApplication }, { data: existingCustomer }] = await Promise.all([
         supabase
           .from('wholesale_applications')
           .select('id')
           .ilike('email', formData.email)
+          .eq('status', 'pending')
           .maybeSingle(),
         supabase
           .from('customers')
-          .select('id')
+          .select('id, user_id')
           .ilike('email', formData.email)
           .maybeSingle()
       ]);
 
-      if (existingApplication) {
-        toast.error('An application with this email address has already been submitted.');
+      if (existingPendingApplication) {
+        toast.error('An application with this email address is already pending review.');
         setLoading(false);
         return;
       }
 
-      if (existingCustomer) {
+      // Only block if the customer has an active user account linked
+      if (existingCustomer && existingCustomer.user_id) {
         toast.error('An account with this email address already exists. Please sign in instead.');
         setLoading(false);
         return;
