@@ -53,6 +53,7 @@ const WholesaleApplications = () => {
   const [selectedApp, setSelectedApp] = useState<Application | null>(null);
   const [reviewNotes, setReviewNotes] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
+  const [rejectArchiveLoading, setRejectArchiveLoading] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('pending');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [archivingSelected, setArchivingSelected] = useState(false);
@@ -166,6 +167,86 @@ const WholesaleApplications = () => {
       toast.error('Failed to update application');
     } finally {
       setActionLoading(false);
+    }
+  };
+
+  const handleRejectAndArchive = async (app: Application) => {
+    setRejectArchiveLoading(app.id);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+
+      // First reject the application
+      const { error: updateError } = await supabase
+        .from('wholesale_applications')
+        .update({
+          status: 'rejected',
+          reviewed_by: user?.id,
+          reviewed_at: new Date().toISOString(),
+          notes: reviewNotes || null,
+        })
+        .eq('id', app.id);
+
+      if (updateError) throw updateError;
+
+      // Then archive it
+      const archiveData = {
+        id: app.id,
+        company_name: app.company_name,
+        contact_name: app.contact_name,
+        email: app.email,
+        phone: app.phone,
+        business_type: app.business_type,
+        website: app.website,
+        message: app.message,
+        status: 'rejected' as const,
+        created_at: app.created_at,
+        reviewed_at: new Date().toISOString(),
+        reviewed_by: user?.id || null,
+        notes: reviewNotes || null,
+        shipping_address_line1: app.shipping_address_line1,
+        shipping_address_line2: app.shipping_address_line2,
+        shipping_city: app.shipping_city,
+        shipping_state: app.shipping_state,
+        shipping_zip: app.shipping_zip,
+        shipping_country: app.shipping_country,
+        billing_address_line1: app.billing_address_line1,
+        billing_address_line2: app.billing_address_line2,
+        billing_city: app.billing_city,
+        billing_state: app.billing_state,
+        billing_zip: app.billing_zip,
+        billing_country: app.billing_country,
+        billing_same_as_shipping: app.billing_same_as_shipping,
+      };
+
+      const { error: archiveError } = await supabase
+        .from('wholesale_applications_archive')
+        .upsert(archiveData, { onConflict: 'id' });
+
+      if (archiveError) throw archiveError;
+
+      // Delete from active table
+      const { error: deleteError } = await supabase
+        .from('wholesale_applications')
+        .delete()
+        .eq('id', app.id);
+
+      if (deleteError) throw deleteError;
+
+      toast.success('Application rejected and archived');
+      setSelectedApp(null);
+      setReviewNotes('');
+      
+      // Update archived IDs
+      setArchivedIds(prev => new Set(prev).add(app.id));
+      fetchApplications();
+      if (activeTab === 'archived') {
+        fetchArchivedApplications();
+      }
+    } catch (error) {
+      console.error('Reject & archive error:', error);
+      toast.error('Failed to reject and archive application');
+    } finally {
+      setRejectArchiveLoading(null);
     }
   };
 
@@ -417,7 +498,7 @@ const WholesaleApplications = () => {
                   setSelectedApp(app);
                   handleAction(app.id, 'rejected');
                 }}
-                disabled={actionLoading}
+                disabled={actionLoading || rejectArchiveLoading === app.id}
               >
                 {actionLoading && selectedApp?.id === app.id ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -425,6 +506,23 @@ const WholesaleApplications = () => {
                   <XCircle className="h-4 w-4 mr-1" />
                 )}
                 Reject
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => handleRejectAndArchive(app)}
+                disabled={actionLoading || rejectArchiveLoading === app.id}
+                className="border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground"
+              >
+                {rejectArchiveLoading === app.id ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <>
+                    <XCircle className="h-4 w-4 mr-1" />
+                    <Archive className="h-4 w-4 mr-1" />
+                  </>
+                )}
+                Reject & Archive
               </Button>
             </div>
           </div>
