@@ -47,6 +47,7 @@ interface ArchivedApplication extends Application {
 const WholesaleApplications = () => {
   const [applications, setApplications] = useState<Application[]>([]);
   const [archivedApplications, setArchivedApplications] = useState<ArchivedApplication[]>([]);
+  const [archivedIds, setArchivedIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [archivedLoading, setArchivedLoading] = useState(false);
   const [selectedApp, setSelectedApp] = useState<Application | null>(null);
@@ -57,7 +58,8 @@ const WholesaleApplications = () => {
   const [archivingSelected, setArchivingSelected] = useState(false);
 
   useEffect(() => {
-    fetchApplications();
+    // Fetch archived IDs first, then fetch applications
+    fetchArchivedIds().then(() => fetchApplications());
   }, []);
 
   useEffect(() => {
@@ -65,6 +67,19 @@ const WholesaleApplications = () => {
       fetchArchivedApplications();
     }
   }, [activeTab]);
+
+  const fetchArchivedIds = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('wholesale_applications_archive')
+        .select('id');
+      
+      if (error) throw error;
+      setArchivedIds(new Set((data || []).map(a => a.id)));
+    } catch (error) {
+      console.error('Failed to fetch archived IDs:', error);
+    }
+  };
 
   const fetchApplications = async () => {
     try {
@@ -167,8 +182,10 @@ const WholesaleApplications = () => {
     }
   };
 
-  const pendingCount = applications.filter(a => a.status === 'pending').length;
-  const processedApplications = applications.filter(a => a.status === 'approved' || a.status === 'rejected');
+  // Filter out applications that are already archived
+  const activeApplications = applications.filter(a => !archivedIds.has(a.id));
+  const pendingCount = activeApplications.filter(a => a.status === 'pending').length;
+  const processedApplications = activeApplications.filter(a => a.status === 'approved' || a.status === 'rejected');
 
   const toggleSelection = (id: string) => {
     setSelectedIds(prev => {
@@ -252,6 +269,12 @@ const WholesaleApplications = () => {
 
       toast.success(`${selectedIds.size} application(s) archived successfully`);
       setSelectedIds(new Set());
+      // Update archived IDs set
+      setArchivedIds(prev => {
+        const next = new Set(prev);
+        toArchive.forEach(app => next.add(app.id));
+        return next;
+      });
       fetchApplications();
       // Refresh archived if viewing
       if (activeTab === 'archived') {
@@ -268,6 +291,8 @@ const WholesaleApplications = () => {
           .in('id', Array.from(selectedIds));
         toast.success('Applications already archived, removed from active list');
         setSelectedIds(new Set());
+        // Update archived IDs
+        await fetchArchivedIds();
         fetchApplications();
       } else {
         toast.error('Failed to archive selected applications');
@@ -446,14 +471,14 @@ const WholesaleApplications = () => {
 
           <TabsContent value="pending" className="mt-4">
             <div className="grid gap-3 md:gap-4">
-              {applications.filter(a => a.status === 'pending').length === 0 ? (
+              {activeApplications.filter(a => a.status === 'pending').length === 0 ? (
                 <Card>
                   <CardContent className="py-8 text-center text-muted-foreground">
                     No pending applications
                   </CardContent>
                 </Card>
               ) : (
-                applications
+                activeApplications
                   .filter(a => a.status === 'pending')
                   .map((app) => renderApplicationCard(app))
               )}
@@ -489,14 +514,14 @@ const WholesaleApplications = () => {
               </div>
             )}
             <div className="grid gap-3 md:gap-4">
-              {applications.length === 0 ? (
+              {activeApplications.length === 0 ? (
                 <Card>
                   <CardContent className="py-8 text-center text-muted-foreground">
                     No applications yet
                   </CardContent>
                 </Card>
               ) : (
-                applications.map((app) => renderApplicationCard(app, false, app.status !== 'pending'))
+                activeApplications.map((app) => renderApplicationCard(app, false, app.status !== 'pending'))
               )}
             </div>
           </TabsContent>
