@@ -1669,6 +1669,96 @@ export type Database = {
         }
         Relationships: []
       }
+      wholesale_applications_archive: {
+        Row: {
+          archived_at: string
+          billing_address_line1: string | null
+          billing_address_line2: string | null
+          billing_city: string | null
+          billing_country: string | null
+          billing_same_as_shipping: boolean | null
+          billing_state: string | null
+          billing_zip: string | null
+          business_type: string | null
+          company_name: string
+          contact_name: string
+          created_at: string
+          email: string
+          id: string
+          message: string | null
+          notes: string | null
+          phone: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          shipping_address_line1: string | null
+          shipping_address_line2: string | null
+          shipping_city: string | null
+          shipping_country: string | null
+          shipping_state: string | null
+          shipping_zip: string | null
+          status: Database["public"]["Enums"]["application_status"]
+          website: string | null
+        }
+        Insert: {
+          archived_at?: string
+          billing_address_line1?: string | null
+          billing_address_line2?: string | null
+          billing_city?: string | null
+          billing_country?: string | null
+          billing_same_as_shipping?: boolean | null
+          billing_state?: string | null
+          billing_zip?: string | null
+          business_type?: string | null
+          company_name: string
+          contact_name: string
+          created_at: string
+          email: string
+          id: string
+          message?: string | null
+          notes?: string | null
+          phone?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          shipping_address_line1?: string | null
+          shipping_address_line2?: string | null
+          shipping_city?: string | null
+          shipping_country?: string | null
+          shipping_state?: string | null
+          shipping_zip?: string | null
+          status: Database["public"]["Enums"]["application_status"]
+          website?: string | null
+        }
+        Update: {
+          archived_at?: string
+          billing_address_line1?: string | null
+          billing_address_line2?: string | null
+          billing_city?: string | null
+          billing_country?: string | null
+          billing_same_as_shipping?: boolean | null
+          billing_state?: string | null
+          billing_zip?: string | null
+          business_type?: string | null
+          company_name?: string
+          contact_name?: string
+          created_at?: string
+          email?: string
+          id?: string
+          message?: string | null
+          notes?: string | null
+          phone?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          shipping_address_line1?: string | null
+          shipping_address_line2?: string | null
+          shipping_city?: string | null
+          shipping_country?: string | null
+          shipping_state?: string | null
+          shipping_zip?: string | null
+          status?: Database["public"]["Enums"]["application_status"]
+          website?: string | null
+        }
+        Relationships: []
+      }
       workflow_completions: {
         Row: {
           batch_id: string

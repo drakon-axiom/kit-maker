@@ -444,6 +444,57 @@ serve(async (req) => {
       console.log('SMTP not configured, skipping welcome email');
     }
 
+    // Archive the application and remove from active table
+    console.log('Archiving application:', applicationId);
+    
+    const { error: archiveError } = await supabase
+      .from('wholesale_applications_archive')
+      .insert({
+        id: application.id,
+        company_name: application.company_name,
+        contact_name: application.contact_name,
+        email: application.email,
+        phone: application.phone,
+        website: application.website,
+        business_type: application.business_type,
+        message: application.message,
+        shipping_address_line1: application.shipping_address_line1,
+        shipping_address_line2: application.shipping_address_line2,
+        shipping_city: application.shipping_city,
+        shipping_state: application.shipping_state,
+        shipping_zip: application.shipping_zip,
+        shipping_country: application.shipping_country,
+        billing_address_line1: application.billing_address_line1,
+        billing_address_line2: application.billing_address_line2,
+        billing_city: application.billing_city,
+        billing_state: application.billing_state,
+        billing_zip: application.billing_zip,
+        billing_country: application.billing_country,
+        billing_same_as_shipping: application.billing_same_as_shipping,
+        status: 'approved',
+        notes: reviewNotes || application.notes,
+        reviewed_by: caller.id,
+        reviewed_at: new Date().toISOString(),
+        created_at: application.created_at,
+      });
+
+    if (archiveError) {
+      console.error('Error archiving application:', archiveError);
+      // Don't fail the operation - the approval succeeded
+    } else {
+      // Delete from active applications table
+      const { error: deleteError } = await supabase
+        .from('wholesale_applications')
+        .delete()
+        .eq('id', applicationId);
+
+      if (deleteError) {
+        console.error('Error deleting archived application:', deleteError);
+      } else {
+        console.log('Application archived and removed from active table');
+      }
+    }
+
     console.log('Application approval complete');
 
     return new Response(
