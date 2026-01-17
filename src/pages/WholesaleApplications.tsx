@@ -238,7 +238,7 @@ const WholesaleApplications = () => {
 
       const { error: archiveError } = await supabase
         .from('wholesale_applications_archive')
-        .insert(archiveData);
+        .upsert(archiveData, { onConflict: 'id' });
 
       if (archiveError) throw archiveError;
 
@@ -257,9 +257,21 @@ const WholesaleApplications = () => {
       if (activeTab === 'archived') {
         fetchArchivedApplications();
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Archive error:', error);
-      toast.error('Failed to archive selected applications');
+      // Handle duplicate key gracefully
+      if (error?.code === '23505') {
+        // Still try to delete from active table since it's already in archive
+        await supabase
+          .from('wholesale_applications')
+          .delete()
+          .in('id', Array.from(selectedIds));
+        toast.success('Applications already archived, removed from active list');
+        setSelectedIds(new Set());
+        fetchApplications();
+      } else {
+        toast.error('Failed to archive selected applications');
+      }
     } finally {
       setArchivingSelected(false);
     }
