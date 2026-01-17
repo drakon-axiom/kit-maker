@@ -12,6 +12,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import ExpiringQuotesWidget from '@/components/ExpiringQuotesWidget';
 import InternalOrdersWidget from '@/components/InternalOrdersWidget';
+import OnlineCustomersWidget from '@/components/OnlineCustomersWidget';
 import { PullToRefresh } from '@/components/mobile/PullToRefresh';
 import { useIsMobile } from '@/hooks/use-mobile';
 
@@ -163,7 +164,8 @@ const Dashboard = () => {
         </Card>
       )}
 
-      <div className="grid gap-4 md:gap-6 lg:grid-cols-2">
+      <div className="grid gap-4 md:gap-6 lg:grid-cols-3">
+        <OnlineCustomersWidget />
         <ExpiringQuotesWidget />
         <InternalOrdersWidget />
       </div>
