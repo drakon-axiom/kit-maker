@@ -2,21 +2,35 @@ import { supabase } from '@/integrations/supabase/client';
 
 export async function downloadBrandedInvoice(invoiceId: string, invoiceNo: string) {
   try {
-    const { data, error } = await supabase.functions.invoke('generate-branded-pdf', {
-      body: {
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    const { data: { session } } = await supabase.auth.getSession();
+    
+    const response = await fetch(`${supabaseUrl}/functions/v1/generate-branded-pdf`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session?.access_token || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+        'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+      },
+      body: JSON.stringify({
         type: 'invoice',
         id: invoiceId,
-      },
+      }),
     });
 
-    if (error) throw error;
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || 'Failed to generate invoice');
+    }
 
-    // Create a blob from the response and trigger download
-    const blob = new Blob([data], { type: 'application/pdf' });
+    const blob = await response.blob();
     const url = window.URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `invoice-${invoiceNo}.pdf`;
+    // Check content type - if HTML, use .html extension
+    const contentType = response.headers.get('content-type');
+    const extension = contentType?.includes('html') ? 'html' : 'pdf';
+    link.download = `invoice-${invoiceNo}.${extension}`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -28,21 +42,35 @@ export async function downloadBrandedInvoice(invoiceId: string, invoiceNo: strin
 
 export async function downloadBrandedReceipt(paymentId: string) {
   try {
-    const { data, error } = await supabase.functions.invoke('generate-branded-pdf', {
-      body: {
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    const { data: { session } } = await supabase.auth.getSession();
+    
+    const response = await fetch(`${supabaseUrl}/functions/v1/generate-branded-pdf`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session?.access_token || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+        'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+      },
+      body: JSON.stringify({
         type: 'receipt',
         id: paymentId,
-      },
+      }),
     });
 
-    if (error) throw error;
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || 'Failed to generate receipt');
+    }
 
-    // Create a blob from the response and trigger download
-    const blob = new Blob([data], { type: 'application/pdf' });
+    const blob = await response.blob();
     const url = window.URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `receipt-${paymentId.slice(0, 8)}.pdf`;
+    // Check content type - if HTML, use .html extension
+    const contentType = response.headers.get('content-type');
+    const extension = contentType?.includes('html') ? 'html' : 'pdf';
+    link.download = `receipt-${paymentId.slice(0, 8)}.${extension}`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);

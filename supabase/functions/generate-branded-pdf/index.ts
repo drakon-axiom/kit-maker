@@ -85,11 +85,12 @@ Deno.serve(async (req) => {
 
     console.log(`Successfully generated ${type} PDF`);
 
-    return new Response(pdfBytes, {
+    // Return HTML document for download (can be opened in browser and printed to PDF)
+    return new Response(html, {
       headers: {
         ...corsHeaders,
-        'Content-Type': 'application/pdf',
-        'Content-Disposition': `attachment; filename="${type}-${documentData.invoice_no || documentData.id}.pdf"`,
+        'Content-Type': 'text/html; charset=utf-8',
+        'Content-Disposition': `attachment; filename="${type}-${documentData.invoice_no || documentData.id}.html"`,
       },
     });
   } catch (error: any) {
