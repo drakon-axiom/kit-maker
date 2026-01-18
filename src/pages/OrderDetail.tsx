@@ -25,6 +25,7 @@ import { ProductionPhotoUpload } from '@/components/ProductionPhotoUpload';
 import { ProductionPhotosGallery } from '@/components/ProductionPhotosGallery';
 import { SendCustomSMS } from '@/components/SendCustomSMS';
 import { StatusChangeDialog } from '@/components/StatusChangeDialog';
+import { InvoiceManagement } from '@/components/InvoiceManagement';
 import { Database } from '@/integrations/supabase/types';
 import {
   AlertDialog,
@@ -1311,6 +1312,19 @@ const OrderDetail = () => {
           </Table>
         </CardContent>
       </Card>
+
+      {/* Invoice Management */}
+      {order && userRole === 'admin' && order.status !== 'draft' && order.status !== 'cancelled' && (
+        <InvoiceManagement
+          orderId={order.id}
+          orderTotal={order.subtotal}
+          depositAmount={order.deposit_amount || 0}
+          depositRequired={order.deposit_required}
+          customerEmail={order.customer?.email || null}
+          orderStatus={order.status}
+          onStatusChange={fetchOrder}
+        />
+      )}
 
       {/* Production Batches */}
       {(order.status === 'in_queue' || order.status === 'in_production' || order.status === 'in_labeling' || order.status === 'in_packing' || batches.length > 0) && (
