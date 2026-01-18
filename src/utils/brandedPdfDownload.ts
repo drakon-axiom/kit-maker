@@ -13,7 +13,6 @@ interface InvoiceData {
   paid_at: string | null;
   sales_orders: {
     human_uid: string;
-    subtotal: number;
     created_at: string;
     customers: {
       name: string;
@@ -69,46 +68,31 @@ interface PaymentData {
   };
 }
 
-function safeOpenOrSavePdf(doc: any, filename: string) {
-  try {
-    if (typeof doc.save === 'function') {
-      doc.save(filename);
-      return;
-    }
-  } catch {
-    // Fallback to blob URL method
-  }
-  try {
-    const blobUrl = typeof doc.output === 'function' ? doc.output('bloburl') : '';
-    if (blobUrl) {
-      const newWindow = window.open(blobUrl, '_blank');
-      if (!newWindow) {
-        const link = document.createElement('a');
-        link.href = blobUrl;
-        link.download = filename;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-      }
-      return;
-    }
-  } catch {
-    // Fallback
-  }
-  throw new Error('PDF download blocked');
+function safeDownloadPdf(doc: any, filename: string) {
+  // In iframes / stricter browser policies, window.open and doc.save can be blocked.
+  // Creating a Blob and clicking an <a download> is the most reliable.
+  const blob = (doc as any).output?.('blob');
+  if (!blob) throw new Error('Unable to generate PDF blob');
+
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
 }
 
 export async function downloadBrandedInvoice(invoiceId: string, invoiceNo: string) {
-  // Fetch invoice data with related order, customer, and line items
   const { data: invoice, error } = await supabase
     .from('invoices')
     .select(`
       *,
-      sales_orders (
+      sales_orders:so_id (
         human_uid,
-        subtotal,
         created_at,
-        customers (
+        customers:customer_id (
           name,
           email,
           phone,
@@ -118,18 +102,18 @@ export async function downloadBrandedInvoice(invoiceId: string, invoiceNo: strin
           billing_state,
           billing_zip
         ),
-        brands (
+        brands:brand_id (
           name,
           contact_email,
           contact_phone,
           contact_address
         ),
-        sales_order_lines (
+        sales_order_lines:so_id (
           qty_entered,
           unit_price,
           line_subtotal,
           sell_mode,
-          skus (
+          skus:sku_id (
             code,
             description
           )
@@ -140,7 +124,8 @@ export async function downloadBrandedInvoice(invoiceId: string, invoiceNo: strin
     .single();
 
   if (error || !invoice) {
-    throw new Error('Failed to fetch invoice data');
+    console.error('downloadBrandedInvoice query error:', error);
+    throw new Error(error?.message || 'Failed to fetch invoice data');
   }
 
   const invoiceData = invoice as unknown as InvoiceData;
@@ -149,7 +134,6 @@ export async function downloadBrandedInvoice(invoiceId: string, invoiceNo: strin
   const brand = order?.brands;
   const lines = order?.sales_order_lines || [];
 
-  // Generate PDF using jsPDF
   const jsPDFModule = await import('jspdf');
   const JsPDFCtor = (jsPDFModule as any).default || (jsPDFModule as any).jsPDF;
   const doc = new JsPDFCtor();
@@ -182,7 +166,7 @@ export async function downloadBrandedInvoice(invoiceId: string, invoiceNo: strin
   doc.setFontSize(24);
   doc.setFont('helvetica', 'bold');
   doc.text('INVOICE', 20, yPos);
-  
+
   yPos += 12;
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
@@ -193,12 +177,11 @@ export async function downloadBrandedInvoice(invoiceId: string, invoiceNo: strin
   yPos += 5;
   doc.text(`Date: ${format(new Date(invoiceData.issued_at), 'MMMM dd, yyyy')}`, 20, yPos);
   yPos += 5;
-  
-  // Invoice type badge
+
   const typeLabel = invoiceData.type === 'deposit' ? 'DEPOSIT INVOICE' : 'FINAL INVOICE';
   doc.text(`Type: ${typeLabel}`, 20, yPos);
   yPos += 5;
-  
+
   const statusLabel = invoiceData.status === 'paid' ? 'PAID' : 'UNPAID';
   doc.text(`Status: ${statusLabel}`, 20, yPos);
   if (invoiceData.paid_at) {
@@ -214,7 +197,7 @@ export async function downloadBrandedInvoice(invoiceId: string, invoiceNo: strin
   yPos += 6;
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(10);
-  
+
   if (customer) {
     doc.text(customer.name, 20, yPos);
     yPos += 5;
@@ -246,7 +229,7 @@ export async function downloadBrandedInvoice(invoiceId: string, invoiceNo: strin
   yPos += 15;
   doc.setFillColor(245, 245, 245);
   doc.rect(20, yPos, pageWidth - 40, 8, 'F');
-  
+
   doc.setFontSize(9);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(80);
@@ -255,7 +238,7 @@ export async function downloadBrandedInvoice(invoiceId: string, invoiceNo: strin
   doc.text('Qty', 100, yPos);
   doc.text('Unit Price', 125, yPos);
   doc.text('Subtotal', pageWidth - 22, yPos, { align: 'right' });
-  
+
   yPos += 8;
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(0);
@@ -264,7 +247,7 @@ export async function downloadBrandedInvoice(invoiceId: string, invoiceNo: strin
   lines.forEach((line) => {
     const description = line.skus?.description || line.skus?.code || 'Item';
     const qtyText = `${line.qty_entered} ${line.sell_mode === 'kit' ? 'kits' : 'pcs'}`;
-    
+
     // Truncate description if too long
     const maxDescWidth = 75;
     let displayDesc = description;
@@ -274,7 +257,7 @@ export async function downloadBrandedInvoice(invoiceId: string, invoiceNo: strin
       }
       displayDesc += '...';
     }
-    
+
     doc.text(displayDesc, 22, yPos);
     doc.text(qtyText, 100, yPos);
     doc.text(`$${line.unit_price.toFixed(2)}`, 125, yPos);
@@ -287,17 +270,18 @@ export async function downloadBrandedInvoice(invoiceId: string, invoiceNo: strin
   doc.setDrawColor(200);
   doc.line(120, yPos, pageWidth - 20, yPos);
   yPos += 8;
-  
+
   doc.setFontSize(10);
+  doc.setFont('helvetica', 'normal');
   doc.text('Subtotal:', 130, yPos);
   doc.text(`$${invoiceData.subtotal.toFixed(2)}`, pageWidth - 22, yPos, { align: 'right' });
-  
+
   if (invoiceData.tax > 0) {
     yPos += 6;
     doc.text('Tax:', 130, yPos);
     doc.text(`$${invoiceData.tax.toFixed(2)}`, pageWidth - 22, yPos, { align: 'right' });
   }
-  
+
   yPos += 8;
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(12);
@@ -313,25 +297,25 @@ export async function downloadBrandedInvoice(invoiceId: string, invoiceNo: strin
   yPos += 5;
   doc.text(`Generated on ${format(new Date(), 'MMMM dd, yyyy')}`, pageWidth / 2, yPos, { align: 'center' });
 
-  safeOpenOrSavePdf(doc, `invoice-${invoiceNo}.pdf`);
+  safeDownloadPdf(doc, `invoice-${invoiceNo}.pdf`);
 }
 
 export async function downloadBrandedReceipt(paymentId: string) {
-  // Fetch payment data with related invoice and order info
   const { data: payment, error } = await supabase
     .from('invoice_payments')
     .select(`
       *,
-      invoices (
+      invoices:invoice_id (
         invoice_no,
         type,
-        sales_orders (
+        so_id,
+        sales_orders:so_id (
           human_uid,
-          customers (
+          customers:customer_id (
             name,
             email
           ),
-          brands (
+          brands:brand_id (
             name,
             contact_email,
             contact_phone,
@@ -344,7 +328,8 @@ export async function downloadBrandedReceipt(paymentId: string) {
     .single();
 
   if (error || !payment) {
-    throw new Error('Failed to fetch payment data');
+    console.error('downloadBrandedReceipt query error:', error);
+    throw new Error(error?.message || 'Failed to fetch payment data');
   }
 
   const paymentData = payment as unknown as PaymentData;
@@ -353,7 +338,6 @@ export async function downloadBrandedReceipt(paymentId: string) {
   const customer = order?.customers;
   const brand = order?.brands;
 
-  // Generate PDF using jsPDF
   const jsPDFModule = await import('jspdf');
   const JsPDFCtor = (jsPDFModule as any).default || (jsPDFModule as any).jsPDF;
   const doc = new JsPDFCtor();
@@ -386,7 +370,7 @@ export async function downloadBrandedReceipt(paymentId: string) {
   doc.setFontSize(24);
   doc.setFont('helvetica', 'bold');
   doc.text('PAYMENT RECEIPT', 20, yPos);
-  
+
   yPos += 15;
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
@@ -408,7 +392,7 @@ export async function downloadBrandedReceipt(paymentId: string) {
   yPos += 6;
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(10);
-  
+
   if (customer) {
     doc.text(customer.name, 20, yPos);
     yPos += 5;
@@ -421,26 +405,27 @@ export async function downloadBrandedReceipt(paymentId: string) {
   yPos += 20;
   doc.setFillColor(245, 245, 245);
   doc.roundedRect(20, yPos, pageWidth - 40, 50, 3, 3, 'F');
-  
+
   yPos += 12;
   doc.setFontSize(10);
   doc.setTextColor(80);
+  doc.setFont('helvetica', 'normal');
   doc.text('Payment Method:', 30, yPos);
   doc.setTextColor(0);
-  doc.text(paymentData.method.toUpperCase(), 90, yPos);
-  
+  doc.text(String(paymentData.method || '').toUpperCase(), 90, yPos);
+
   yPos += 10;
   doc.setTextColor(80);
   doc.text('Invoice Type:', 30, yPos);
   doc.setTextColor(0);
   doc.text(invoice?.type === 'deposit' ? 'Deposit' : 'Final', 90, yPos);
-  
+
   yPos += 10;
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(14);
   doc.setTextColor(80);
   doc.text('Amount Paid:', 30, yPos);
-  doc.setTextColor(0, 128, 0); // Green
+  doc.setTextColor(0, 128, 0);
   doc.text(`$${paymentData.amount.toFixed(2)}`, 90, yPos);
 
   if (paymentData.notes) {
@@ -462,5 +447,5 @@ export async function downloadBrandedReceipt(paymentId: string) {
   yPos += 5;
   doc.text(`Generated on ${format(new Date(), 'MMMM dd, yyyy')}`, pageWidth / 2, yPos, { align: 'center' });
 
-  safeOpenOrSavePdf(doc, `receipt-${paymentData.id.slice(0, 8)}.pdf`);
+  safeDownloadPdf(doc, `receipt-${paymentData.id.slice(0, 8)}.pdf`);
 }
