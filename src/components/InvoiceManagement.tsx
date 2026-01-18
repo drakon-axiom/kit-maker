@@ -170,25 +170,18 @@ export function InvoiceManagement({
 
     setSending(invoice.id);
     try {
-      const { data, error } = await supabase.functions.invoke('send-order-notification', {
+      const { data, error } = await supabase.functions.invoke('send-invoice-email', {
         body: {
-          orderId,
-          newStatus: 'awaiting_payment',
-          oldStatus: orderStatus,
           invoiceId: invoice.id,
         },
       });
 
       if (error) throw error;
 
-      const message = (data as any)?.message as string | undefined;
-      if (message && message.toLowerCase().includes('does not require notification')) {
-        toast({
-          title: 'Not Sent',
-          description: message,
-          variant: 'destructive',
-        });
-        return;
+      const response = data as { success?: boolean; message?: string; error?: string };
+      
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to send invoice');
       }
 
       toast({
