@@ -170,7 +170,7 @@ export function InvoiceManagement({
 
     setSending(invoice.id);
     try {
-      const { error } = await supabase.functions.invoke('send-order-notification', {
+      const { data, error } = await supabase.functions.invoke('send-order-notification', {
         body: {
           orderId,
           newStatus: 'awaiting_payment',
@@ -180,6 +180,16 @@ export function InvoiceManagement({
       });
 
       if (error) throw error;
+
+      const message = (data as any)?.message as string | undefined;
+      if (message && message.toLowerCase().includes('does not require notification')) {
+        toast({
+          title: 'Not Sent',
+          description: message,
+          variant: 'destructive',
+        });
+        return;
+      }
 
       toast({
         title: 'Invoice Sent',
