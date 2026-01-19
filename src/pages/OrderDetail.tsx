@@ -158,55 +158,6 @@ const OrderDetail = () => {
 
   const fetchOrder = useCallback(async () => {
     if (!id) return;
-  useEffect(() => {
-    if (id) {
-      fetchOrder();
-      fetchBatches();
-      fetchBatchAllocations();
-    }
-  }, [id]);
-
-  // Subscribe to realtime status updates
-  useEffect(() => {
-    if (!id) return;
-
-    const channel = supabase
-      .channel(`order-status-${id}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'sales_orders',
-          filter: `id=eq.${id}`,
-        },
-        (payload) => {
-          const newStatus = payload.new?.status;
-          const oldStatus = payload.old?.status;
-          
-          if (newStatus && oldStatus && newStatus !== oldStatus) {
-            // Update local state
-            setOrder((prev) => prev ? { ...prev, status: newStatus } : prev);
-            
-            // Show toast notification
-            toast({
-              title: '🔄 Status Updated',
-              description: `Order status changed from ${formatStatus(oldStatus)} to ${formatStatus(newStatus)}`,
-            });
-            
-            // Refetch to get any related data changes
-            fetchBatches();
-          }
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [id, toast]);
-
-  const fetchOrder = async () => {
     try {
       const { data, error } = await supabase
         .from('sales_orders')
@@ -317,6 +268,46 @@ const OrderDetail = () => {
       fetchBatchAllocations();
     }
   }, [id, fetchOrder, fetchBatches, fetchBatchAllocations]);
+
+  // Subscribe to realtime status updates
+  useEffect(() => {
+    if (!id) return;
+
+    const channel = supabase
+      .channel(`order-status-${id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'sales_orders',
+          filter: `id=eq.${id}`,
+        },
+        (payload) => {
+          const newStatus = payload.new?.status;
+          const oldStatus = payload.old?.status;
+
+          if (newStatus && oldStatus && newStatus !== oldStatus) {
+            // Update local state
+            setOrder((prev) => prev ? { ...prev, status: newStatus } : prev);
+
+            // Show toast notification
+            toast({
+              title: 'Status Updated',
+              description: `Order status changed from ${formatStatus(oldStatus)} to ${formatStatus(newStatus)}`,
+            });
+
+            // Refetch to get any related data changes
+            fetchBatches();
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [id, toast, fetchBatches]);
 
   const formatStatus = (status: string) => {
     if (status === 'on_hold_customer') return 'On Hold (Customer Hold)';

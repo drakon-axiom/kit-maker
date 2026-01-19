@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
+import { Outlet } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useBrand } from '@/contexts/BrandContext';
 import { SidebarProvider, SidebarTrigger, SidebarInset } from '@/components/ui/sidebar';
 import { AppSidebar } from '@/components/AppSidebar';
 import { Button } from '@/components/ui/button';
-import { LogOut, User, Menu, X, Factory, ClipboardList, Package, Boxes, PackageSearch, Monitor, TruckIcon, Users, ShieldCheck, MessageSquare, UserCog, Palette, UserPlus, Mail, History, DollarSign, Tags, Settings } from 'lucide-react';
+import { LogOut, User, Menu, X, Factory, ClipboardList, Package, Boxes, PackageSearch, Monitor, TruckIcon, Users, ShieldCheck, MessageSquare, UserCog, Palette, UserPlus, Mail, History, DollarSign, Clock, Tags, Settings } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -22,7 +23,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface LayoutProps {
-  children: React.ReactNode;
+  children?: React.ReactNode;
 }
 
 const Layout = ({ children }: LayoutProps) => {
@@ -122,7 +123,7 @@ const Layout = ({ children }: LayoutProps) => {
             </DropdownMenu>
           </header>
           <SidebarInset className="flex-1 overflow-auto scroll-smooth-touch pb-20 md:pb-0">
-            {children}
+            {children || <Outlet />}
           </SidebarInset>
         </div>
         {/* Mobile bottom nav inside the container for proper stacking */}

@@ -1,4 +1,5 @@
 import React from 'react';
+import { Outlet } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { SidebarProvider, SidebarTrigger, SidebarInset } from '@/components/ui/sidebar';
 import { CustomerSidebar } from '@/components/CustomerSidebar';
@@ -15,7 +16,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 
 interface CustomerLayoutProps {
-  children: React.ReactNode;
+  children?: React.ReactNode;
 }
 
 export const CustomerLayout = ({ children }: CustomerLayoutProps) => {
@@ -56,7 +57,7 @@ export const CustomerLayout = ({ children }: CustomerLayoutProps) => {
             </DropdownMenu>
           </header>
           <SidebarInset className="flex-1 overflow-auto scroll-smooth-touch pb-20 md:pb-0">
-            {children}
+            {children || <Outlet />}
           </SidebarInset>
         </div>
         <CustomerMobileBottomNav />
