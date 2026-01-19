@@ -85,51 +85,60 @@ function safeDownloadPdf(doc: any, filename: string) {
 }
 
 export async function downloadBrandedInvoice(invoiceId: string, invoiceNo: string) {
-  const { data: invoice, error } = await supabase
+  // First fetch the invoice
+  const { data: invoice, error: invoiceError } = await supabase
     .from('invoices')
-    .select(`
-      *,
-      sales_orders:so_id (
-        human_uid,
-        created_at,
-        customers:customer_id (
-          name,
-          email,
-          phone,
-          billing_address_line1,
-          billing_address_line2,
-          billing_city,
-          billing_state,
-          billing_zip
-        ),
-        brands:brand_id (
-          name,
-          contact_email,
-          contact_phone,
-          contact_address
-        ),
-        sales_order_lines:so_id (
-          qty_entered,
-          unit_price,
-          line_subtotal,
-          sell_mode,
-          skus:sku_id (
-            code,
-            description
-          )
-        )
-      )
-    `)
+    .select('*')
     .eq('id', invoiceId)
     .single();
 
-  if (error || !invoice) {
-    console.error('downloadBrandedInvoice query error:', error);
-    throw new Error(error?.message || 'Failed to fetch invoice data');
+  if (invoiceError || !invoice) {
+    console.error('downloadBrandedInvoice invoice query error:', invoiceError);
+    throw new Error(invoiceError?.message || 'Failed to fetch invoice');
   }
 
-  const invoiceData = invoice as unknown as InvoiceData;
-  const order = invoiceData.sales_orders;
+  // Fetch the sales order with related data
+  const { data: order, error: orderError } = await supabase
+    .from('sales_orders')
+    .select(`
+      human_uid,
+      created_at,
+      customers (
+        name,
+        email,
+        phone,
+        billing_address_line1,
+        billing_address_line2,
+        billing_city,
+        billing_state,
+        billing_zip
+      ),
+      brands (
+        name,
+        contact_email,
+        contact_phone,
+        contact_address
+      ),
+      sales_order_lines (
+        qty_entered,
+        unit_price,
+        line_subtotal,
+        sell_mode,
+        skus (
+          code,
+          description
+        )
+      )
+    `)
+    .eq('id', invoice.so_id)
+    .single();
+
+  if (orderError) {
+    console.error('downloadBrandedInvoice order query error:', orderError);
+  }
+
+  const error = invoiceError || orderError;
+
   const customer = order?.customers;
   const brand = order?.brands;
   const lines = order?.sales_order_lines || [];
@@ -171,21 +180,21 @@ export async function downloadBrandedInvoice(invoiceId: string, invoiceNo: strin
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(100);
-  doc.text(`Invoice #: ${invoiceData.invoice_no}`, 20, yPos);
+  doc.text(`Invoice #: ${invoice.invoice_no}`, 20, yPos);
   yPos += 5;
   doc.text(`Order #: ${order?.human_uid || ''}`, 20, yPos);
   yPos += 5;
-  doc.text(`Date: ${format(new Date(invoiceData.issued_at), 'MMMM dd, yyyy')}`, 20, yPos);
+  doc.text(`Date: ${format(new Date(invoice.issued_at), 'MMMM dd, yyyy')}`, 20, yPos);
   yPos += 5;
 
-  const typeLabel = invoiceData.type === 'deposit' ? 'DEPOSIT INVOICE' : 'FINAL INVOICE';
+  const typeLabel = invoice.type === 'deposit' ? 'DEPOSIT INVOICE' : 'FINAL INVOICE';
   doc.text(`Type: ${typeLabel}`, 20, yPos);
   yPos += 5;
 
-  const statusLabel = invoiceData.status === 'paid' ? 'PAID' : 'UNPAID';
+  const statusLabel = invoice.status === 'paid' ? 'PAID' : 'UNPAID';
   doc.text(`Status: ${statusLabel}`, 20, yPos);
-  if (invoiceData.paid_at) {
-    doc.text(` (${format(new Date(invoiceData.paid_at), 'MMM dd, yyyy')})`, 55, yPos);
+  if (invoice.paid_at) {
+    doc.text(` (${format(new Date(invoice.paid_at), 'MMM dd, yyyy')})`, 55, yPos);
   }
 
   // Bill To section
@@ -274,19 +283,19 @@ export async function downloadBrandedInvoice(invoiceId: string, invoiceNo: strin
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
   doc.text('Subtotal:', 130, yPos);
-  doc.text(`$${invoiceData.subtotal.toFixed(2)}`, pageWidth - 22, yPos, { align: 'right' });
+  doc.text(`$${invoice.subtotal.toFixed(2)}`, pageWidth - 22, yPos, { align: 'right' });
 
-  if (invoiceData.tax > 0) {
+  if (invoice.tax > 0) {
     yPos += 6;
     doc.text('Tax:', 130, yPos);
-    doc.text(`$${invoiceData.tax.toFixed(2)}`, pageWidth - 22, yPos, { align: 'right' });
+    doc.text(`$${invoice.tax.toFixed(2)}`, pageWidth - 22, yPos, { align: 'right' });
   }
 
   yPos += 8;
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(12);
   doc.text('Total Due:', 130, yPos);
-  doc.text(`$${invoiceData.total.toFixed(2)}`, pageWidth - 22, yPos, { align: 'right' });
+  doc.text(`$${invoice.total.toFixed(2)}`, pageWidth - 22, yPos, { align: 'right' });
 
   // Footer
   yPos = doc.internal.pageSize.getHeight() - 30;
