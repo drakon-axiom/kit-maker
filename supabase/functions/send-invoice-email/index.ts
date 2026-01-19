@@ -289,11 +289,14 @@ serve(async (req) => {
     if (smtpHost && smtpPort && smtpUser && smtpPassword) {
       console.log(`[send-invoice-email] Using brand SMTP: ${smtpHost}:${smtpPort}`);
       
+      // Port 587 typically uses STARTTLS, port 465 uses direct TLS
+      const useTls = smtpPort === 465;
+      
       const client = new SMTPClient({
         connection: {
           hostname: smtpHost,
           port: smtpPort,
-          tls: true,
+          tls: useTls,
           auth: {
             username: smtpUser,
             password: smtpPassword,
@@ -332,11 +335,14 @@ serve(async (req) => {
 
       console.log(`[send-invoice-email] Using global SMTP: ${globalSmtpHost}:${globalSmtpPort}`);
       
+      // Port 587 typically uses STARTTLS, port 465 uses direct TLS
+      const useTls = globalSmtpPort === 465;
+      
       const client = new SMTPClient({
         connection: {
           hostname: globalSmtpHost,
           port: globalSmtpPort,
-          tls: true,
+          tls: useTls,
           auth: {
             username: globalSmtpUser,
             password: globalSmtpPassword,
