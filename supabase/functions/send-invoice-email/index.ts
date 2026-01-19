@@ -39,131 +39,22 @@ const generateInvoiceEmailHtml = (
     day: 'numeric' 
   });
 
-  const lineItemsHtml = lineItems.map(item => `
-    <tr>
-      <td style="padding: 12px; border-bottom: 1px solid #eee; font-family: Arial, sans-serif; font-size: 14px;">${item.sku_code}</td>
-      <td style="padding: 12px; border-bottom: 1px solid #eee; font-family: Arial, sans-serif; font-size: 14px;">${item.description}</td>
-      <td style="padding: 12px; border-bottom: 1px solid #eee; font-family: Arial, sans-serif; font-size: 14px; text-align: center;">${item.qty}</td>
-      <td style="padding: 12px; border-bottom: 1px solid #eee; font-family: Arial, sans-serif; font-size: 14px; text-align: right;">${formatCurrency(item.unit_price)}</td>
-      <td style="padding: 12px; border-bottom: 1px solid #eee; font-family: Arial, sans-serif; font-size: 14px; text-align: right;">${formatCurrency(item.line_subtotal)}</td>
-    </tr>
-  `).join('');
+  const lineItemsHtml = lineItems.map(item => 
+    `<tr><td style="padding:12px;border-bottom:1px solid #eee;font-family:Arial,sans-serif;font-size:14px;">${item.sku_code}</td><td style="padding:12px;border-bottom:1px solid #eee;font-family:Arial,sans-serif;font-size:14px;">${item.description}</td><td style="padding:12px;border-bottom:1px solid #eee;font-family:Arial,sans-serif;font-size:14px;text-align:center;">${item.qty}</td><td style="padding:12px;border-bottom:1px solid #eee;font-family:Arial,sans-serif;font-size:14px;text-align:right;">${formatCurrency(item.unit_price)}</td><td style="padding:12px;border-bottom:1px solid #eee;font-family:Arial,sans-serif;font-size:14px;text-align:right;">${formatCurrency(item.line_subtotal)}</td></tr>`
+  ).join('');
 
-  return `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>${typeLabel} ${invoiceNo}</title>
-</head>
-<body style="margin: 0; padding: 0; background-color: #f5f5f5; font-family: Arial, sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f5f5f5; padding: 40px 20px;">
-    <tr>
-      <td align="center">
-        <table width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-          <!-- Header -->
-          <tr>
-            <td style="background-color: ${primaryColor}; padding: 30px; text-align: center;">
-              ${brandLogoUrl ? `<img src="${brandLogoUrl}" alt="${brandName}" style="max-width: 180px; max-height: 60px;">` : `<h1 style="color: #ffffff; margin: 0; font-size: 24px;">${brandName}</h1>`}
-            </td>
-          </tr>
-          
-          <!-- Invoice Title -->
-          <tr>
-            <td style="padding: 30px 40px 20px;">
-              <h2 style="margin: 0 0 10px; color: #333; font-size: 28px;">${typeLabel}</h2>
-              <p style="margin: 0; color: #666; font-size: 16px;">Invoice #${invoiceNo}</p>
-              <p style="margin: 5px 0 0; color: #666; font-size: 14px;">Order: ${orderNumber}</p>
-              <p style="margin: 5px 0 0; color: #666; font-size: 14px;">Date: ${formattedDate}</p>
-            </td>
-          </tr>
-          
-          <!-- Customer Info -->
-          <tr>
-            <td style="padding: 0 40px 20px;">
-              <table width="100%" cellpadding="0" cellspacing="0">
-                <tr>
-                  <td style="padding: 15px; background-color: #f9f9f9; border-radius: 6px;">
-                    <p style="margin: 0 0 5px; font-size: 12px; color: #888; text-transform: uppercase; letter-spacing: 1px;">Bill To</p>
-                    <p style="margin: 0; font-size: 16px; color: #333; font-weight: bold;">${customerName}</p>
-                  </td>
-                </tr>
-              </table>
-            </td>
-          </tr>
-          
-          <!-- Line Items -->
-          <tr>
-            <td style="padding: 0 40px 20px;">
-              <table width="100%" cellpadding="0" cellspacing="0" style="border: 1px solid #eee; border-radius: 6px; overflow: hidden;">
-                <tr style="background-color: #f5f5f5;">
-                  <th style="padding: 12px; text-align: left; font-family: Arial, sans-serif; font-size: 12px; color: #666; text-transform: uppercase;">SKU</th>
-                  <th style="padding: 12px; text-align: left; font-family: Arial, sans-serif; font-size: 12px; color: #666; text-transform: uppercase;">Description</th>
-                  <th style="padding: 12px; text-align: center; font-family: Arial, sans-serif; font-size: 12px; color: #666; text-transform: uppercase;">Qty</th>
-                  <th style="padding: 12px; text-align: right; font-family: Arial, sans-serif; font-size: 12px; color: #666; text-transform: uppercase;">Unit Price</th>
-                  <th style="padding: 12px; text-align: right; font-family: Arial, sans-serif; font-size: 12px; color: #666; text-transform: uppercase;">Total</th>
-                </tr>
-                ${lineItemsHtml}
-              </table>
-            </td>
-          </tr>
-          
-          <!-- Totals -->
-          <tr>
-            <td style="padding: 0 40px 30px;">
-              <table width="100%" cellpadding="0" cellspacing="0">
-                <tr>
-                  <td width="60%"></td>
-                  <td width="40%">
-                    <table width="100%" cellpadding="0" cellspacing="0">
-                      <tr>
-                        <td style="padding: 8px 0; font-size: 14px; color: #666;">Subtotal</td>
-                        <td style="padding: 8px 0; font-size: 14px; color: #333; text-align: right;">${formatCurrency(subtotal)}</td>
-                      </tr>
-                      ${tax > 0 ? `
-                      <tr>
-                        <td style="padding: 8px 0; font-size: 14px; color: #666;">Tax</td>
-                        <td style="padding: 8px 0; font-size: 14px; color: #333; text-align: right;">${formatCurrency(tax)}</td>
-                      </tr>
-                      ` : ''}
-                      <tr>
-                        <td style="padding: 12px 0; font-size: 18px; color: #333; font-weight: bold; border-top: 2px solid #333;">Amount Due</td>
-                        <td style="padding: 12px 0; font-size: 18px; color: ${primaryColor}; font-weight: bold; text-align: right; border-top: 2px solid #333;">${formatCurrency(total)}</td>
-                      </tr>
-                    </table>
-                  </td>
-                </tr>
-              </table>
-            </td>
-          </tr>
-          
-          <!-- Payment Instructions -->
-          <tr>
-            <td style="padding: 0 40px 30px;">
-              <div style="background-color: #fff8e1; border-left: 4px solid #ffc107; padding: 15px 20px; border-radius: 0 6px 6px 0;">
-                <p style="margin: 0; font-size: 14px; color: #856404;">
-                  <strong>Payment Instructions:</strong> Please remit payment at your earliest convenience. If you have any questions about this invoice, please contact us.
-                </p>
-              </div>
-            </td>
-          </tr>
-          
-          <!-- Footer -->
-          <tr>
-            <td style="background-color: #f5f5f5; padding: 25px 40px; text-align: center; border-top: 1px solid #eee;">
-              <p style="margin: 0 0 5px; font-size: 14px; color: #333; font-weight: bold;">${brandName}</p>
-              ${brandEmail ? `<p style="margin: 0 0 5px; font-size: 13px; color: #666;"><a href="mailto:${brandEmail}" style="color: ${primaryColor};">${brandEmail}</a></p>` : ''}
-              ${brandPhone ? `<p style="margin: 0 0 5px; font-size: 13px; color: #666;">${brandPhone}</p>` : ''}
-              ${brandAddress ? `<p style="margin: 0; font-size: 13px; color: #666;">${brandAddress}</p>` : ''}
-              <p style="margin: 15px 0 0; font-size: 12px; color: #999;">© ${new Date().getFullYear()} ${brandName}. All rights reserved.</p>
-            </td>
-          </tr>
-        </table>
-      </td>
-    </tr>
-  </table>
-</body>
-</html>`;
+  // Build HTML without unnecessary whitespace to avoid quoted-printable encoding issues
+  const taxRow = tax > 0 ? `<tr><td style="padding:8px 0;font-size:14px;color:#666;">Tax</td><td style="padding:8px 0;font-size:14px;color:#333;text-align:right;">${formatCurrency(tax)}</td></tr>` : '';
+  
+  const logoOrName = brandLogoUrl 
+    ? `<img src="${brandLogoUrl}" alt="${brandName}" style="max-width:180px;max-height:60px;">` 
+    : `<h1 style="color:#ffffff;margin:0;font-size:24px;">${brandName}</h1>`;
+  
+  const emailLink = brandEmail ? `<p style="margin:0 0 5px;font-size:13px;color:#666;"><a href="mailto:${brandEmail}" style="color:${primaryColor};">${brandEmail}</a></p>` : '';
+  const phoneText = brandPhone ? `<p style="margin:0 0 5px;font-size:13px;color:#666;">${brandPhone}</p>` : '';
+  const addressText = brandAddress ? `<p style="margin:0;font-size:13px;color:#666;">${brandAddress}</p>` : '';
+
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${typeLabel} ${invoiceNo}</title></head><body style="margin:0;padding:0;background-color:#f5f5f5;font-family:Arial,sans-serif;"><table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f5f5f5;padding:40px 20px;"><tr><td align="center"><table width="600" cellpadding="0" cellspacing="0" style="background-color:#ffffff;border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.1);"><tr><td style="background-color:${primaryColor};padding:30px;text-align:center;">${logoOrName}</td></tr><tr><td style="padding:30px 40px 20px;"><h2 style="margin:0 0 10px;color:#333;font-size:28px;">${typeLabel}</h2><p style="margin:0;color:#666;font-size:16px;">Invoice #${invoiceNo}</p><p style="margin:5px 0 0;color:#666;font-size:14px;">Order: ${orderNumber}</p><p style="margin:5px 0 0;color:#666;font-size:14px;">Date: ${formattedDate}</p></td></tr><tr><td style="padding:0 40px 20px;"><table width="100%" cellpadding="0" cellspacing="0"><tr><td style="padding:15px;background-color:#f9f9f9;border-radius:6px;"><p style="margin:0 0 5px;font-size:12px;color:#888;text-transform:uppercase;letter-spacing:1px;">Bill To</p><p style="margin:0;font-size:16px;color:#333;font-weight:bold;">${customerName}</p></td></tr></table></td></tr><tr><td style="padding:0 40px 20px;"><table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #eee;border-radius:6px;overflow:hidden;"><tr style="background-color:#f5f5f5;"><th style="padding:12px;text-align:left;font-family:Arial,sans-serif;font-size:12px;color:#666;text-transform:uppercase;">SKU</th><th style="padding:12px;text-align:left;font-family:Arial,sans-serif;font-size:12px;color:#666;text-transform:uppercase;">Description</th><th style="padding:12px;text-align:center;font-family:Arial,sans-serif;font-size:12px;color:#666;text-transform:uppercase;">Qty</th><th style="padding:12px;text-align:right;font-family:Arial,sans-serif;font-size:12px;color:#666;text-transform:uppercase;">Unit Price</th><th style="padding:12px;text-align:right;font-family:Arial,sans-serif;font-size:12px;color:#666;text-transform:uppercase;">Total</th></tr>${lineItemsHtml}</table></td></tr><tr><td style="padding:0 40px 30px;"><table width="100%" cellpadding="0" cellspacing="0"><tr><td width="60%"></td><td width="40%"><table width="100%" cellpadding="0" cellspacing="0"><tr><td style="padding:8px 0;font-size:14px;color:#666;">Subtotal</td><td style="padding:8px 0;font-size:14px;color:#333;text-align:right;">${formatCurrency(subtotal)}</td></tr>${taxRow}<tr><td style="padding:12px 0;font-size:18px;color:#333;font-weight:bold;border-top:2px solid #333;">Amount Due</td><td style="padding:12px 0;font-size:18px;color:${primaryColor};font-weight:bold;text-align:right;border-top:2px solid #333;">${formatCurrency(total)}</td></tr></table></td></tr></table></td></tr><tr><td style="padding:0 40px 30px;"><div style="background-color:#fff8e1;border-left:4px solid #ffc107;padding:15px 20px;border-radius:0 6px 6px 0;"><p style="margin:0;font-size:14px;color:#856404;"><strong>Payment Instructions:</strong> Please remit payment at your earliest convenience. If you have any questions about this invoice, please contact us.</p></div></td></tr><tr><td style="background-color:#f5f5f5;padding:25px 40px;text-align:center;border-top:1px solid #eee;"><p style="margin:0 0 5px;font-size:14px;color:#333;font-weight:bold;">${brandName}</p>${emailLink}${phoneText}${addressText}<p style="margin:15px 0 0;font-size:12px;color:#999;">&copy; ${new Date().getFullYear()} ${brandName}. All rights reserved.</p></td></tr></table></td></tr></table></body></html>`;
 };
 
 serve(async (req) => {
@@ -232,6 +123,8 @@ serve(async (req) => {
       throw new Error(`Invoice not found: ${invoiceError?.message || "Unknown error"}`);
     }
 
+    console.log("[send-invoice-email] Invoice data:", JSON.stringify(invoice, null, 2));
+
     const order = invoice.sales_orders;
     if (!order) {
       throw new Error("Order not found for this invoice");
@@ -242,7 +135,20 @@ serve(async (req) => {
       throw new Error("Customer email not found");
     }
 
-    const brand = order.brands;
+    // Get brand from order, or fetch default brand if none assigned
+    let brand = order.brands;
+    if (!brand) {
+      console.log("[send-invoice-email] No brand on order, fetching default brand");
+      const { data: defaultBrand } = await supabase
+        .from("brands")
+        .select("id, name, logo_url, primary_color, contact_email, contact_phone, contact_address, smtp_host, smtp_port, smtp_user, smtp_password")
+        .eq("is_default", true)
+        .single();
+      brand = defaultBrand;
+    }
+
+    console.log("[send-invoice-email] Brand:", brand?.name || "No brand found");
+
     const brandName = brand?.name || "Company";
     const brandLogoUrl = brand?.logo_url || null;
     const brandEmail = brand?.contact_email || null;
