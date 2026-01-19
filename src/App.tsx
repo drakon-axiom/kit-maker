@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { HelmetProvider } from "react-helmet-async";
 import { AuthProvider } from "./contexts/AuthContext";
 import { BrandProvider } from "./contexts/BrandContext";
+import { useVersionCheck } from "./hooks/useVersionCheck";
 import Auth from "./pages/Auth";
 import AdminAuth from "./pages/AdminAuth";
 import Landing from "./pages/Landing";
@@ -47,6 +48,11 @@ import Layout from "./components/Layout";
 import { CustomerLayout } from "./components/CustomerLayout";
 import NotFound from "./pages/NotFound";
 
+function VersionChecker() {
+  useVersionCheck();
+  return null;
+}
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -63,6 +69,7 @@ const App = () => (
       <TooltipProvider>
         <Toaster />
         <Sonner />
+        <VersionChecker />
         <BrowserRouter>
           <AuthProvider>
             <BrandProvider>
