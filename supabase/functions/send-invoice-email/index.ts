@@ -287,15 +287,17 @@ serve(async (req) => {
     const smtpPassword = brand?.smtp_password;
 
     if (smtpHost && smtpPort && smtpUser && smtpPassword) {
-      console.log(`[send-invoice-email] Using brand SMTP: ${smtpHost}:${smtpPort}`);
+      // Force port 465 for ProtonMail - STARTTLS on 587 has issues in Deno
+      const isProtonMail = smtpHost.includes("proton");
+      const effectivePort = (isProtonMail && smtpPort === 587) ? 465 : smtpPort;
+      const useTls = effectivePort === 465;
       
-      // Port 587 typically uses STARTTLS, port 465 uses direct TLS
-      const useTls = smtpPort === 465;
+      console.log(`[send-invoice-email] Using brand SMTP: ${smtpHost}:${effectivePort} (tls: ${useTls})`);
       
       const client = new SMTPClient({
         connection: {
           hostname: smtpHost,
-          port: smtpPort,
+          port: effectivePort,
           tls: useTls,
           auth: {
             username: smtpUser,
@@ -324,7 +326,7 @@ serve(async (req) => {
     } else {
       // Fall back to global SMTP
       const globalSmtpHost = Deno.env.get("SMTP_HOST");
-      const globalSmtpPort = parseInt(Deno.env.get("SMTP_PORT") || "587");
+      const envPort = parseInt(Deno.env.get("SMTP_PORT") || "465");
       const globalSmtpUser = Deno.env.get("SMTP_USER");
       const globalSmtpPassword = Deno.env.get("SMTP_PASSWORD");
       const globalSmtpFrom = Deno.env.get("SMTP_FROM") || globalSmtpUser;
@@ -333,15 +335,17 @@ serve(async (req) => {
         throw new Error("No SMTP configuration available (neither brand nor global)");
       }
 
-      console.log(`[send-invoice-email] Using global SMTP: ${globalSmtpHost}:${globalSmtpPort}`);
-      
-      // Port 587 typically uses STARTTLS, port 465 uses direct TLS
-      const useTls = globalSmtpPort === 465;
+      // Force port 465 for ProtonMail - STARTTLS on 587 has issues in Deno
+      const isProtonMail = globalSmtpHost.includes("proton");
+      const effectivePort = (isProtonMail && envPort === 587) ? 465 : envPort;
+      const useTls = effectivePort === 465;
+
+      console.log(`[send-invoice-email] Using global SMTP: ${globalSmtpHost}:${effectivePort} (tls: ${useTls})`);
       
       const client = new SMTPClient({
         connection: {
           hostname: globalSmtpHost,
-          port: globalSmtpPort,
+          port: effectivePort,
           tls: useTls,
           auth: {
             username: globalSmtpUser,
