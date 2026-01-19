@@ -26,6 +26,8 @@ interface InvoiceData {
     } | null;
     brands: {
       name: string;
+      logo_url: string | null;
+      primary_color: string;
       contact_email: string | null;
       contact_phone: string | null;
       contact_address: string | null;
@@ -60,6 +62,8 @@ interface PaymentData {
       } | null;
       brands: {
         name: string;
+        logo_url: string | null;
+        primary_color: string;
         contact_email: string | null;
         contact_phone: string | null;
         contact_address: string | null;
@@ -68,9 +72,63 @@ interface PaymentData {
   };
 }
 
+// Parse HSL string like "222.2 84% 4.9%" to RGB values
+function hslToRgb(hslString: string): { r: number; g: number; b: number } {
+  const parts = hslString.split(' ');
+  if (parts.length < 3) {
+    return { r: 50, g: 50, b: 50 }; // Default dark gray
+  }
+  
+  const h = parseFloat(parts[0]) / 360;
+  const s = parseFloat(parts[1].replace('%', '')) / 100;
+  const l = parseFloat(parts[2].replace('%', '')) / 100;
+  
+  let r, g, b;
+  
+  if (s === 0) {
+    r = g = b = l;
+  } else {
+    const hue2rgb = (p: number, q: number, t: number) => {
+      if (t < 0) t += 1;
+      if (t > 1) t -= 1;
+      if (t < 1/6) return p + (q - p) * 6 * t;
+      if (t < 1/2) return q;
+      if (t < 2/3) return p + (q - p) * (2/3 - t) * 6;
+      return p;
+    };
+    
+    const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+    const p = 2 * l - q;
+    r = hue2rgb(p, q, h + 1/3);
+    g = hue2rgb(p, q, h);
+    b = hue2rgb(p, q, h - 1/3);
+  }
+  
+  return {
+    r: Math.round(r * 255),
+    g: Math.round(g * 255),
+    b: Math.round(b * 255)
+  };
+}
+
+// Load image and convert to base64 for jsPDF
+async function loadImageAsBase64(url: string): Promise<string | null> {
+  try {
+    const response = await fetch(url);
+    const blob = await response.blob();
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror = () => resolve(null);
+      reader.readAsDataURL(blob);
+    });
+  } catch (e) {
+    console.error('Failed to load logo image:', e);
+    return null;
+  }
+}
+
 function safeDownloadPdf(doc: any, filename: string) {
-  // In iframes / stricter browser policies, window.open and doc.save can be blocked.
-  // Creating a Blob and clicking an <a download> is the most reliable.
   const blob = (doc as any).output?.('blob');
   if (!blob) throw new Error('Unable to generate PDF blob');
 
@@ -80,10 +138,9 @@ function safeDownloadPdf(doc: any, filename: string) {
   const link = document.createElement('a');
   link.href = url;
   link.download = filename;
-  link.target = '_blank'; // Add target for iframe compatibility
+  link.target = '_blank';
   link.rel = 'noopener noreferrer';
   
-  // For iframe environments, try opening in new tab as fallback
   try {
     document.body.appendChild(link);
     link.click();
@@ -94,7 +151,6 @@ function safeDownloadPdf(doc: any, filename: string) {
     window.open(url, '_blank');
   }
   
-  // Delay revoking to ensure download starts
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
@@ -111,7 +167,7 @@ export async function downloadBrandedInvoice(invoiceId: string, invoiceNo: strin
     throw new Error(invoiceError?.message || 'Failed to fetch invoice');
   }
 
-  // Fetch the sales order with related data
+  // Fetch the sales order with related data including logo and colors
   const { data: order, error: orderError } = await supabase
     .from('sales_orders')
     .select(`
@@ -129,6 +185,8 @@ export async function downloadBrandedInvoice(invoiceId: string, invoiceNo: strin
       ),
       brands (
         name,
+        logo_url,
+        primary_color,
         contact_email,
         contact_phone,
         contact_address
@@ -157,11 +215,30 @@ export async function downloadBrandedInvoice(invoiceId: string, invoiceNo: strin
     throw new Error('Order not found for this invoice');
   }
 
-  console.log('downloadBrandedInvoice: Generating PDF for invoice', invoiceNo);
+  // If no brand on order, fetch default brand
+  let brand = order.brands;
+  if (!brand) {
+    const { data: defaultBrand } = await supabase
+      .from('brands')
+      .select('name, logo_url, primary_color, contact_email, contact_phone, contact_address')
+      .eq('is_default', true)
+      .single();
+    brand = defaultBrand;
+  }
+
+  console.log('downloadBrandedInvoice: Generating PDF for invoice', invoiceNo, 'with brand:', brand?.name);
 
   const customer = order.customers;
-  const brand = order.brands;
   const lines = order.sales_order_lines || [];
+
+  // Get brand color
+  const brandColor = brand?.primary_color ? hslToRgb(brand.primary_color) : { r: 50, g: 50, b: 50 };
+
+  // Load logo if available
+  let logoBase64: string | null = null;
+  if (brand?.logo_url) {
+    logoBase64 = await loadImageAsBase64(brand.logo_url);
+  }
 
   const jsPDFModule = await import('jspdf');
   const JsPDFCtor = (jsPDFModule as any).default || (jsPDFModule as any).jsPDF;
@@ -170,7 +247,18 @@ export async function downloadBrandedInvoice(invoiceId: string, invoiceNo: strin
   const pageWidth = doc.internal.pageSize.getWidth();
   let yPos = 20;
 
-  // Header - Brand/Company info (right aligned)
+  // Add logo if available (top right)
+  if (logoBase64) {
+    try {
+      doc.addImage(logoBase64, 'AUTO', pageWidth - 50, 10, 30, 30);
+    } catch (e) {
+      console.error('Failed to add logo to PDF:', e);
+    }
+  }
+
+  // Header - Brand/Company info (right aligned, below logo if present)
+  const headerStartY = logoBase64 ? 45 : 20;
+  yPos = headerStartY;
   doc.setFontSize(10);
   doc.setTextColor(100);
   if (brand?.name) {
@@ -189,9 +277,9 @@ export async function downloadBrandedInvoice(invoiceId: string, invoiceNo: strin
     doc.text(brand.contact_phone, pageWidth - 20, yPos, { align: 'right' });
   }
 
-  // Invoice title
+  // Invoice title with brand color
   yPos = 20;
-  doc.setTextColor(0);
+  doc.setTextColor(brandColor.r, brandColor.g, brandColor.b);
   doc.setFontSize(24);
   doc.setFont('helvetica', 'bold');
   doc.text('INVOICE', 20, yPos);
@@ -218,7 +306,7 @@ export async function downloadBrandedInvoice(invoiceId: string, invoiceNo: strin
   }
 
   // Bill To section
-  yPos += 15;
+  yPos = Math.max(yPos + 15, headerStartY + 30);
   doc.setTextColor(0);
   doc.setFontSize(11);
   doc.setFont('helvetica', 'bold');
@@ -254,14 +342,14 @@ export async function downloadBrandedInvoice(invoiceId: string, invoiceNo: strin
     }
   }
 
-  // Line items table
+  // Line items table with brand color header
   yPos += 15;
-  doc.setFillColor(245, 245, 245);
+  doc.setFillColor(brandColor.r, brandColor.g, brandColor.b);
   doc.rect(20, yPos, pageWidth - 40, 8, 'F');
 
   doc.setFontSize(9);
   doc.setFont('helvetica', 'bold');
-  doc.setTextColor(80);
+  doc.setTextColor(255, 255, 255); // White text on colored header
   yPos += 5;
   doc.text('Item', 22, yPos);
   doc.text('Qty', 100, yPos);
@@ -277,7 +365,6 @@ export async function downloadBrandedInvoice(invoiceId: string, invoiceNo: strin
     const description = line.skus?.description || line.skus?.code || 'Item';
     const qtyText = `${line.qty_entered} ${line.sell_mode === 'kit' ? 'kits' : 'pcs'}`;
 
-    // Truncate description if too long
     const maxDescWidth = 75;
     let displayDesc = description;
     if (doc.getTextWidth(description) > maxDescWidth) {
@@ -314,6 +401,7 @@ export async function downloadBrandedInvoice(invoiceId: string, invoiceNo: strin
   yPos += 8;
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(12);
+  doc.setTextColor(brandColor.r, brandColor.g, brandColor.b);
   doc.text('Total Due:', 130, yPos);
   doc.text(`$${invoice.total.toFixed(2)}`, pageWidth - 22, yPos, { align: 'right' });
 
@@ -346,6 +434,8 @@ export async function downloadBrandedReceipt(paymentId: string) {
           ),
           brands:brand_id (
             name,
+            logo_url,
+            primary_color,
             contact_email,
             contact_phone,
             contact_address
@@ -365,7 +455,26 @@ export async function downloadBrandedReceipt(paymentId: string) {
   const invoice = paymentData.invoices;
   const order = invoice?.sales_orders;
   const customer = order?.customers;
-  const brand = order?.brands;
+  
+  // If no brand on order, fetch default brand
+  let brand = order?.brands;
+  if (!brand) {
+    const { data: defaultBrand } = await supabase
+      .from('brands')
+      .select('name, logo_url, primary_color, contact_email, contact_phone, contact_address')
+      .eq('is_default', true)
+      .single();
+    brand = defaultBrand;
+  }
+
+  // Get brand color
+  const brandColor = brand?.primary_color ? hslToRgb(brand.primary_color) : { r: 50, g: 50, b: 50 };
+
+  // Load logo if available
+  let logoBase64: string | null = null;
+  if (brand?.logo_url) {
+    logoBase64 = await loadImageAsBase64(brand.logo_url);
+  }
 
   const jsPDFModule = await import('jspdf');
   const JsPDFCtor = (jsPDFModule as any).default || (jsPDFModule as any).jsPDF;
@@ -374,7 +483,18 @@ export async function downloadBrandedReceipt(paymentId: string) {
   const pageWidth = doc.internal.pageSize.getWidth();
   let yPos = 20;
 
+  // Add logo if available (top right)
+  if (logoBase64) {
+    try {
+      doc.addImage(logoBase64, 'AUTO', pageWidth - 50, 10, 30, 30);
+    } catch (e) {
+      console.error('Failed to add logo to PDF:', e);
+    }
+  }
+
   // Header - Brand/Company info (right aligned)
+  const headerStartY = logoBase64 ? 45 : 20;
+  yPos = headerStartY;
   doc.setFontSize(10);
   doc.setTextColor(100);
   if (brand?.name) {
@@ -393,9 +513,9 @@ export async function downloadBrandedReceipt(paymentId: string) {
     doc.text(brand.contact_phone, pageWidth - 20, yPos, { align: 'right' });
   }
 
-  // Receipt title
+  // Receipt title with brand color
   yPos = 20;
-  doc.setTextColor(0);
+  doc.setTextColor(brandColor.r, brandColor.g, brandColor.b);
   doc.setFontSize(24);
   doc.setFont('helvetica', 'bold');
   doc.text('PAYMENT RECEIPT', 20, yPos);
@@ -413,7 +533,7 @@ export async function downloadBrandedReceipt(paymentId: string) {
   doc.text(`Payment Date: ${format(new Date(paymentData.recorded_at), 'MMMM dd, yyyy')}`, 20, yPos);
 
   // Customer info
-  yPos += 15;
+  yPos = Math.max(yPos + 15, headerStartY + 30);
   doc.setTextColor(0);
   doc.setFontSize(11);
   doc.setFont('helvetica', 'bold');
@@ -430,10 +550,15 @@ export async function downloadBrandedReceipt(paymentId: string) {
     }
   }
 
-  // Payment details box
+  // Payment details box with brand color
   yPos += 20;
+  doc.setFillColor(brandColor.r, brandColor.g, brandColor.b);
+  doc.setDrawColor(brandColor.r, brandColor.g, brandColor.b);
+  doc.roundedRect(20, yPos, pageWidth - 40, 50, 3, 3, 'S'); // Stroke with brand color
+  
+  // Light fill
   doc.setFillColor(245, 245, 245);
-  doc.roundedRect(20, yPos, pageWidth - 40, 50, 3, 3, 'F');
+  doc.roundedRect(21, yPos + 1, pageWidth - 42, 48, 2, 2, 'F');
 
   yPos += 12;
   doc.setFontSize(10);
