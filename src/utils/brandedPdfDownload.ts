@@ -74,14 +74,28 @@ function safeDownloadPdf(doc: any, filename: string) {
   const blob = (doc as any).output?.('blob');
   if (!blob) throw new Error('Unable to generate PDF blob');
 
+  console.log('safeDownloadPdf: Generated blob, attempting download for', filename);
+
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
   link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
+  link.target = '_blank'; // Add target for iframe compatibility
+  link.rel = 'noopener noreferrer';
+  
+  // For iframe environments, try opening in new tab as fallback
+  try {
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    console.log('safeDownloadPdf: Download triggered via link click');
+  } catch (e) {
+    console.log('safeDownloadPdf: Link click failed, opening in new window');
+    window.open(url, '_blank');
+  }
+  
+  // Delay revoking to ensure download starts
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 export async function downloadBrandedInvoice(invoiceId: string, invoiceNo: string) {
@@ -135,13 +149,19 @@ export async function downloadBrandedInvoice(invoiceId: string, invoiceNo: strin
 
   if (orderError) {
     console.error('downloadBrandedInvoice order query error:', orderError);
+    throw new Error(orderError?.message || 'Failed to fetch order data');
   }
 
-  const error = invoiceError || orderError;
+  if (!order) {
+    console.error('downloadBrandedInvoice: No order found for so_id:', invoice.so_id);
+    throw new Error('Order not found for this invoice');
+  }
 
-  const customer = order?.customers;
-  const brand = order?.brands;
-  const lines = order?.sales_order_lines || [];
+  console.log('downloadBrandedInvoice: Generating PDF for invoice', invoiceNo);
+
+  const customer = order.customers;
+  const brand = order.brands;
+  const lines = order.sales_order_lines || [];
 
   const jsPDFModule = await import('jspdf');
   const JsPDFCtor = (jsPDFModule as any).default || (jsPDFModule as any).jsPDF;
