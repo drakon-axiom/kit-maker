@@ -1089,6 +1089,8 @@ export type Database = {
       }
       sales_orders: {
         Row: {
+          archived: boolean
+          archived_at: string | null
           brand_id: string | null
           created_at: string
           customer_id: string | null
@@ -1112,6 +1114,8 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          archived?: boolean
+          archived_at?: string | null
           brand_id?: string | null
           created_at?: string
           customer_id?: string | null
@@ -1135,6 +1139,8 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          archived?: boolean
+          archived_at?: string | null
           brand_id?: string | null
           created_at?: string
           customer_id?: string | null

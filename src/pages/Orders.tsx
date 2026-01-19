@@ -4,7 +4,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Plus, Loader2, Eye, Search, Download, Edit, ArrowUpDown, ChevronLeft, ChevronRight, Filter, X, Printer } from 'lucide-react';
+import { Plus, Loader2, Eye, Search, Download, Edit, ArrowUpDown, ChevronLeft, ChevronRight, Filter, X, Printer, Archive, ArchiveRestore } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useNavigate } from 'react-router-dom';
 import { Input } from '@/components/ui/input';
@@ -39,6 +39,8 @@ interface Order {
   deposit_required: boolean;
   deposit_status: string;
   created_at: string;
+  archived: boolean;
+  archived_at: string | null;
 }
 
 interface Batch {
@@ -121,7 +123,9 @@ const Orders = () => {
   const [filterCustomer, setFilterCustomer] = useState('');
   const [filterDateFrom, setFilterDateFrom] = useState('');
   const [filterDateTo, setFilterDateTo] = useState('');
-  
+  const [showArchived, setShowArchived] = useState(false);
+  const [archiving, setArchiving] = useState(false);
+
   // Print state
   const [printOrder, setPrintOrder] = useState<OrderWithDetails | null>(null);
   const [printType, setPrintType] = useState<'order' | 'shipping' | 'batch' | null>(null);
@@ -341,6 +345,51 @@ const Orders = () => {
     }
   };
 
+  const handleArchiveOrders = async (archive: boolean) => {
+    if (selectedOrders.size === 0) {
+      toast({
+        title: 'No orders selected',
+        description: 'Please select at least one order to archive',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setArchiving(true);
+    try {
+      const updateData = archive 
+        ? { archived: true, archived_at: new Date().toISOString() }
+        : { archived: false, archived_at: null };
+
+      const updatePromises = Array.from(selectedOrders).map(orderId =>
+        supabase.from('sales_orders').update(updateData).eq('id', orderId)
+      );
+
+      const results = await Promise.all(updatePromises);
+      const errors = results.filter(r => r.error);
+
+      if (errors.length > 0) {
+        throw new Error(`Failed to ${archive ? 'archive' : 'unarchive'} ${errors.length} order(s)`);
+      }
+
+      toast({
+        title: 'Success',
+        description: `${archive ? 'Archived' : 'Unarchived'} ${selectedOrders.size} order(s) successfully`,
+      });
+
+      setSelectedOrders(new Set());
+      fetchOrders();
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'An error occurred',
+        variant: 'destructive',
+      });
+    } finally {
+      setArchiving(false);
+    }
+  };
+
   const exportToCSV = () => {
     const csvData = filteredOrders.map(order => ({
       'Order ID': order.human_uid,
@@ -385,6 +434,10 @@ const Orders = () => {
   const hasActiveFilters = !!(filterStatus || filterDepositStatus || filterCustomer || filterDateFrom || filterDateTo);
 
   const filteredOrders = orders.filter(order => {
+    // Archive filter - hide archived orders unless showArchived is true
+    if (!showArchived && order.archived) return false;
+    if (showArchived && !order.archived) return false;
+
     // Search query
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
@@ -623,8 +676,38 @@ const Orders = () => {
                   </div>
                 </DialogContent>
               </Dialog>
+
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => handleArchiveOrders(!showArchived)} 
+                disabled={archiving}
+                className="flex-1 sm:flex-none"
+              >
+                {archiving ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : showArchived ? (
+                  <ArchiveRestore className="mr-2 h-4 w-4" />
+                ) : (
+                  <Archive className="mr-2 h-4 w-4" />
+                )}
+                <span className="hidden sm:inline">{showArchived ? 'Unarchive' : 'Archive'}</span> ({selectedOrders.size})
+              </Button>
             </>
           )}
+          <Button 
+            variant={showArchived ? "default" : "outline"} 
+            size="sm" 
+            onClick={() => {
+              setShowArchived(!showArchived);
+              setSelectedOrders(new Set());
+              setCurrentPage(1);
+            }} 
+            className="flex-1 sm:flex-none"
+          >
+            <Archive className="mr-2 h-4 w-4" />
+            <span className="hidden sm:inline">{showArchived ? 'View Active' : 'View Archived'}</span>
+          </Button>
           <Button variant="outline" size="sm" onClick={exportToCSV} className="flex-1 sm:flex-none">
             <Download className="mr-2 h-4 w-4" />
             <span className="hidden sm:inline">Export</span>
@@ -641,9 +724,11 @@ const Orders = () => {
           <div className="space-y-4">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div>
-                <CardTitle className="text-lg md:text-xl">All Orders</CardTitle>
+                <CardTitle className="text-lg md:text-xl">
+                  {showArchived ? 'Archived Orders' : 'All Orders'}
+                </CardTitle>
                 <CardDescription className="text-xs md:text-sm">
-                  {paginatedOrders.length} of {sortedOrders.length} filtered ({orders.length} total)
+                  {paginatedOrders.length} of {sortedOrders.length} filtered ({orders.filter(o => showArchived ? o.archived : !o.archived).length} {showArchived ? 'archived' : 'active'})
                 </CardDescription>
               </div>
               <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
