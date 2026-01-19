@@ -111,14 +111,24 @@ function hslToRgb(hslString: string): { r: number; g: number; b: number } {
   };
 }
 
-// Load image and convert to base64 for jsPDF
-async function loadImageAsBase64(url: string): Promise<string | null> {
+// Load image and get dimensions for proper aspect ratio
+async function loadImageWithDimensions(url: string): Promise<{ base64: string; width: number; height: number } | null> {
   try {
     const response = await fetch(url);
     const blob = await response.blob();
+    
     return new Promise((resolve) => {
       const reader = new FileReader();
-      reader.onloadend = () => resolve(reader.result as string);
+      reader.onloadend = () => {
+        const base64 = reader.result as string;
+        // Create image to get natural dimensions
+        const img = new Image();
+        img.onload = () => {
+          resolve({ base64, width: img.naturalWidth, height: img.naturalHeight });
+        };
+        img.onerror = () => resolve(null);
+        img.src = base64;
+      };
       reader.onerror = () => resolve(null);
       reader.readAsDataURL(blob);
     });
@@ -126,6 +136,12 @@ async function loadImageAsBase64(url: string): Promise<string | null> {
     console.error('Failed to load logo image:', e);
     return null;
   }
+}
+
+// Calculate scaled dimensions to fit within max bounds while preserving aspect ratio
+function getScaledDimensions(width: number, height: number, maxWidth: number, maxHeight: number): { w: number; h: number } {
+  const ratio = Math.min(maxWidth / width, maxHeight / height);
+  return { w: width * ratio, h: height * ratio };
 }
 
 function safeDownloadPdf(doc: any, filename: string) {
@@ -234,10 +250,10 @@ export async function downloadBrandedInvoice(invoiceId: string, invoiceNo: strin
   // Get brand color
   const brandColor = brand?.primary_color ? hslToRgb(brand.primary_color) : { r: 50, g: 50, b: 50 };
 
-  // Load logo if available
-  let logoBase64: string | null = null;
+  // Load logo if available with dimensions for proper aspect ratio
+  let logoData: { base64: string; width: number; height: number } | null = null;
   if (brand?.logo_url) {
-    logoBase64 = await loadImageAsBase64(brand.logo_url);
+    logoData = await loadImageWithDimensions(brand.logo_url);
   }
 
   const jsPDFModule = await import('jspdf');
@@ -246,18 +262,23 @@ export async function downloadBrandedInvoice(invoiceId: string, invoiceNo: strin
 
   const pageWidth = doc.internal.pageSize.getWidth();
   let yPos = 20;
+  let logoHeight = 0;
 
-  // Add logo if available (top right)
-  if (logoBase64) {
+  // Add logo if available (top right) with proper aspect ratio
+  if (logoData) {
     try {
-      doc.addImage(logoBase64, 'AUTO', pageWidth - 50, 10, 30, 30);
+      const maxLogoWidth = 40;
+      const maxLogoHeight = 25;
+      const scaled = getScaledDimensions(logoData.width, logoData.height, maxLogoWidth, maxLogoHeight);
+      logoHeight = scaled.h;
+      doc.addImage(logoData.base64, 'AUTO', pageWidth - 20 - scaled.w, 10, scaled.w, scaled.h);
     } catch (e) {
       console.error('Failed to add logo to PDF:', e);
     }
   }
 
   // Header - Brand/Company info (right aligned, below logo if present)
-  const headerStartY = logoBase64 ? 45 : 20;
+  const headerStartY = logoData ? 10 + logoHeight + 5 : 20;
   yPos = headerStartY;
   doc.setFontSize(10);
   doc.setTextColor(100);
@@ -470,10 +491,10 @@ export async function downloadBrandedReceipt(paymentId: string) {
   // Get brand color
   const brandColor = brand?.primary_color ? hslToRgb(brand.primary_color) : { r: 50, g: 50, b: 50 };
 
-  // Load logo if available
-  let logoBase64: string | null = null;
+  // Load logo if available with dimensions for proper aspect ratio
+  let logoData: { base64: string; width: number; height: number } | null = null;
   if (brand?.logo_url) {
-    logoBase64 = await loadImageAsBase64(brand.logo_url);
+    logoData = await loadImageWithDimensions(brand.logo_url);
   }
 
   const jsPDFModule = await import('jspdf');
@@ -482,18 +503,23 @@ export async function downloadBrandedReceipt(paymentId: string) {
 
   const pageWidth = doc.internal.pageSize.getWidth();
   let yPos = 20;
+  let logoHeight = 0;
 
-  // Add logo if available (top right)
-  if (logoBase64) {
+  // Add logo if available (top right) with proper aspect ratio
+  if (logoData) {
     try {
-      doc.addImage(logoBase64, 'AUTO', pageWidth - 50, 10, 30, 30);
+      const maxLogoWidth = 40;
+      const maxLogoHeight = 25;
+      const scaled = getScaledDimensions(logoData.width, logoData.height, maxLogoWidth, maxLogoHeight);
+      logoHeight = scaled.h;
+      doc.addImage(logoData.base64, 'AUTO', pageWidth - 20 - scaled.w, 10, scaled.w, scaled.h);
     } catch (e) {
       console.error('Failed to add logo to PDF:', e);
     }
   }
 
-  // Header - Brand/Company info (right aligned)
-  const headerStartY = logoBase64 ? 45 : 20;
+  // Header - Brand/Company info (right aligned, below logo if present)
+  const headerStartY = logoData ? 10 + logoHeight + 5 : 20;
   yPos = headerStartY;
   doc.setFontSize(10);
   doc.setTextColor(100);
