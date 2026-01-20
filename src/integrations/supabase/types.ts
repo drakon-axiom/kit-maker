@@ -1310,11 +1310,13 @@ export type Database = {
           notes: string | null
           share_link_token: string
           shipped_at: string | null
+          shipstation_shipment_id: number | null
           so_id: string
           tracking_events: Json | null
           tracking_location: string | null
           tracking_no: string
           tracking_status: string | null
+          voided_at: string | null
         }
         Insert: {
           carrier?: string | null
@@ -1326,11 +1328,13 @@ export type Database = {
           notes?: string | null
           share_link_token?: string
           shipped_at?: string | null
+          shipstation_shipment_id?: number | null
           so_id: string
           tracking_events?: Json | null
           tracking_location?: string | null
           tracking_no: string
           tracking_status?: string | null
+          voided_at?: string | null
         }
         Update: {
           carrier?: string | null
@@ -1342,11 +1346,13 @@ export type Database = {
           notes?: string | null
           share_link_token?: string
           shipped_at?: string | null
+          shipstation_shipment_id?: number | null
           so_id?: string
           tracking_events?: Json | null
           tracking_location?: string | null
           tracking_no?: string
           tracking_status?: string | null
+          voided_at?: string | null
         }
         Relationships: [
           {

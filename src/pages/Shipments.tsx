@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Loader2, Package, Plus, Pencil, Trash2, Search, ExternalLink, RefreshCw, Clock, Filter, TrendingUp, Calendar, Download, CheckSquare, Square } from 'lucide-react';
+import { Loader2, Package, Plus, Pencil, Trash2, Search, ExternalLink, RefreshCw, Clock, Filter, TrendingUp, Calendar, Download, CheckSquare, Square, Ban } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -27,6 +27,8 @@ interface Shipment {
   tracking_location: string | null;
   last_tracking_update: string | null;
   estimated_delivery: string | null;
+  shipstation_shipment_id: number | null;
+  voided_at: string | null;
   sales_order: {
     id: string;
     human_uid: string;
@@ -64,6 +66,9 @@ const Shipments = () => {
   const [bulkAction, setBulkAction] = useState<'carrier' | 'notes'>('carrier');
   const [bulkCarrier, setBulkCarrier] = useState('');
   const [bulkNotes, setBulkNotes] = useState('');
+  const [voidingIds, setVoidingIds] = useState<Record<string, boolean>>({});
+  const [voidDialogOpen, setVoidDialogOpen] = useState(false);
+  const [shipmentToVoid, setShipmentToVoid] = useState<Shipment | null>(null);
   const { toast } = useToast();
 
   const [formData, setFormData] = useState({
@@ -291,6 +296,44 @@ const Shipments = () => {
         title: 'Error',
         description: error instanceof Error ? error.message : 'An error occurred',
         variant: 'destructive',
+      });
+    }
+  };
+
+  const handleVoidLabel = async () => {
+    if (!shipmentToVoid) return;
+
+    setVoidingIds((prev) => ({ ...prev, [shipmentToVoid.id]: true }));
+    try {
+      const { data, error } = await supabase.functions.invoke('void-shipstation-label', {
+        body: { shipmentId: shipmentToVoid.id },
+      });
+
+      if (error) throw error;
+
+      if (data.error) {
+        throw new Error(data.details || data.error);
+      }
+
+      toast({
+        title: 'Success',
+        description: data.message || 'Label voided successfully',
+      });
+
+      setVoidDialogOpen(false);
+      setShipmentToVoid(null);
+      fetchShipments();
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to void label',
+        variant: 'destructive',
+      });
+    } finally {
+      setVoidingIds((prev) => {
+        const copy = { ...prev };
+        delete copy[shipmentToVoid.id];
+        return copy;
       });
     }
   };
@@ -998,6 +1041,26 @@ const Shipments = () => {
                                 >
                                   <Trash2 className="h-4 w-4" />
                                 </Button>
+                                {shipment.shipstation_shipment_id && !shipment.voided_at && (
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => {
+                                      setShipmentToVoid(shipment);
+                                      setVoidDialogOpen(true);
+                                    }}
+                                    disabled={!!voidingIds[shipment.id]}
+                                    aria-label="Void label"
+                                    title="Void ShipStation label"
+                                  >
+                                    <Ban className={`h-4 w-4 text-destructive ${voidingIds[shipment.id] ? 'animate-pulse' : ''}`} />
+                                  </Button>
+                                )}
+                                {shipment.voided_at && (
+                                  <Badge variant="outline" className="text-xs text-destructive border-destructive">
+                                    Voided
+                                  </Badge>
+                                )}
                               </div>
                             </TableCell>
                           </TableRow>
@@ -1023,6 +1086,31 @@ const Shipments = () => {
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => setShipmentToDelete(null)}>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handleDelete}>Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={voidDialogOpen} onOpenChange={setVoidDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Void Shipping Label</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to void this shipping label? This will request a refund from the carrier for tracking number <span className="font-mono font-semibold">{shipmentToVoid?.tracking_no}</span>.
+              {shipmentToVoid?.tracking_status?.toLowerCase().includes('in transit') && (
+                <span className="block mt-2 text-warning font-medium">
+                  Warning: This package appears to be in transit. Voiding may not be successful.
+                </span>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setShipmentToVoid(null)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleVoidLabel}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Void Label
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

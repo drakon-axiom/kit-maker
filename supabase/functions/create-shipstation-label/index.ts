@@ -290,6 +290,8 @@ Deno.serve(async (req) => {
           carrier: carrierCode.toUpperCase(),
           label_url: labelResult.labelData ? `data:application/pdf;base64,${labelResult.labelData}` : null,
           shipped_at: new Date().toISOString(),
+          shipstation_shipment_id: labelResult.shipmentId,
+          voided_at: null, // Clear any previous void status
         })
         .eq("id", existingShipment.id);
     } else {
@@ -300,6 +302,7 @@ Deno.serve(async (req) => {
         carrier: carrierCode.toUpperCase(),
         label_url: labelResult.labelData ? `data:application/pdf;base64,${labelResult.labelData}` : null,
         shipped_at: new Date().toISOString(),
+        shipstation_shipment_id: labelResult.shipmentId,
       });
     }
 
@@ -316,6 +319,7 @@ Deno.serve(async (req) => {
         carrier: carrierCode.toUpperCase(),
         labelUrl: labelResult.labelData ? `data:application/pdf;base64,${labelResult.labelData}` : null,
         shipstationOrderId: createdOrder.orderId,
+        shipstationShipmentId: labelResult.shipmentId,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
