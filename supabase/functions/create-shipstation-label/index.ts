@@ -195,6 +195,38 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Validate required address fields BEFORE calling ShipStation
+    const missingFields: string[] = [];
+
+    const shipLine1 = (customer.shipping_address_line1 ?? "").trim();
+    const shipCity = (customer.shipping_city ?? "").trim();
+    const shipState = (customer.shipping_state ?? "").trim();
+    const shipZip = (customer.shipping_zip ?? "").trim();
+    const shipCountryRaw = (customer.shipping_country ?? "").trim();
+
+    if (!shipLine1) missingFields.push("shipping_address_line1");
+    if (!shipCity) missingFields.push("shipping_city");
+    if (!shipZip) missingFields.push("shipping_zip");
+    if (!shipCountryRaw) missingFields.push("shipping_country");
+
+    const countryCodeForValidation = getCountryCode(shipCountryRaw || null);
+    if ((countryCodeForValidation === "US" || countryCodeForValidation === "CA") && !shipState) {
+      missingFields.push("shipping_state");
+    }
+
+    if (missingFields.length > 0) {
+      return new Response(
+        JSON.stringify({
+          error: "Missing shipping address on customer",
+          details:
+            "ShipStation requires a complete ship-to address. Please fill in the missing customer shipping fields and try again.",
+          missingFields,
+        }),
+        // Return 200 so the frontend shows the `details` nicely (instead of a generic 'Edge function returned 500').
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     // Fetch order lines
     const { data: orderLines } = await supabase
       .from("sales_order_lines")
@@ -279,11 +311,19 @@ Deno.serve(async (req) => {
     });
 
     if (!createOrderResponse.ok) {
-      const errorText = await createOrderResponse.text();
-      console.error("ShipStation create order error:", errorText);
+      const errorText = await createOrderResponse.text().catch(() => "");
+      const details = errorText || `HTTP ${createOrderResponse.status} ${createOrderResponse.statusText}`;
+
+      console.error("ShipStation create order error:", details);
+
       return new Response(
-        JSON.stringify({ error: "Failed to create order in ShipStation", details: errorText }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({
+          error: "Failed to create order in ShipStation",
+          details,
+          status: createOrderResponse.status,
+        }),
+        // Return 200 so the UI can surface a clean, actionable message.
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
@@ -322,11 +362,19 @@ Deno.serve(async (req) => {
     });
 
     if (!createLabelResponse.ok) {
-      const errorText = await createLabelResponse.text();
-      console.error("ShipStation create label error:", errorText);
+      const errorText = await createLabelResponse.text().catch(() => "");
+      const details = errorText || `HTTP ${createLabelResponse.status} ${createLabelResponse.statusText}`;
+
+      console.error("ShipStation create label error:", details);
+
       return new Response(
-        JSON.stringify({ error: "Failed to create shipping label", details: errorText }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({
+          error: "Failed to create shipping label",
+          details,
+          status: createLabelResponse.status,
+        }),
+        // Return 200 so the UI can surface a clean, actionable message.
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
