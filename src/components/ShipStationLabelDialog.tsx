@@ -5,8 +5,15 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, Package, Printer, Download } from 'lucide-react';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Loader2, Package, Printer, Download, Bug, ChevronDown, ChevronUp, Copy, Check } from 'lucide-react';
 import { toast } from 'sonner';
+
+interface DebugLog {
+  timestamp: string;
+  type: 'request' | 'response' | 'error';
+  data: any;
+}
 
 interface BoxPreset {
   id: string;
@@ -49,13 +56,36 @@ export function ShipStationLabelDialog({
     carrier: string;
     labelUrl: string | null;
   } | null>(null);
+  const [debugLogs, setDebugLogs] = useState<DebugLog[]>([]);
+  const [debugOpen, setDebugOpen] = useState(false);
+  const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
 
   useEffect(() => {
     if (open) {
       fetchBoxPresets();
       setLabelResult(null);
+      setDebugLogs([]);
+      setDebugOpen(false);
     }
   }, [open]);
+
+  const addDebugLog = (type: DebugLog['type'], data: any) => {
+    setDebugLogs(prev => [...prev, {
+      timestamp: new Date().toISOString(),
+      type,
+      data,
+    }]);
+  };
+
+  const handleCopyLog = async (index: number, data: any) => {
+    try {
+      await navigator.clipboard.writeText(JSON.stringify(data, null, 2));
+      setCopiedIndex(index);
+      setTimeout(() => setCopiedIndex(null), 2000);
+    } catch (err) {
+      toast.error('Failed to copy to clipboard');
+    }
+  };
 
   const fetchBoxPresets = async () => {
     setLoading(true);
@@ -129,23 +159,30 @@ export function ShipStationLabelDialog({
       return;
     }
 
+    const requestPayload = {
+      orderId,
+      dimensions: {
+        length: lengthNum,
+        width: widthNum,
+        height: heightNum,
+      },
+      weightOz: totalWeightOz,
+    };
+
+    addDebugLog('request', requestPayload);
     setCreatingLabel(true);
+    
     try {
       const { data, error } = await supabase.functions.invoke('create-shipstation-label', {
-        body: {
-          orderId,
-          dimensions: {
-            length: lengthNum,
-            width: widthNum,
-            height: heightNum,
-          },
-          weightOz: totalWeightOz,
-        },
+        body: requestPayload,
       });
+
+      addDebugLog('response', { data, error: error ? { message: error.message, ...error } : null });
 
       if (error) throw error;
 
       if (data.error) {
+        addDebugLog('error', { message: data.error, details: data.details, missingFields: data.missingFields });
         throw new Error(data.details || data.error);
       }
 
@@ -159,6 +196,7 @@ export function ShipStationLabelDialog({
       onSuccess?.();
     } catch (error: any) {
       console.error('Error creating label:', error);
+      addDebugLog('error', { message: error.message, stack: error.stack });
       toast.error(error.message || 'Failed to create shipping label');
     } finally {
       setCreatingLabel(false);
@@ -331,6 +369,61 @@ export function ShipStationLabelDialog({
               </Button>
             </DialogFooter>
           </div>
+        )}
+
+        {/* Debug Panel */}
+        {debugLogs.length > 0 && (
+          <Collapsible open={debugOpen} onOpenChange={setDebugOpen} className="mt-4 border-t pt-4">
+            <CollapsibleTrigger asChild>
+              <Button variant="ghost" size="sm" className="w-full justify-between text-muted-foreground hover:text-foreground">
+                <span className="flex items-center gap-2">
+                  <Bug className="h-4 w-4" />
+                  Debug Logs ({debugLogs.length})
+                </span>
+                {debugOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+              </Button>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="mt-2 space-y-2 max-h-64 overflow-y-auto">
+              {debugLogs.map((log, index) => (
+                <div
+                  key={index}
+                  className={`rounded-md border p-2 text-xs ${
+                    log.type === 'error'
+                      ? 'border-red-200 bg-red-50 dark:border-red-900 dark:bg-red-950'
+                      : log.type === 'request'
+                      ? 'border-blue-200 bg-blue-50 dark:border-blue-900 dark:bg-blue-950'
+                      : 'border-green-200 bg-green-50 dark:border-green-900 dark:bg-green-950'
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="font-medium uppercase">
+                      {log.type}
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-muted-foreground text-[10px]">
+                        {new Date(log.timestamp).toLocaleTimeString()}
+                      </span>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-5 w-5"
+                        onClick={() => handleCopyLog(index, log.data)}
+                      >
+                        {copiedIndex === index ? (
+                          <Check className="h-3 w-3 text-green-600" />
+                        ) : (
+                          <Copy className="h-3 w-3" />
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                  <pre className="whitespace-pre-wrap break-all font-mono text-[10px] leading-relaxed max-h-32 overflow-y-auto">
+                    {JSON.stringify(log.data, null, 2)}
+                  </pre>
+                </div>
+              ))}
+            </CollapsibleContent>
+          </Collapsible>
         )}
       </DialogContent>
     </Dialog>
