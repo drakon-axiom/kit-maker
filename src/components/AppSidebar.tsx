@@ -146,7 +146,7 @@ export function AppSidebar() {
     <Sidebar collapsible="icon" className="transition-[left,right,width] duration-300 ease-in-out">
       <SidebarHeader className="border-b p-4">
         <div className="flex items-center justify-center">
-          <img src={logoSrc} alt={brandName} className="h-8 w-8 object-contain" />
+          <img src={logoSrc} alt={brandName} className="h-8 object-contain" />
         </div>
       </SidebarHeader>
       <SidebarContent>
