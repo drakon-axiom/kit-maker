@@ -1,13 +1,13 @@
 import { NavLink } from '@/components/NavLink';
-import { Home, ShoppingCart, FileText, CreditCard, Settings } from 'lucide-react';
+import { Home, ShoppingCart, FileText, Factory, Settings } from 'lucide-react';
 
 const CustomerMobileBottomNav = () => {
   const navItems = [
     { to: '/customer', icon: Home, label: 'Orders' },
     { to: '/customer/new-order', icon: ShoppingCart, label: 'New' },
+    { to: '/customer/production', icon: Factory, label: 'Progress' },
     { to: '/customer/quotes', icon: FileText, label: 'Quotes' },
-    { to: '/customer/payments', icon: CreditCard, label: 'Pay' },
-    { to: '/customer/settings', icon: Settings, label: 'Settings' },
+    { to: '/customer/settings', icon: Settings, label: 'More' },
   ];
 
   return (
