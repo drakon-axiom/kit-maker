@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Loader2, Save } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import { SMSTemplateManager } from '@/components/SMSTemplateManager';
+import { ShippingSettings } from '@/components/ShippingSettings';
 
 interface Setting {
   key: string;
@@ -327,6 +328,11 @@ const Settings = () => {
           {/* SMS Templates */}
           <div className="md:col-span-2">
             <SMSTemplateManager />
+          </div>
+
+          {/* Shipping Settings */}
+          <div className="md:col-span-2">
+            <ShippingSettings />
           </div>
         </div>
       )}
