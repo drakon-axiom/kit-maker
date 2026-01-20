@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { ArrowLeft, Loader2, DollarSign, Package, Pencil, Trash2, Plus, Factory, Printer, Calendar as CalendarIcon, Split, Eye } from 'lucide-react';
+import { ArrowLeft, Loader2, DollarSign, Package, Pencil, Trash2, Plus, Factory, Printer, Calendar as CalendarIcon, Split, Eye, Truck } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -26,6 +26,7 @@ import { ProductionPhotosGallery } from '@/components/ProductionPhotosGallery';
 import { SendCustomSMS } from '@/components/SendCustomSMS';
 import { StatusChangeDialog } from '@/components/StatusChangeDialog';
 import { InvoiceManagement } from '@/components/InvoiceManagement';
+import { ShipStationLabelDialog } from '@/components/ShipStationLabelDialog';
 import { Database } from '@/integrations/supabase/types';
 import {
   AlertDialog,
@@ -151,6 +152,7 @@ const OrderDetail = () => {
   const [deletingBatch, setDeletingBatch] = useState(false);
   const [statusChangeDialogOpen, setStatusChangeDialogOpen] = useState(false);
   const [pendingStatusChange, setPendingStatusChange] = useState<Database["public"]["Enums"]["order_status"] | null>(null);
+  const [shipStationDialogOpen, setShipStationDialogOpen] = useState(false);
   const labelRef = useRef<HTMLDivElement>(null);
   
   const handlePrint = useReactToPrint({
@@ -943,11 +945,22 @@ const OrderDetail = () => {
                   <SelectItem value="awaiting_payment">Awaiting Payment</SelectItem>
                   <SelectItem value="in_packing">In Packing</SelectItem>
                   <SelectItem value="packed">Packed</SelectItem>
+                  <SelectItem value="ready_to_ship">Ready to Ship</SelectItem>
                   <SelectItem value="shipped">Shipped</SelectItem>
                   <SelectItem value="on_hold">On Hold</SelectItem>
                   <SelectItem value="cancelled">Cancelled</SelectItem>
                 </SelectContent>
               </Select>
+              {/* ShipStation Label Button - show when ready to ship */}
+              {(order.status === 'ready_to_ship' || order.status === 'packed') && !order.is_internal && (
+                <Button
+                  variant="default"
+                  onClick={() => setShipStationDialogOpen(true)}
+                >
+                  <Truck className="h-4 w-4 mr-2" />
+                  Create Label
+                </Button>
+              )}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" size="icon">
@@ -1698,6 +1711,17 @@ const OrderDetail = () => {
             await handleStatusChange(pendingStatusChange, overrideNote);
             setPendingStatusChange(null);
           }}
+        />
+      )}
+
+      {/* ShipStation Label Dialog */}
+      {order && (
+        <ShipStationLabelDialog
+          open={shipStationDialogOpen}
+          onOpenChange={setShipStationDialogOpen}
+          orderId={order.id}
+          orderNumber={order.human_uid}
+          onSuccess={fetchOrder}
         />
       )}
     </div>

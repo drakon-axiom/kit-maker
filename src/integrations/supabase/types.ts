@@ -47,6 +47,45 @@ export type Database = {
         }
         Relationships: []
       }
+      box_presets: {
+        Row: {
+          active: boolean
+          created_at: string
+          height_inches: number
+          id: string
+          is_default: boolean
+          length_inches: number
+          name: string
+          updated_at: string
+          weight_oz: number | null
+          width_inches: number
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          height_inches: number
+          id?: string
+          is_default?: boolean
+          length_inches: number
+          name: string
+          updated_at?: string
+          weight_oz?: number | null
+          width_inches: number
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          height_inches?: number
+          id?: string
+          is_default?: boolean
+          length_inches?: number
+          name?: string
+          updated_at?: string
+          weight_oz?: number | null
+          width_inches?: number
+        }
+        Relationships: []
+      }
       brands: {
         Row: {
           accent_color: string
