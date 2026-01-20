@@ -62,7 +62,20 @@ function getCountryCode(country: string | null): string {
   // If already a 2-character code, return it uppercase
   if (country.length === 2) return country.toUpperCase();
   
-  // Common country name mappings
+  // If it's a 3-character code like "USA", convert it
+  if (country.length === 3) {
+    const threeCharMap: Record<string, string> = {
+      "usa": "US",
+      "can": "CA",
+      "mex": "MX",
+      "gbr": "GB",
+      "aus": "AU",
+      "deu": "DE",
+      "fra": "FR",
+    };
+    const code = threeCharMap[country.toLowerCase()];
+    if (code) return code;
+  }
   const countryMap: Record<string, string> = {
     "united states": "US",
     "united states of america": "US",
