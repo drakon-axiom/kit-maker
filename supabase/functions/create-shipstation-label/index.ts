@@ -55,6 +55,50 @@ interface ShipStationItem {
   sku: string;
 }
 
+// Convert country name to 2-character ISO code
+function getCountryCode(country: string | null): string {
+  if (!country) return "US";
+  
+  // If already a 2-character code, return it uppercase
+  if (country.length === 2) return country.toUpperCase();
+  
+  // Common country name mappings
+  const countryMap: Record<string, string> = {
+    "united states": "US",
+    "united states of america": "US",
+    "usa": "US",
+    "u.s.a.": "US",
+    "u.s.": "US",
+    "america": "US",
+    "canada": "CA",
+    "mexico": "MX",
+    "united kingdom": "GB",
+    "great britain": "GB",
+    "england": "GB",
+    "australia": "AU",
+    "germany": "DE",
+    "france": "FR",
+    "italy": "IT",
+    "spain": "ES",
+    "netherlands": "NL",
+    "belgium": "BE",
+    "switzerland": "CH",
+    "austria": "AT",
+    "japan": "JP",
+    "china": "CN",
+    "india": "IN",
+    "brazil": "BR",
+    "ireland": "IE",
+    "new zealand": "NZ",
+    "puerto rico": "PR",
+    "virgin islands": "VI",
+    "guam": "GU",
+  };
+  
+  const normalized = country.toLowerCase().trim();
+  return countryMap[normalized] || "US";
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -166,6 +210,8 @@ Deno.serve(async (req) => {
     const serviceCode = settingsMap["shipstation_service_code"] || "ups_ground";
 
     // Build ShipStation order
+    const countryCode = getCountryCode(customer.shipping_country);
+    
     const shipToAddress: ShipStationAddress = {
       name: customer.name || "Customer",
       street1: customer.shipping_address_line1 || "",
@@ -173,7 +219,7 @@ Deno.serve(async (req) => {
       city: customer.shipping_city || "",
       state: customer.shipping_state || "",
       postalCode: customer.shipping_zip || "",
-      country: customer.shipping_country || "US",
+      country: countryCode,
       phone: customer.phone || null,
     };
 
