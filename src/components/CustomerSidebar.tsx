@@ -9,6 +9,7 @@ import {
   Settings,
   User,
   ShoppingCart,
+  Factory,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -36,6 +37,7 @@ export function CustomerSidebar() {
   const items = [
     { title: 'Orders', url: '/customer', icon: Home },
     { title: 'New Order', url: '/customer/new-order', icon: ShoppingCart },
+    { title: 'Production', url: '/customer/production', icon: Factory },
     { title: 'Quotes', url: '/customer/quotes', icon: FileText },
     { title: 'Payments', url: '/customer/payments', icon: CreditCard },
     { title: 'Profile', url: '/customer/profile', icon: User },

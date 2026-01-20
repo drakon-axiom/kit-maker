@@ -37,6 +37,7 @@ import CustomerOrderDetail from "./pages/CustomerOrderDetail";
 import CustomerPaymentHistory from "./pages/CustomerPaymentHistory";
 import CustomerQuoteManagement from "./pages/CustomerQuoteManagement";
 import CustomerAccountSettings from "./pages/CustomerAccountSettings";
+import CustomerProductionProgress from "./pages/CustomerProductionProgress";
 import CustomerAccess from "./pages/CustomerAccess";
 import UserManagement from "./pages/UserManagement";
 import EmailHistory from "./pages/EmailHistory";
@@ -127,6 +128,13 @@ const App = () => (
               <ProtectedRoute requiredRole="customer">
                 <CustomerLayout>
                   <CustomerAccountSettings />
+                </CustomerLayout>
+              </ProtectedRoute>
+            } />
+            <Route path="/customer/production" element={
+              <ProtectedRoute requiredRole="customer">
+                <CustomerLayout>
+                  <CustomerProductionProgress />
                 </CustomerLayout>
               </ProtectedRoute>
             } />
