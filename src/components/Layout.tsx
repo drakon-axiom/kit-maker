@@ -5,6 +5,7 @@ import { SidebarProvider, SidebarTrigger, SidebarInset } from '@/components/ui/s
 import { AppSidebar } from '@/components/AppSidebar';
 import { Button } from '@/components/ui/button';
 import { LogOut, User, Menu, X, Factory, ClipboardList, Package, Boxes, PackageSearch, Monitor, TruckIcon, Users, ShieldCheck, MessageSquare, UserCog, Palette, UserPlus, Mail, History, DollarSign, Tags, Settings } from 'lucide-react';
+import axiomLogo from '@/assets/axiom-logo.png';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -84,7 +85,7 @@ const Layout = ({ children }: LayoutProps) => {
         </div>
         <div className="flex-1 flex flex-col min-w-0">
           <header className="h-14 border-b bg-card flex items-center justify-between px-3 md:px-4 sticky top-0 z-20 safe-area-top">
-            <div className="flex items-center gap-2 min-w-0">
+            <div className="flex items-center gap-2 min-w-0 flex-1">
               {/* Mobile hamburger menu */}
               <Button
                 variant="ghost"
@@ -97,6 +98,17 @@ const Layout = ({ children }: LayoutProps) => {
               </Button>
               <SidebarTrigger className="h-9 w-9 hidden md:flex flex-shrink-0" />
             </div>
+            
+            {/* Centered logo */}
+            <div className="absolute left-1/2 transform -translate-x-1/2">
+              <img 
+                src={currentBrand?.logo_url || axiomLogo} 
+                alt={currentBrand?.name || 'Logo'} 
+                className="h-8 object-contain" 
+              />
+            </div>
+            
+            <div className="flex-1 flex justify-end">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="sm" className="gap-2 flex-shrink-0 touch-target">
@@ -120,6 +132,7 @@ const Layout = ({ children }: LayoutProps) => {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+            </div>
           </header>
           <SidebarInset className="flex-1 overflow-auto scroll-smooth-touch pb-20 md:pb-0">
             {children}
