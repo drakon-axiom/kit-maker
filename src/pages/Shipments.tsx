@@ -3,7 +3,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Loader2, Package, Plus, Pencil, Trash2, Search, ExternalLink, RefreshCw, Clock, Filter, TrendingUp, Calendar, Download, CheckSquare, Square, Ban } from 'lucide-react';
+import { Loader2, Package, Plus, Pencil, Trash2, Search, ExternalLink, RefreshCw, Clock, Filter, TrendingUp, Calendar, Download, CheckSquare, Square, Ban, Truck } from 'lucide-react';
+import { ShipStationLabelDialog } from '@/components/ShipStationLabelDialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -41,15 +42,29 @@ interface Shipment {
 interface SalesOrder {
   id: string;
   human_uid: string;
+  status: string;
+  is_internal: boolean;
   customer: {
     name: string;
-  };
+  } | null;
   shipments: Array<{ id: string }>;
+}
+
+interface OrderReadyToShip {
+  id: string;
+  human_uid: string;
+  status: string;
+  customer: {
+    name: string;
+  } | null;
 }
 
 const Shipments = () => {
   const [shipments, setShipments] = useState<Shipment[]>([]);
   const [orders, setOrders] = useState<SalesOrder[]>([]);
+  const [ordersReadyToShip, setOrdersReadyToShip] = useState<OrderReadyToShip[]>([]);
+  const [labelDialogOpen, setLabelDialogOpen] = useState(false);
+  const [selectedOrderForLabel, setSelectedOrderForLabel] = useState<{ id: string; humanUid: string } | null>(null);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -113,14 +128,24 @@ const Shipments = () => {
         .select(`
           id,
           human_uid,
+          status,
+          is_internal,
           customer:customers(name),
           shipments:shipments(id)
         `)
-        .in('status', ['packed', 'in_packing', 'in_labeling', 'shipped'])
+        .in('status', ['packed', 'in_packing', 'in_labeling', 'shipped', 'ready_to_ship'])
         .order('human_uid', { ascending: false });
 
       if (error) throw error;
       setOrders(data as any || []);
+      
+      // Filter orders ready for shipping (no shipments yet, not internal)
+      const readyOrders = (data || []).filter((order: any) => 
+        ['packed', 'ready_to_ship'].includes(order.status) && 
+        order.shipments.length === 0 &&
+        !order.is_internal
+      );
+      setOrdersReadyToShip(readyOrders);
     } catch {
       // Order fetch errors are non-critical
     }
@@ -517,6 +542,16 @@ const Shipments = () => {
     });
   };
 
+  const handleOpenLabelDialog = (orderId: string, humanUid: string) => {
+    setSelectedOrderForLabel({ id: orderId, humanUid });
+    setLabelDialogOpen(true);
+  };
+
+  const handleLabelSuccess = () => {
+    fetchShipments();
+    fetchOrders();
+  };
+
   // Calculate statistics
   const fullyDeliveredCount = Object.values(groupedShipments).filter(({ shipments: orderShipments }) => {
     const deliveredCount = orderShipments.filter(s => s.tracking_status?.toLowerCase().includes('delivered')).length;
@@ -726,7 +761,63 @@ const Shipments = () => {
                 <CardDescription>
                   {filteredShipments.length} shipment{filteredShipments.length !== 1 ? 's' : ''} across {ordersWithShipments.length} order{ordersWithShipments.length !== 1 ? 's' : ''}
                 </CardDescription>
-              </div>
+      </div>
+
+      {/* Orders Ready to Ship */}
+      {ordersReadyToShip.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Truck className="h-5 w-5" />
+              Orders Ready to Ship
+            </CardTitle>
+            <CardDescription>
+              {ordersReadyToShip.length} order{ordersReadyToShip.length !== 1 ? 's' : ''} awaiting shipping labels
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Order</TableHead>
+                  <TableHead>Customer</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="w-[150px]">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {ordersReadyToShip.map((order) => (
+                  <TableRow key={order.id}>
+                    <TableCell className="font-medium">
+                      <a 
+                        href={`/orders/${order.id}`} 
+                        className="text-primary hover:underline"
+                      >
+                        {order.human_uid}
+                      </a>
+                    </TableCell>
+                    <TableCell>{order.customer?.name || 'N/A'}</TableCell>
+                    <TableCell>
+                      <Badge variant={order.status === 'ready_to_ship' ? 'default' : 'secondary'}>
+                        {order.status.replace(/_/g, ' ')}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Button
+                        size="sm"
+                        onClick={() => handleOpenLabelDialog(order.id, order.human_uid)}
+                      >
+                        <Truck className="h-4 w-4 mr-2" />
+                        Create Label
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
               <div className="flex items-center gap-2">
                 <Button
                   variant="outline"
@@ -1176,6 +1267,17 @@ const Shipments = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* ShipStation Label Dialog */}
+      {selectedOrderForLabel && (
+        <ShipStationLabelDialog
+          open={labelDialogOpen}
+          onOpenChange={setLabelDialogOpen}
+          orderId={selectedOrderForLabel.id}
+          orderNumber={selectedOrderForLabel.humanUid}
+          onSuccess={handleLabelSuccess}
+        />
+      )}
     </div>
   );
 };
