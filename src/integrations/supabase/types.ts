@@ -1310,7 +1310,7 @@ export type Database = {
           notes: string | null
           share_link_token: string
           shipped_at: string | null
-          shipstation_shipment_id: number | null
+          shipstation_shipment_id: string | null
           so_id: string
           tracking_events: Json | null
           tracking_location: string | null
@@ -1328,7 +1328,7 @@ export type Database = {
           notes?: string | null
           share_link_token?: string
           shipped_at?: string | null
-          shipstation_shipment_id?: number | null
+          shipstation_shipment_id?: string | null
           so_id: string
           tracking_events?: Json | null
           tracking_location?: string | null
@@ -1346,7 +1346,7 @@ export type Database = {
           notes?: string | null
           share_link_token?: string
           shipped_at?: string | null
-          shipstation_shipment_id?: number | null
+          shipstation_shipment_id?: string | null
           so_id?: string
           tracking_events?: Json | null
           tracking_location?: string | null
