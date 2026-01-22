@@ -210,8 +210,135 @@ export const ShippingSettings = () => {
     );
   }
 
+  const handleSaveWarehouseSettings = async () => {
+    setSaving(true);
+    try {
+      const warehouseKeys = [
+        'shipstation_warehouse_name',
+        'shipstation_warehouse_address1',
+        'shipstation_warehouse_address2',
+        'shipstation_warehouse_city',
+        'shipstation_warehouse_state',
+        'shipstation_warehouse_zip',
+        'shipstation_warehouse_country',
+        'shipstation_warehouse_phone',
+      ];
+      
+      for (const key of warehouseKeys) {
+        if (settings[key] !== undefined) {
+          await supabase
+            .from('settings')
+            .upsert({ key, value: settings[key] || '', description: null }, { onConflict: 'key' });
+        }
+      }
+      
+      toast({ title: 'Success', description: 'Warehouse address saved' });
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to save',
+        variant: 'destructive',
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
+      {/* Warehouse / Ship-From Address */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Package className="h-5 w-5" />
+            Ship-From Address (Warehouse)
+          </CardTitle>
+          <CardDescription>Your warehouse address used as the return/ship-from address on labels</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="shipstation_warehouse_name">Company/Warehouse Name *</Label>
+              <Input
+                id="shipstation_warehouse_name"
+                value={settings.shipstation_warehouse_name || ''}
+                onChange={(e) => setSettings({ ...settings, shipstation_warehouse_name: e.target.value })}
+                placeholder="Your Company Name"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="shipstation_warehouse_phone">Phone</Label>
+              <Input
+                id="shipstation_warehouse_phone"
+                value={settings.shipstation_warehouse_phone || ''}
+                onChange={(e) => setSettings({ ...settings, shipstation_warehouse_phone: e.target.value })}
+                placeholder="555-123-4567"
+              />
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="shipstation_warehouse_address1">Address Line 1 *</Label>
+            <Input
+              id="shipstation_warehouse_address1"
+              value={settings.shipstation_warehouse_address1 || ''}
+              onChange={(e) => setSettings({ ...settings, shipstation_warehouse_address1: e.target.value })}
+              placeholder="123 Main Street"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="shipstation_warehouse_address2">Address Line 2</Label>
+            <Input
+              id="shipstation_warehouse_address2"
+              value={settings.shipstation_warehouse_address2 || ''}
+              onChange={(e) => setSettings({ ...settings, shipstation_warehouse_address2: e.target.value })}
+              placeholder="Suite 100"
+            />
+          </div>
+          <div className="grid gap-4 sm:grid-cols-4">
+            <div className="space-y-2">
+              <Label htmlFor="shipstation_warehouse_city">City *</Label>
+              <Input
+                id="shipstation_warehouse_city"
+                value={settings.shipstation_warehouse_city || ''}
+                onChange={(e) => setSettings({ ...settings, shipstation_warehouse_city: e.target.value })}
+                placeholder="City"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="shipstation_warehouse_state">State *</Label>
+              <Input
+                id="shipstation_warehouse_state"
+                value={settings.shipstation_warehouse_state || ''}
+                onChange={(e) => setSettings({ ...settings, shipstation_warehouse_state: e.target.value })}
+                placeholder="CA"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="shipstation_warehouse_zip">ZIP Code *</Label>
+              <Input
+                id="shipstation_warehouse_zip"
+                value={settings.shipstation_warehouse_zip || ''}
+                onChange={(e) => setSettings({ ...settings, shipstation_warehouse_zip: e.target.value })}
+                placeholder="90210"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="shipstation_warehouse_country">Country</Label>
+              <Input
+                id="shipstation_warehouse_country"
+                value={settings.shipstation_warehouse_country || 'US'}
+                onChange={(e) => setSettings({ ...settings, shipstation_warehouse_country: e.target.value })}
+                placeholder="US"
+              />
+            </div>
+          </div>
+          <Button onClick={handleSaveWarehouseSettings} disabled={saving} size="sm">
+            <Save className="mr-2 h-4 w-4" />
+            Save Warehouse Address
+          </Button>
+        </CardContent>
+      </Card>
+
       {/* ShipStation Configuration */}
       <Card>
         <CardHeader>
@@ -219,7 +346,7 @@ export const ShippingSettings = () => {
             <Truck className="h-5 w-5" />
             ShipStation Configuration
           </CardTitle>
-          <CardDescription>Configure default carrier and service for shipping labels</CardDescription>
+          <CardDescription>Configure default carrier and service for shipping labels (v2 API)</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-2">
@@ -232,7 +359,7 @@ export const ShippingSettings = () => {
                 placeholder="e.g., usps, fedex, ups"
               />
               <p className="text-xs text-muted-foreground">
-                Common codes: usps, fedex, ups, dhl_express
+                Common codes: usps, fedex, ups, dhl_express (prefix "se-" added automatically)
               </p>
             </div>
             <div className="space-y-2">

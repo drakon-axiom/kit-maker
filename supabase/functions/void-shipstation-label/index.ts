@@ -18,11 +18,10 @@ Deno.serve(async (req) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const shipstationApiKey = Deno.env.get("SHIPSTATION_API_KEY");
-    const shipstationApiSecret = Deno.env.get("SHIPSTATION_API_SECRET");
 
-    if (!shipstationApiKey || !shipstationApiSecret) {
+    if (!shipstationApiKey) {
       return new Response(
-        JSON.stringify({ error: "ShipStation credentials not configured" }),
+        JSON.stringify({ error: "ShipStation API key not configured" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -79,30 +78,26 @@ Deno.serve(async (req) => {
       );
     }
 
-    const authHeader = btoa(`${shipstationApiKey}:${shipstationApiSecret}`);
-
-    // Void the label in ShipStation
-    console.log("Voiding shipment in ShipStation:", shipment.shipstation_shipment_id);
+    // Void the label using v2 API - PUT to cancel endpoint
+    console.log("Voiding shipment via v2 API:", shipment.shipstation_shipment_id);
+    
     const voidResponse = await fetch(
-      `https://ssapi.shipstation.com/shipments/voidlabel`,
+      `https://api.shipstation.com/v2/shipments/${shipment.shipstation_shipment_id}/cancel`,
       {
-        method: "POST",
+        method: "PUT",
         headers: {
-          "Authorization": `Basic ${authHeader}`,
+          "api-key": shipstationApiKey,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          shipmentId: shipment.shipstation_shipment_id,
-        }),
       }
     );
 
     if (!voidResponse.ok) {
       const errorText = await voidResponse.text();
-      console.error("ShipStation void error:", errorText);
+      console.error("ShipStation v2 void error:", errorText);
       
       // Check if it's already voided or expired
-      if (errorText.includes("already been voided") || errorText.includes("cannot be voided")) {
+      if (errorText.includes("already") || errorText.includes("cannot") || errorText.includes("void")) {
         // Mark as voided locally anyway
         await supabase
           .from("shipments")
@@ -134,7 +129,7 @@ Deno.serve(async (req) => {
       .from("shipments")
       .update({
         voided_at: new Date().toISOString(),
-        label_url: null, // Clear the label URL
+        label_url: null,
       })
       .eq("id", shipmentId);
 
@@ -155,10 +150,8 @@ Deno.serve(async (req) => {
     return new Response(
       JSON.stringify({
         success: true,
-        approved: voidResult.approved,
-        message: voidResult.approved 
-          ? "Label voided successfully" 
-          : "Void request submitted for review",
+        approved: true,
+        message: "Label voided successfully",
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );

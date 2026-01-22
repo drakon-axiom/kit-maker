@@ -7,55 +7,44 @@ const corsHeaders = {
 
 interface CreateLabelRequest {
   orderId: string;
-  dimensions: {
+  dimensions?: {
     length: number;
     width: number;
     height: number;
   };
-  weightOz: number;
+  weightOz?: number;
 }
 
-interface ShipStationOrder {
-  orderNumber: string;
-  orderDate: string;
-  orderStatus: string;
-  customerEmail: string;
-  billTo: ShipStationAddress;
-  shipTo: ShipStationAddress;
-  items: ShipStationItem[];
-  weight: {
-    value: number;
-    units: string;
-  };
-  dimensions: {
-    length: number;
-    width: number;
-    height: number;
-    units: string;
-  };
-  advancedOptions: {
-    storeId: number;
-  };
-}
-
-interface ShipStationAddress {
+interface ShipStationV2Address {
   name: string;
-  street1: string;
-  street2: string | null;
-  city: string;
-  state: string;
-  postalCode: string;
-  country: string;
-  phone: string | null;
+  address_line1: string;
+  address_line2?: string;
+  city_locality: string;
+  state_province: string;
+  postal_code: string;
+  country_code: string;
+  phone?: string;
 }
 
-interface ShipStationItem {
-  name: string;
-  quantity: number;
-  sku: string;
+interface ShipStationV2Package {
+  weight: { value: number; unit: "ounce" | "pound" | "gram" | "kilogram" };
+  dimensions?: { length: number; width: number; height: number; unit: "inch" | "centimeter" };
 }
 
-// Convert country name to 2-character ISO code
+interface ShipStationV2LabelRequest {
+  shipment: {
+    carrier_id: string;
+    service_code: string;
+    ship_to: ShipStationV2Address;
+    ship_from: ShipStationV2Address;
+    packages: ShipStationV2Package[];
+    validate_address?: "no_validation" | "validate_only" | "validate_and_clean";
+  };
+  label_format?: "pdf" | "png" | "zpl";
+  label_layout?: "4x6" | "letter";
+}
+
+// Convert country names/codes to 2-char ISO codes
 function getCountryCode(country: string | null): string {
   if (!country) return "US";
   
@@ -76,6 +65,7 @@ function getCountryCode(country: string | null): string {
     const code = threeCharMap[country.toLowerCase()];
     if (code) return code;
   }
+  
   const countryMap: Record<string, string> = {
     "united states": "US",
     "united states of america": "US",
@@ -121,12 +111,10 @@ Deno.serve(async (req) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const shipstationApiKey = Deno.env.get("SHIPSTATION_API_KEY");
-    const shipstationApiSecret = Deno.env.get("SHIPSTATION_API_SECRET");
-    const shipstationStoreId = Deno.env.get("SHIPSTATION_STORE_ID");
 
-    if (!shipstationApiKey || !shipstationApiSecret || !shipstationStoreId) {
+    if (!shipstationApiKey) {
       return new Response(
-        JSON.stringify({ error: "ShipStation credentials not configured" }),
+        JSON.stringify({ error: "ShipStation API key not configured" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -135,21 +123,21 @@ Deno.serve(async (req) => {
 
     const { orderId, dimensions, weightOz }: CreateLabelRequest = await req.json();
 
-    if (!orderId || !dimensions || !weightOz) {
+    if (!orderId) {
       return new Response(
-        JSON.stringify({ error: "Missing required fields: orderId, dimensions, weightOz" }),
+        JSON.stringify({ error: "Missing required field: orderId" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Fetch order details
+    // Fetch order with customer details
     const { data: order, error: orderError } = await supabase
       .from("sales_orders")
       .select(`
         id,
         human_uid,
-        subtotal,
-        created_at,
+        status,
+        customer_id,
         customers (
           id,
           name,
@@ -169,16 +157,15 @@ Deno.serve(async (req) => {
     if (orderError || !order) {
       console.error("Order fetch error:", orderError);
       return new Response(
-        JSON.stringify({ error: "Order not found" }),
+        JSON.stringify({ error: "Order not found", details: orderError }),
         { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // customers is a single object due to .single(), but TypeScript infers array
     const customer = order.customers as unknown as {
       id: string;
-      name: string | null;
-      email: string | null;
+      name: string;
+      email: string;
       phone: string | null;
       shipping_address_line1: string | null;
       shipping_address_line2: string | null;
@@ -187,7 +174,7 @@ Deno.serve(async (req) => {
       shipping_zip: string | null;
       shipping_country: string | null;
     } | null;
-    
+
     if (!customer) {
       return new Response(
         JSON.stringify({ error: "Customer not found for this order" }),
@@ -195,197 +182,179 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Validate required address fields BEFORE calling ShipStation
+    // Validate required shipping address fields
     const missingFields: string[] = [];
-
-    const shipLine1 = (customer.shipping_address_line1 ?? "").trim();
-    const shipCity = (customer.shipping_city ?? "").trim();
-    const shipState = (customer.shipping_state ?? "").trim();
-    const shipZip = (customer.shipping_zip ?? "").trim();
-    const shipCountryRaw = (customer.shipping_country ?? "").trim();
-
-    if (!shipLine1) missingFields.push("shipping_address_line1");
-    if (!shipCity) missingFields.push("shipping_city");
-    if (!shipZip) missingFields.push("shipping_zip");
-    if (!shipCountryRaw) missingFields.push("shipping_country");
-
-    const countryCodeForValidation = getCountryCode(shipCountryRaw || null);
-    if ((countryCodeForValidation === "US" || countryCodeForValidation === "CA") && !shipState) {
-      missingFields.push("shipping_state");
+    if (!customer.shipping_address_line1?.trim()) missingFields.push("Shipping Address Line 1");
+    if (!customer.shipping_city?.trim()) missingFields.push("City");
+    if (!customer.shipping_zip?.trim()) missingFields.push("ZIP Code");
+    
+    const countryCode = getCountryCode(customer.shipping_country);
+    if ((countryCode === "US" || countryCode === "CA") && !customer.shipping_state?.trim()) {
+      missingFields.push("State/Province");
     }
 
     if (missingFields.length > 0) {
       return new Response(
-        JSON.stringify({
-          error: "Missing shipping address on customer",
-          details:
-            "ShipStation requires a complete ship-to address. Please fill in the missing customer shipping fields and try again.",
-          missingFields,
+        JSON.stringify({ 
+          error: "Incomplete shipping address", 
+          details: `Missing required fields: ${missingFields.join(", ")}`,
+          missingFields 
         }),
-        // Return 200 so the frontend shows the `details` nicely (instead of a generic 'Edge function returned 500').
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Fetch order lines
-    const { data: orderLines } = await supabase
-      .from("sales_order_lines")
-      .select(`
-        qty_entered,
-        bottle_qty,
-        skus (
-          code,
-          description
-        )
-      `)
-      .eq("so_id", orderId);
-
-    // Fetch carrier settings
-    const { data: carrierSettings } = await supabase
+    // Fetch carrier and warehouse settings from database
+    const { data: settings } = await supabase
       .from("settings")
       .select("key, value")
-      .in("key", ["shipstation_carrier_code", "shipstation_service_code"]);
+      .in("key", [
+        "shipstation_carrier_code",
+        "shipstation_service_code",
+        "shipstation_warehouse_name",
+        "shipstation_warehouse_address1",
+        "shipstation_warehouse_address2",
+        "shipstation_warehouse_city",
+        "shipstation_warehouse_state",
+        "shipstation_warehouse_zip",
+        "shipstation_warehouse_country",
+        "shipstation_warehouse_phone",
+      ]);
 
-    const settingsMap = (carrierSettings || []).reduce((acc, s) => {
-      acc[s.key] = s.value;
-      return acc;
-    }, {} as Record<string, string>);
+    const settingsMap: Record<string, string> = {};
+    settings?.forEach((s) => {
+      settingsMap[s.key] = s.value;
+    });
 
-    const carrierCode = settingsMap["shipstation_carrier_code"] || "ups";
-    const serviceCode = settingsMap["shipstation_service_code"] || "ups_ground";
+    const carrierCode = settingsMap.shipstation_carrier_code || "ups";
+    const serviceCode = settingsMap.shipstation_service_code || "ups_ground";
 
-    // Build ShipStation order
-    const countryCode = getCountryCode(customer.shipping_country);
-    
-    const shipToAddress: ShipStationAddress = {
+    // Validate warehouse/ship-from address
+    if (!settingsMap.shipstation_warehouse_address1?.trim() || 
+        !settingsMap.shipstation_warehouse_city?.trim() || 
+        !settingsMap.shipstation_warehouse_zip?.trim()) {
+      return new Response(
+        JSON.stringify({ 
+          error: "Warehouse address not configured", 
+          details: "Please configure the ship-from warehouse address in Settings → Shipping Settings"
+        }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Build ship-from address (warehouse)
+    const shipFrom: ShipStationV2Address = {
+      name: settingsMap.shipstation_warehouse_name || "Warehouse",
+      address_line1: settingsMap.shipstation_warehouse_address1,
+      address_line2: settingsMap.shipstation_warehouse_address2 || undefined,
+      city_locality: settingsMap.shipstation_warehouse_city,
+      state_province: settingsMap.shipstation_warehouse_state || "",
+      postal_code: settingsMap.shipstation_warehouse_zip,
+      country_code: getCountryCode(settingsMap.shipstation_warehouse_country || "US"),
+      phone: settingsMap.shipstation_warehouse_phone || undefined,
+    };
+
+    // Build ship-to address (customer)
+    const shipTo: ShipStationV2Address = {
       name: customer.name || "Customer",
-      street1: customer.shipping_address_line1 || "",
-      street2: customer.shipping_address_line2 || null,
-      city: customer.shipping_city || "",
-      state: customer.shipping_state || "",
-      postalCode: customer.shipping_zip || "",
-      country: countryCode,
-      phone: customer.phone || null,
+      address_line1: customer.shipping_address_line1!,
+      address_line2: customer.shipping_address_line2 || undefined,
+      city_locality: customer.shipping_city!,
+      state_province: customer.shipping_state || "",
+      postal_code: customer.shipping_zip!,
+      country_code: countryCode,
+      phone: customer.phone || undefined,
     };
 
-    const items: ShipStationItem[] = (orderLines || []).map((line: any) => ({
-      name: line.skus?.description || "Product",
-      quantity: line.bottle_qty || line.qty_entered,
-      sku: line.skus?.code || "SKU",
-    }));
-
-    const shipstationOrder: ShipStationOrder = {
-      orderNumber: order.human_uid,
-      orderDate: order.created_at,
-      orderStatus: "awaiting_shipment",
-      customerEmail: customer.email || "",
-      billTo: shipToAddress,
-      shipTo: shipToAddress,
-      items,
+    // Build packages array
+    const packages: ShipStationV2Package[] = [{
       weight: {
-        value: weightOz,
-        units: "ounces",
+        value: weightOz || 16,
+        unit: "ounce",
       },
-      dimensions: {
+      dimensions: dimensions ? {
         length: dimensions.length,
         width: dimensions.width,
         height: dimensions.height,
-        units: "inches",
+        unit: "inch",
+      } : undefined,
+    }];
+
+    // Build v2 label request
+    const labelRequest: ShipStationV2LabelRequest = {
+      shipment: {
+        carrier_id: `se-${carrierCode}`,
+        service_code: serviceCode,
+        ship_to: shipTo,
+        ship_from: shipFrom,
+        packages: packages,
+        validate_address: "validate_and_clean",
       },
-      advancedOptions: {
-        storeId: parseInt(shipstationStoreId),
-      },
+      label_format: "pdf",
+      label_layout: "4x6",
     };
 
-    const authHeader = btoa(`${shipstationApiKey}:${shipstationApiSecret}`);
+    console.log("Creating label with v2 API:", JSON.stringify(labelRequest, null, 2));
 
-    // Create order in ShipStation
-    console.log("Creating order in ShipStation:", order.human_uid);
-    const createOrderResponse = await fetch("https://ssapi.shipstation.com/orders/createorder", {
-      method: "POST",
-      headers: {
-        "Authorization": `Basic ${authHeader}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(shipstationOrder),
-    });
+    // Create label using v2 API (single call creates shipment + label)
+    const labelResponse = await fetch(
+      "https://api.shipstation.com/v2/labels",
+      {
+        method: "POST",
+        headers: {
+          "api-key": shipstationApiKey,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(labelRequest),
+      }
+    );
 
-    if (!createOrderResponse.ok) {
-      const errorText = await createOrderResponse.text().catch(() => "");
-      const details = errorText || `HTTP ${createOrderResponse.status} ${createOrderResponse.statusText}`;
-
-      console.error("ShipStation create order error:", details);
-
+    if (!labelResponse.ok) {
+      const errorText = await labelResponse.text();
+      console.error("ShipStation v2 API error:", errorText);
+      
+      let errorDetails = errorText;
+      try {
+        const errorJson = JSON.parse(errorText);
+        errorDetails = errorJson.message || errorJson.errors?.join(", ") || errorText;
+      } catch {
+        // Keep as text
+      }
+      
       return new Response(
-        JSON.stringify({
-          error: "Failed to create order in ShipStation",
-          details,
-          status: createOrderResponse.status,
+        JSON.stringify({ 
+          error: "Failed to create label via ShipStation", 
+          details: errorDetails,
+          request: labelRequest
         }),
-        // Return 200 so the UI can surface a clean, actionable message.
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const createdOrder = await createOrderResponse.json();
-    console.log("Order created in ShipStation:", createdOrder.orderId);
+    const labelResult = await labelResponse.json();
+    console.log("Label created:", JSON.stringify(labelResult, null, 2));
 
-    // Create label for the order
-    const labelRequest = {
-      orderId: createdOrder.orderId,
-      carrierCode: carrierCode,
-      serviceCode: serviceCode,
-      packageCode: "package",
-      confirmation: "delivery",
-      shipDate: new Date().toISOString().split("T")[0],
-      weight: {
-        value: weightOz,
-        units: "ounces",
-      },
-      dimensions: {
-        length: dimensions.length,
-        width: dimensions.width,
-        height: dimensions.height,
-        units: "inches",
-      },
-      testLabel: false,
-    };
+    // Extract label data from v2 response
+    const labelUrl = labelResult.label_download?.pdf || labelResult.label_download?.href;
+    const trackingNumber = labelResult.tracking_number;
+    const shipmentId = labelResult.shipment_id;
 
-    console.log("Creating label with request:", labelRequest);
-    const createLabelResponse = await fetch("https://ssapi.shipstation.com/orders/createlabelfororder", {
-      method: "POST",
-      headers: {
-        "Authorization": `Basic ${authHeader}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(labelRequest),
-    });
-
-    if (!createLabelResponse.ok) {
-      const errorText = await createLabelResponse.text().catch(() => "");
-      const details = errorText || `HTTP ${createLabelResponse.status} ${createLabelResponse.statusText}`;
-
-      console.error("ShipStation create label error:", details);
-
+    if (!trackingNumber) {
       return new Response(
-        JSON.stringify({
-          error: "Failed to create shipping label",
-          details,
-          status: createLabelResponse.status,
+        JSON.stringify({ 
+          error: "Label created but missing tracking number", 
+          details: labelResult 
         }),
-        // Return 200 so the UI can surface a clean, actionable message.
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const labelResult = await createLabelResponse.json();
-    console.log("Label created:", labelResult.trackingNumber);
-
-    // Check if shipment record already exists for this order
+    // Create or update shipment record in database
     const { data: existingShipment } = await supabase
       .from("shipments")
       .select("id")
       .eq("so_id", orderId)
+      .is("voided_at", null)
       .maybeSingle();
 
     if (existingShipment) {
@@ -393,24 +362,26 @@ Deno.serve(async (req) => {
       await supabase
         .from("shipments")
         .update({
-          tracking_no: labelResult.trackingNumber,
           carrier: carrierCode.toUpperCase(),
-          label_url: labelResult.labelData ? `data:application/pdf;base64,${labelResult.labelData}` : null,
+          tracking_no: trackingNumber,
+          label_url: labelUrl,
+          shipstation_shipment_id: shipmentId,
           shipped_at: new Date().toISOString(),
-          shipstation_shipment_id: labelResult.shipmentId,
-          voided_at: null, // Clear any previous void status
+          voided_at: null,
         })
         .eq("id", existingShipment.id);
     } else {
-      // Create new shipment record
-      await supabase.from("shipments").insert({
-        so_id: orderId,
-        tracking_no: labelResult.trackingNumber,
-        carrier: carrierCode.toUpperCase(),
-        label_url: labelResult.labelData ? `data:application/pdf;base64,${labelResult.labelData}` : null,
-        shipped_at: new Date().toISOString(),
-        shipstation_shipment_id: labelResult.shipmentId,
-      });
+      // Create new shipment
+      await supabase
+        .from("shipments")
+        .insert({
+          so_id: orderId,
+          carrier: carrierCode.toUpperCase(),
+          tracking_no: trackingNumber,
+          label_url: labelUrl,
+          shipstation_shipment_id: shipmentId,
+          shipped_at: new Date().toISOString(),
+        });
     }
 
     // Update order status to shipped
@@ -422,16 +393,15 @@ Deno.serve(async (req) => {
     return new Response(
       JSON.stringify({
         success: true,
-        trackingNumber: labelResult.trackingNumber,
+        trackingNumber,
+        labelUrl,
+        shipmentId,
         carrier: carrierCode.toUpperCase(),
-        labelUrl: labelResult.labelData ? `data:application/pdf;base64,${labelResult.labelData}` : null,
-        shipstationOrderId: createdOrder.orderId,
-        shipstationShipmentId: labelResult.shipmentId,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {
-    console.error("Error creating shipping label:", error);
+    console.error("Error creating label:", error);
     return new Response(
       JSON.stringify({ error: "Internal server error", details: String(error) }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
