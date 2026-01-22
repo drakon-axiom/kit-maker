@@ -213,24 +213,22 @@ export const ShippingSettings = () => {
   const handleSaveWarehouseSettings = async () => {
     setSaving(true);
     try {
-      const warehouseKeys = [
-        'shipstation_warehouse_name',
-        'shipstation_warehouse_address1',
-        'shipstation_warehouse_address2',
-        'shipstation_warehouse_city',
-        'shipstation_warehouse_state',
-        'shipstation_warehouse_zip',
-        'shipstation_warehouse_country',
-        'shipstation_warehouse_phone',
+      const warehouseSettings = [
+        { key: 'shipstation_warehouse_name', value: settings.shipstation_warehouse_name || '' },
+        { key: 'shipstation_warehouse_address1', value: settings.shipstation_warehouse_address1 || '' },
+        { key: 'shipstation_warehouse_address2', value: settings.shipstation_warehouse_address2 || '' },
+        { key: 'shipstation_warehouse_city', value: settings.shipstation_warehouse_city || '' },
+        { key: 'shipstation_warehouse_state', value: settings.shipstation_warehouse_state || '' },
+        { key: 'shipstation_warehouse_zip', value: settings.shipstation_warehouse_zip || '' },
+        { key: 'shipstation_warehouse_country', value: settings.shipstation_warehouse_country || 'US' },
+        { key: 'shipstation_warehouse_phone', value: settings.shipstation_warehouse_phone || '' },
       ];
       
-      for (const key of warehouseKeys) {
-        if (settings[key] !== undefined) {
-          await supabase
-            .from('settings')
-            .upsert({ key, value: settings[key] || '', description: null }, { onConflict: 'key' });
-        }
-      }
+      const { error } = await supabase
+        .from('settings')
+        .upsert(warehouseSettings, { onConflict: 'key' });
+      
+      if (error) throw error;
       
       toast({ title: 'Success', description: 'Warehouse address saved' });
     } catch (error) {
