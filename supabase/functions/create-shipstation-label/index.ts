@@ -44,6 +44,63 @@ interface ShipStationV2LabelRequest {
   label_layout?: "4x6" | "letter";
 }
 
+type ShipStationV2Carrier = {
+  carrier_id?: string;
+  carrier_code?: string;
+  code?: string;
+  name?: string;
+};
+
+async function resolveCarrierId(
+  shipstationApiKey: string,
+  carrierInput: string,
+): Promise<string> {
+  const raw = (carrierInput || "").trim();
+  if (!raw) {
+    throw new Error(
+      "ShipStation carrier not configured. Set ShipStation Configuration → Default Carrier Code (use carrier_id like se-1234567 or a code like ups).",
+    );
+  }
+
+  // If already looks like a v2 carrier_id, keep it
+  if (/^se-\d+$/i.test(raw)) return raw;
+
+  // Allow numeric-only input and normalize to se-123
+  if (/^\d+$/i.test(raw)) return `se-${raw}`;
+
+  // Otherwise treat as a carrier code (e.g. "ups") and resolve via API.
+  const carriersRes = await fetch("https://api.shipstation.com/v2/carriers", {
+    headers: {
+      "api-key": shipstationApiKey,
+      "Content-Type": "application/json",
+    },
+  });
+
+  if (!carriersRes.ok) {
+    const text = await carriersRes.text();
+    throw new Error(`Failed to fetch carriers from ShipStation: ${text}`);
+  }
+
+  const carriersJson = await carriersRes.json();
+  const carriers: ShipStationV2Carrier[] = Array.isArray(carriersJson)
+    ? carriersJson
+    : (carriersJson.carriers || carriersJson.data || []);
+
+  const normalized = raw.toLowerCase();
+  const match = carriers.find((c) =>
+    (c.carrier_code || c.code || "").toLowerCase() === normalized
+  );
+
+  const carrierId = match?.carrier_id;
+  if (!carrierId) {
+    throw new Error(
+      `Unknown ShipStation carrier code "${raw}". Please set the carrier_id (looks like se-1234567) from ShipStation → Carriers.`
+    );
+  }
+
+  return carrierId;
+}
+
 // Convert country names/codes to 2-char ISO codes
 function getCountryCode(country: string | null): string {
   if (!country) return "US";
@@ -187,6 +244,7 @@ Deno.serve(async (req) => {
     if (!customer.shipping_address_line1?.trim()) missingFields.push("Shipping Address Line 1");
     if (!customer.shipping_city?.trim()) missingFields.push("City");
     if (!customer.shipping_zip?.trim()) missingFields.push("ZIP Code");
+    if (!customer.phone?.trim()) missingFields.push("Phone");
     
     const countryCode = getCountryCode(customer.shipping_country);
     if ((countryCode === "US" || countryCode === "CA") && !customer.shipping_state?.trim()) {
@@ -229,6 +287,8 @@ Deno.serve(async (req) => {
     const carrierCode = settingsMap.shipstation_carrier_code || "ups";
     const serviceCode = settingsMap.shipstation_service_code || "ups_ground";
 
+    const carrierId = await resolveCarrierId(shipstationApiKey, carrierCode);
+
     // Validate warehouse/ship-from address
     if (!settingsMap.shipstation_warehouse_address1?.trim() || 
         !settingsMap.shipstation_warehouse_city?.trim() || 
@@ -263,7 +323,7 @@ Deno.serve(async (req) => {
       state_province: customer.shipping_state || "",
       postal_code: customer.shipping_zip!,
       country_code: countryCode,
-      phone: customer.phone || undefined,
+      phone: customer.phone!,
     };
 
     // Build packages array
@@ -283,7 +343,7 @@ Deno.serve(async (req) => {
     // Build v2 label request
     const labelRequest: ShipStationV2LabelRequest = {
       shipment: {
-        carrier_id: `se-${carrierCode}`,
+        carrier_id: carrierId,
         service_code: serviceCode,
         ship_to: shipTo,
         ship_from: shipFrom,
@@ -313,10 +373,18 @@ Deno.serve(async (req) => {
       const errorText = await labelResponse.text();
       console.error("ShipStation v2 API error:", errorText);
       
-      let errorDetails = errorText;
+      let errorDetails: string = errorText;
+      let parsedErrors: unknown = null;
       try {
         const errorJson = JSON.parse(errorText);
-        errorDetails = errorJson.message || errorJson.errors?.join(", ") || errorText;
+        parsedErrors = errorJson.errors ?? null;
+        if (typeof errorJson.message === "string" && errorJson.message.trim()) {
+          errorDetails = errorJson.message;
+        } else if (Array.isArray(errorJson.errors)) {
+          errorDetails = errorJson.errors
+            .map((e: any) => e?.message || e?.error_message || JSON.stringify(e))
+            .join("; ");
+        }
       } catch {
         // Keep as text
       }
@@ -325,6 +393,7 @@ Deno.serve(async (req) => {
         JSON.stringify({ 
           error: "Failed to create label via ShipStation", 
           details: errorDetails,
+          errors: parsedErrors,
           request: labelRequest
         }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
