@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -18,7 +19,8 @@ import {
   Package, 
   AlertCircle,
   Loader2,
-  Camera
+  Camera,
+  RefreshCw
 } from 'lucide-react';
 
 interface WorkflowStep {
@@ -49,6 +51,14 @@ interface Batch {
   };
 }
 
+interface BatchOption {
+  uid: string;
+  human_uid: string;
+  order_human_uid: string;
+  customer_name: string;
+  status: string;
+}
+
 const Operator = () => {
   const [batchUid, setBatchUid] = useState('');
   const [loading, setLoading] = useState(false);
@@ -58,8 +68,53 @@ const Operator = () => {
   const [goodQty, setGoodQty] = useState('');
   const [scrapQty, setScrapQty] = useState('');
   const [showScanner, setShowScanner] = useState(false);
+  const [batchOptions, setBatchOptions] = useState<BatchOption[]>([]);
+  const [loadingBatches, setLoadingBatches] = useState(false);
   const { toast } = useToast();
   const { user } = useAuth();
+
+  // Fetch available batches on mount
+  useEffect(() => {
+    fetchBatchOptions();
+  }, []);
+
+  const fetchBatchOptions = async () => {
+    setLoadingBatches(true);
+    try {
+      const { data, error } = await supabase
+        .from('production_batches')
+        .select(`
+          uid,
+          human_uid,
+          status,
+          sales_orders (
+            human_uid,
+            customers (
+              name
+            )
+          )
+        `)
+        .in('status', ['queued', 'wip'])
+        .order('created_at', { ascending: false })
+        .limit(100);
+
+      if (error) throw error;
+
+      const options: BatchOption[] = (data || []).map((b: any) => ({
+        uid: b.uid,
+        human_uid: b.human_uid,
+        order_human_uid: b.sales_orders?.human_uid || 'N/A',
+        customer_name: b.sales_orders?.customers?.name || 'Internal',
+        status: b.status,
+      }));
+
+      setBatchOptions(options);
+    } catch (error) {
+      console.error('Failed to fetch batch options:', error);
+    } finally {
+      setLoadingBatches(false);
+    }
+  };
 
   useEffect(() => {
     if (!batch) return;
@@ -464,26 +519,60 @@ const Operator = () => {
 
       <Card>
         <CardHeader>
-          <CardTitle>Scan Batch</CardTitle>
-          <CardDescription>Enter or scan a batch UID to begin</CardDescription>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>Select Batch</CardTitle>
+              <CardDescription>Choose a batch from the dropdown or scan a QR code</CardDescription>
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={fetchBatchOptions}
+              disabled={loadingBatches}
+              title="Refresh batch list"
+            >
+              <RefreshCw className={`h-4 w-4 ${loadingBatches ? 'animate-spin' : ''}`} />
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="batch-scan">Batch UID</Label>
+              <Label>Batch</Label>
               <div className="flex gap-2">
-                <Input
-                  id="batch-scan"
-                  placeholder="BAT-YYYYMMDD-##"
-                  className="font-mono"
+                <Select
                   value={batchUid}
-                  onChange={(e) => setBatchUid(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      loadBatch();
-                    }
+                  onValueChange={(value) => {
+                    setBatchUid(value);
+                    loadBatchWithUid(value);
                   }}
-                />
+                >
+                  <SelectTrigger className="flex-1 font-mono">
+                    <SelectValue placeholder="Select a batch..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {batchOptions.length === 0 ? (
+                      <div className="py-2 px-3 text-sm text-muted-foreground">
+                        {loadingBatches ? 'Loading batches...' : 'No active batches found'}
+                      </div>
+                    ) : (
+                      batchOptions.map((opt) => (
+                        <SelectItem key={opt.uid} value={opt.uid} className="font-mono">
+                          <div className="flex items-center gap-2">
+                            <span className="font-semibold">{opt.human_uid}</span>
+                            <span className="text-muted-foreground">•</span>
+                            <span className="text-muted-foreground">{opt.order_human_uid}</span>
+                            <span className="text-muted-foreground">•</span>
+                            <span className="truncate max-w-[150px]">{opt.customer_name}</span>
+                            <Badge variant="outline" className="ml-auto text-xs">
+                              {opt.status.toUpperCase()}
+                            </Badge>
+                          </div>
+                        </SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
                 <Button 
                   variant="outline" 
                   onClick={() => setShowScanner(true)}
@@ -491,14 +580,6 @@ const Operator = () => {
                   title="Scan QR Code"
                 >
                   <Camera className="h-4 w-4" />
-                </Button>
-                <Button onClick={loadBatch} disabled={loading}>
-                  {loading ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    <Scan className="mr-2 h-4 w-4" />
-                  )}
-                  Load
                 </Button>
               </div>
             </div>
