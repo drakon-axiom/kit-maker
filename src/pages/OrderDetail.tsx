@@ -653,10 +653,14 @@ const OrderDetail = () => {
         if (itemError) throw itemError;
 
         // Create workflow steps
-        const workflowSteps = [
+        const workflowSteps = order.label_required ? [
           { step: 'produce' as const, batch_id: batchData.id, status: 'pending' as const },
           { step: 'bottle_cap' as const, batch_id: batchData.id, status: 'pending' as const },
           { step: 'label' as const, batch_id: batchData.id, status: 'pending' as const },
+          { step: 'pack' as const, batch_id: batchData.id, status: 'pending' as const },
+        ] : [
+          { step: 'produce' as const, batch_id: batchData.id, status: 'pending' as const },
+          { step: 'bottle_cap' as const, batch_id: batchData.id, status: 'pending' as const },
           { step: 'pack' as const, batch_id: batchData.id, status: 'pending' as const },
         ];
 
@@ -798,10 +802,14 @@ const OrderDetail = () => {
         }
 
         // Create workflow steps for new batch
-        const workflowSteps = [
+        const workflowSteps = order.label_required ? [
           { step: 'produce' as const, batch_id: newBatch.id, status: 'pending' as const },
           { step: 'bottle_cap' as const, batch_id: newBatch.id, status: 'pending' as const },
           { step: 'label' as const, batch_id: newBatch.id, status: 'pending' as const },
+          { step: 'pack' as const, batch_id: newBatch.id, status: 'pending' as const },
+        ] : [
+          { step: 'produce' as const, batch_id: newBatch.id, status: 'pending' as const },
+          { step: 'bottle_cap' as const, batch_id: newBatch.id, status: 'pending' as const },
           { step: 'pack' as const, batch_id: newBatch.id, status: 'pending' as const },
         ];
 
