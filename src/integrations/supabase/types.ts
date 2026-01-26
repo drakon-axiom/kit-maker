@@ -850,6 +850,63 @@ export type Database = {
           },
         ]
       }
+      order_packages: {
+        Row: {
+          created_at: string
+          height_inches: number
+          id: string
+          item_count: number
+          length_inches: number
+          notes: string | null
+          package_number: number
+          so_id: string
+          updated_at: string
+          weight_oz: number
+          width_inches: number
+        }
+        Insert: {
+          created_at?: string
+          height_inches?: number
+          id?: string
+          item_count?: number
+          length_inches?: number
+          notes?: string | null
+          package_number?: number
+          so_id: string
+          updated_at?: string
+          weight_oz?: number
+          width_inches?: number
+        }
+        Update: {
+          created_at?: string
+          height_inches?: number
+          id?: string
+          item_count?: number
+          length_inches?: number
+          notes?: string | null
+          package_number?: number
+          so_id?: string
+          updated_at?: string
+          weight_oz?: number
+          width_inches?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_packages_so_id_fkey"
+            columns: ["so_id"]
+            isOneToOne: false
+            referencedRelation: "public_quotes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_packages_so_id_fkey"
+            columns: ["so_id"]
+            isOneToOne: false
+            referencedRelation: "sales_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payment_transactions: {
         Row: {
           amount: number
