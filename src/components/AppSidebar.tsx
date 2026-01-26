@@ -145,13 +145,7 @@ export function AppSidebar() {
   return (
     <Sidebar collapsible="icon" className="transition-[left,right,width] duration-300 ease-in-out">
       <SidebarHeader className="border-b p-4">
-        <div className="flex items-center justify-center">
-          {collapsed ? (
-            <img src={logoSrc} alt={brandName} className="h-6 w-6 object-contain" />
-          ) : (
-            <img src={logoSrc} alt={brandName} className="h-8 object-contain" />
-          )}
-        </div>
+        <div className="h-8" /> {/* Spacer to maintain header height */}
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>

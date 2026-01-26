@@ -50,6 +50,11 @@ const OrderRequestManagement = lazy(() => import("./pages/OrderRequestManagement
 const PendingPaymentVerification = lazy(() => import("./pages/PendingPaymentVerification"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
+function VersionChecker() {
+  useVersionCheck();
+  return null;
+}
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -73,6 +78,7 @@ const App = () => (
       <TooltipProvider>
         <Toaster />
         <Sonner />
+        <VersionChecker />
         <BrowserRouter>
           <AuthProvider>
             <BrandProvider>

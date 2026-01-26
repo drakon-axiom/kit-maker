@@ -3,7 +3,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Loader2, Package, Plus, Pencil, Trash2, Search, ExternalLink, RefreshCw, Clock, Filter, TrendingUp, Calendar, Download, CheckSquare, Square } from 'lucide-react';
+import { Loader2, Package, Plus, Pencil, Trash2, Search, ExternalLink, RefreshCw, Clock, Filter, TrendingUp, Calendar, Download, CheckSquare, Square, Ban, Truck } from 'lucide-react';
+import { ShipStationLabelDialog } from '@/components/ShipStationLabelDialog';
+import { BoxPresetsManager } from '@/components/BoxPresetsManager';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -27,6 +29,8 @@ interface Shipment {
   tracking_location: string | null;
   last_tracking_update: string | null;
   estimated_delivery: string | null;
+  shipstation_shipment_id: number | null;
+  voided_at: string | null;
   sales_order: {
     id: string;
     human_uid: string;
@@ -39,15 +43,29 @@ interface Shipment {
 interface SalesOrder {
   id: string;
   human_uid: string;
+  status: string;
+  is_internal: boolean;
   customer: {
     name: string;
-  };
+  } | null;
   shipments: Array<{ id: string }>;
+}
+
+interface OrderReadyToShip {
+  id: string;
+  human_uid: string;
+  status: string;
+  customer: {
+    name: string;
+  } | null;
 }
 
 const Shipments = () => {
   const [shipments, setShipments] = useState<Shipment[]>([]);
   const [orders, setOrders] = useState<SalesOrder[]>([]);
+  const [ordersReadyToShip, setOrdersReadyToShip] = useState<OrderReadyToShip[]>([]);
+  const [labelDialogOpen, setLabelDialogOpen] = useState(false);
+  const [selectedOrderForLabel, setSelectedOrderForLabel] = useState<{ id: string; humanUid: string } | null>(null);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -64,6 +82,9 @@ const Shipments = () => {
   const [bulkAction, setBulkAction] = useState<'carrier' | 'notes'>('carrier');
   const [bulkCarrier, setBulkCarrier] = useState('');
   const [bulkNotes, setBulkNotes] = useState('');
+  const [voidingIds, setVoidingIds] = useState<Record<string, boolean>>({});
+  const [voidDialogOpen, setVoidDialogOpen] = useState(false);
+  const [shipmentToVoid, setShipmentToVoid] = useState<Shipment | null>(null);
   const { toast } = useToast();
 
   const [formData, setFormData] = useState({
@@ -108,14 +129,24 @@ const Shipments = () => {
         .select(`
           id,
           human_uid,
+          status,
+          is_internal,
           customer:customers(name),
           shipments:shipments(id)
         `)
-        .in('status', ['packed', 'in_packing', 'in_labeling', 'shipped'])
+        .in('status', ['packed', 'in_packing', 'in_labeling', 'shipped', 'ready_to_ship'])
         .order('human_uid', { ascending: false });
 
       if (error) throw error;
       setOrders(data as any || []);
+      
+      // Filter orders ready for shipping (no shipments yet, not internal)
+      const readyOrders = (data || []).filter((order: any) => 
+        ['packed', 'ready_to_ship'].includes(order.status) && 
+        order.shipments.length === 0 &&
+        !order.is_internal
+      );
+      setOrdersReadyToShip(readyOrders);
     } catch {
       // Order fetch errors are non-critical
     }
@@ -291,6 +322,44 @@ const Shipments = () => {
         title: 'Error',
         description: error instanceof Error ? error.message : 'An error occurred',
         variant: 'destructive',
+      });
+    }
+  };
+
+  const handleVoidLabel = async () => {
+    if (!shipmentToVoid) return;
+
+    setVoidingIds((prev) => ({ ...prev, [shipmentToVoid.id]: true }));
+    try {
+      const { data, error } = await supabase.functions.invoke('void-shipstation-label', {
+        body: { shipmentId: shipmentToVoid.id },
+      });
+
+      if (error) throw error;
+
+      if (data.error) {
+        throw new Error(data.details || data.error);
+      }
+
+      toast({
+        title: 'Success',
+        description: data.message || 'Label voided successfully',
+      });
+
+      setVoidDialogOpen(false);
+      setShipmentToVoid(null);
+      fetchShipments();
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to void label',
+        variant: 'destructive',
+      });
+    } finally {
+      setVoidingIds((prev) => {
+        const copy = { ...prev };
+        delete copy[shipmentToVoid.id];
+        return copy;
       });
     }
   };
@@ -472,6 +541,16 @@ const Shipments = () => {
       title: 'Export Successful',
       description: `Exported ${exportData.length} shipment(s) to CSV`,
     });
+  };
+
+  const handleOpenLabelDialog = (orderId: string, humanUid: string) => {
+    setSelectedOrderForLabel({ id: orderId, humanUid });
+    setLabelDialogOpen(true);
+  };
+
+  const handleLabelSuccess = () => {
+    fetchShipments();
+    fetchOrders();
   };
 
   // Calculate statistics
@@ -674,6 +753,9 @@ const Shipments = () => {
         </Card>
       </div>
 
+      {/* Box Presets Manager */}
+      <BoxPresetsManager />
+
       <Card>
         <CardHeader>
           <div className="space-y-4">
@@ -683,7 +765,63 @@ const Shipments = () => {
                 <CardDescription>
                   {filteredShipments.length} shipment{filteredShipments.length !== 1 ? 's' : ''} across {ordersWithShipments.length} order{ordersWithShipments.length !== 1 ? 's' : ''}
                 </CardDescription>
-              </div>
+      </div>
+
+      {/* Orders Ready to Ship */}
+      {ordersReadyToShip.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Truck className="h-5 w-5" />
+              Orders Ready to Ship
+            </CardTitle>
+            <CardDescription>
+              {ordersReadyToShip.length} order{ordersReadyToShip.length !== 1 ? 's' : ''} awaiting shipping labels
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Order</TableHead>
+                  <TableHead>Customer</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="w-[150px]">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {ordersReadyToShip.map((order) => (
+                  <TableRow key={order.id}>
+                    <TableCell className="font-medium">
+                      <a 
+                        href={`/orders/${order.id}`} 
+                        className="text-primary hover:underline"
+                      >
+                        {order.human_uid}
+                      </a>
+                    </TableCell>
+                    <TableCell>{order.customer?.name || 'N/A'}</TableCell>
+                    <TableCell>
+                      <Badge variant={order.status === 'ready_to_ship' ? 'default' : 'secondary'}>
+                        {order.status.replace(/_/g, ' ')}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Button
+                        size="sm"
+                        onClick={() => handleOpenLabelDialog(order.id, order.human_uid)}
+                      >
+                        <Truck className="h-4 w-4 mr-2" />
+                        Create Label
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
               <div className="flex items-center gap-2">
                 <Button
                   variant="outline"
@@ -998,6 +1136,26 @@ const Shipments = () => {
                                 >
                                   <Trash2 className="h-4 w-4" />
                                 </Button>
+                                {shipment.shipstation_shipment_id && !shipment.voided_at && (
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => {
+                                      setShipmentToVoid(shipment);
+                                      setVoidDialogOpen(true);
+                                    }}
+                                    disabled={!!voidingIds[shipment.id]}
+                                    aria-label="Void label"
+                                    title="Void ShipStation label"
+                                  >
+                                    <Ban className={`h-4 w-4 text-destructive ${voidingIds[shipment.id] ? 'animate-pulse' : ''}`} />
+                                  </Button>
+                                )}
+                                {shipment.voided_at && (
+                                  <Badge variant="outline" className="text-xs text-destructive border-destructive">
+                                    Voided
+                                  </Badge>
+                                )}
                               </div>
                             </TableCell>
                           </TableRow>
@@ -1023,6 +1181,31 @@ const Shipments = () => {
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => setShipmentToDelete(null)}>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handleDelete}>Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={voidDialogOpen} onOpenChange={setVoidDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Void Shipping Label</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to void this shipping label? This will request a refund from the carrier for tracking number <span className="font-mono font-semibold">{shipmentToVoid?.tracking_no}</span>.
+              {shipmentToVoid?.tracking_status?.toLowerCase().includes('in transit') && (
+                <span className="block mt-2 text-warning font-medium">
+                  Warning: This package appears to be in transit. Voiding may not be successful.
+                </span>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setShipmentToVoid(null)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleVoidLabel}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Void Label
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -1088,6 +1271,17 @@ const Shipments = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* ShipStation Label Dialog */}
+      {selectedOrderForLabel && (
+        <ShipStationLabelDialog
+          open={labelDialogOpen}
+          onOpenChange={setLabelDialogOpen}
+          orderId={selectedOrderForLabel.id}
+          orderNumber={selectedOrderForLabel.humanUid}
+          onSuccess={handleLabelSuccess}
+        />
+      )}
     </div>
   );
 };

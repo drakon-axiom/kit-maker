@@ -14,6 +14,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { usePresenceTracking } from '@/hooks/usePresenceTracking';
 
 interface CustomerLayoutProps {
   children?: React.ReactNode;
@@ -21,6 +22,9 @@ interface CustomerLayoutProps {
 
 export const CustomerLayout = ({ children }: CustomerLayoutProps) => {
   const { user, signOut } = useAuth();
+  
+  // Track customer presence for admin dashboard
+  usePresenceTracking();
 
   return (
     <SidebarProvider>

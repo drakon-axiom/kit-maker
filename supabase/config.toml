@@ -1,5 +1,9 @@
 project_id = "dfaafbwhdnoaknuxonig"
 
+[auth.hook.send_email]
+enabled = true
+uri = "pg-functions://postgres/supabase_functions/http_request"
+
 [functions.record-manual-payment]
 verify_jwt = true
 
@@ -30,6 +34,9 @@ verify_jwt = true
 [functions.send-verification-email]
 verify_jwt = false
 
+[functions.send-password-reset-email]
+verify_jwt = false
+
 [functions.request-customer-access]
 verify_jwt = true
 
@@ -44,3 +51,6 @@ verify_jwt = false
 
 [functions.capture-paypal-payment]
 verify_jwt = false
+
+[functions.send-invoice-email]
+verify_jwt = true

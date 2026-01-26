@@ -143,22 +143,28 @@ export const BrandProvider = ({ children }: { children: React.ReactNode }) => {
       // Check if user is a customer
       const isCustomer = await checkIfCustomer();
       
-      // For customers, don't expose all brands
+      // For customers, don't expose all brands in state, but we still need to check domains
       const brands = await fetchBrands(isCustomer);
       setAllBrands(brands);
 
       let brandToUse: Brand | null = null;
 
       // 1. Detect brand from custom domain (highest priority)
+      // Always fetch all active brands for domain detection, regardless of user role
       const currentHostname = window.location.hostname;
       
-      // Match configured domain directly (supports full domain like b2b.nexusaminos.com)
-      const domainBrand = brands.find(b => {
+      const { data: allActiveBrands } = await supabase
+        .from('brands')
+        .select('*')
+        .eq('active', true);
+      
+      // Match configured domain directly (supports full domain like b2b.nexusaminos.com or bacwater.store)
+      const domainBrand = (allActiveBrands || []).find(b => {
         if (!b.domain) return false;
         // Remove protocol if present and compare
         const cleanDomain = b.domain.replace(/^https?:\/\//, '').replace(/\/$/, '');
         return currentHostname === cleanDomain;
-      });
+      }) as Brand | undefined;
       
       if (domainBrand) {
         setDetectedBrandSlug(domainBrand.slug);
@@ -171,7 +177,7 @@ export const BrandProvider = ({ children }: { children: React.ReactNode }) => {
         const pathSegments = location.pathname.split('/').filter(Boolean);
         if (pathSegments.length > 0) {
           const potentialSlug = pathSegments[0].toLowerCase().replace(/_/g, '-');
-          const detectedBrand = brands.find(b => b.slug.toLowerCase() === potentialSlug);
+          const detectedBrand = (allActiveBrands || []).find(b => b.slug.toLowerCase() === potentialSlug) as Brand | undefined;
           if (detectedBrand) {
             setDetectedBrandSlug(detectedBrand.slug);
             setBrandCookie(detectedBrand.slug);
@@ -189,7 +195,7 @@ export const BrandProvider = ({ children }: { children: React.ReactNode }) => {
       if (!brandToUse) {
         const cookieBrandSlug = getBrandCookie();
         if (cookieBrandSlug) {
-          const cookieBrand = brands.find(b => b.slug === cookieBrandSlug);
+          const cookieBrand = (allActiveBrands || []).find(b => b.slug === cookieBrandSlug) as Brand | undefined;
           if (cookieBrand) {
             setDetectedBrandSlug(cookieBrand.slug);
             brandToUse = cookieBrand;
@@ -199,7 +205,7 @@ export const BrandProvider = ({ children }: { children: React.ReactNode }) => {
 
       // 5. Fallback to default brand
       if (!brandToUse) {
-        brandToUse = brands.find(b => b.is_default) || brands[0] || null;
+        brandToUse = (allActiveBrands || []).find(b => b.is_default) as Brand | undefined || (allActiveBrands?.[0] as Brand) || null;
       }
 
       if (brandToUse) {

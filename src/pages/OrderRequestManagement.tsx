@@ -8,8 +8,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
-import { Loader2, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
+import { Loader2, CheckCircle, XCircle, AlertCircle, Plus, ExternalLink } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import { Link } from 'react-router-dom';
+import { canCreateAddon } from '@/utils/orderAddons';
 
 interface OrderRequest {
   id: string;
@@ -60,7 +62,7 @@ export default function OrderRequestManagement() {
             )
           )
         `)
-        .in('comment_type', ['cancellation_request', 'modification_request'])
+        .in('comment_type', ['cancellation_request', 'modification_request', 'addon_request'])
         .in('request_status', Array.isArray(status) ? status : [status])
         .order('created_at', { ascending: false });
 
@@ -124,11 +126,12 @@ export default function OrderRequestManagement() {
   };
 
   const getRequestTypeBadge = (type: string) => {
-    return type === 'cancellation_request' ? (
-      <Badge variant="destructive">Cancellation</Badge>
-    ) : (
-      <Badge variant="default">Modification</Badge>
-    );
+    if (type === 'cancellation_request') {
+      return <Badge variant="destructive">Cancellation</Badge>;
+    } else if (type === 'addon_request') {
+      return <Badge className="bg-purple-500">Add-On</Badge>;
+    }
+    return <Badge variant="default">Modification</Badge>;
   };
 
   const getStatusBadge = (status: string) => {
@@ -202,13 +205,36 @@ export default function OrderRequestManagement() {
                     <p className="text-sm font-medium mb-1">Request Details:</p>
                     <p className="text-sm text-muted-foreground">{request.comment}</p>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex flex-wrap gap-2">
                     <Button
                       onClick={() => handleRequestAction(request)}
                       variant="outline"
                       size="sm"
                     >
                       Review Request
+                    </Button>
+                    {request.comment_type === 'modification_request' && 
+                     canCreateAddon(request.sales_orders.status) && (
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        asChild
+                      >
+                        <Link to={`/orders/${request.so_id}`}>
+                          <Plus className="h-4 w-4 mr-1" />
+                          Create Add-On
+                        </Link>
+                      </Button>
+                    )}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      asChild
+                    >
+                      <Link to={`/orders/${request.so_id}`}>
+                        <ExternalLink className="h-4 w-4 mr-1" />
+                        View Order
+                      </Link>
                     </Button>
                   </div>
                 </CardContent>

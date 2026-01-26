@@ -7,7 +7,10 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { ArrowLeft, Loader2, DollarSign, Package, Pencil, Trash2, Plus, Factory, Printer, Calendar as CalendarIcon, Split, Eye } from 'lucide-react';
+import { ArrowLeft, Loader2, DollarSign, Package, Pencil, Trash2, Plus, Factory, Printer, Calendar as CalendarIcon, Split, Eye, Truck } from 'lucide-react';
+import { OrderAddOnsList } from '@/components/OrderAddOnsList';
+import { AddOnCreator } from '@/components/AddOnCreator';
+import { canCreateAddon } from '@/utils/orderAddons';
 import { Separator } from '@/components/ui/separator';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -25,6 +28,9 @@ import { ProductionPhotoUpload } from '@/components/ProductionPhotoUpload';
 import { ProductionPhotosGallery } from '@/components/ProductionPhotosGallery';
 import { SendCustomSMS } from '@/components/SendCustomSMS';
 import { StatusChangeDialog } from '@/components/StatusChangeDialog';
+import { InvoiceManagement } from '@/components/InvoiceManagement';
+import { ShipStationLabelDialog } from '@/components/ShipStationLabelDialog';
+import { PackingDetails } from '@/components/PackingDetails';
 import { Database } from '@/integrations/supabase/types';
 import {
   AlertDialog,
@@ -150,6 +156,9 @@ const OrderDetail = () => {
   const [deletingBatch, setDeletingBatch] = useState(false);
   const [statusChangeDialogOpen, setStatusChangeDialogOpen] = useState(false);
   const [pendingStatusChange, setPendingStatusChange] = useState<Database["public"]["Enums"]["order_status"] | null>(null);
+  const [shipStationDialogOpen, setShipStationDialogOpen] = useState(false);
+  const [addOnCreatorOpen, setAddOnCreatorOpen] = useState(false);
+  const [addOnsKey, setAddOnsKey] = useState(0);
   const labelRef = useRef<HTMLDivElement>(null);
   
   const handlePrint = useReactToPrint({
@@ -637,10 +646,14 @@ const OrderDetail = () => {
         if (itemError) throw itemError;
 
         // Create workflow steps
-        const workflowSteps = [
+        const workflowSteps = order.label_required ? [
           { step: 'produce' as const, batch_id: batchData.id, status: 'pending' as const },
           { step: 'bottle_cap' as const, batch_id: batchData.id, status: 'pending' as const },
           { step: 'label' as const, batch_id: batchData.id, status: 'pending' as const },
+          { step: 'pack' as const, batch_id: batchData.id, status: 'pending' as const },
+        ] : [
+          { step: 'produce' as const, batch_id: batchData.id, status: 'pending' as const },
+          { step: 'bottle_cap' as const, batch_id: batchData.id, status: 'pending' as const },
           { step: 'pack' as const, batch_id: batchData.id, status: 'pending' as const },
         ];
 
@@ -782,10 +795,14 @@ const OrderDetail = () => {
         }
 
         // Create workflow steps for new batch
-        const workflowSteps = [
+        const workflowSteps = order.label_required ? [
           { step: 'produce' as const, batch_id: newBatch.id, status: 'pending' as const },
           { step: 'bottle_cap' as const, batch_id: newBatch.id, status: 'pending' as const },
           { step: 'label' as const, batch_id: newBatch.id, status: 'pending' as const },
+          { step: 'pack' as const, batch_id: newBatch.id, status: 'pending' as const },
+        ] : [
+          { step: 'produce' as const, batch_id: newBatch.id, status: 'pending' as const },
+          { step: 'bottle_cap' as const, batch_id: newBatch.id, status: 'pending' as const },
           { step: 'pack' as const, batch_id: newBatch.id, status: 'pending' as const },
         ];
 
@@ -934,11 +951,22 @@ const OrderDetail = () => {
                   <SelectItem value="awaiting_payment">Awaiting Payment</SelectItem>
                   <SelectItem value="in_packing">In Packing</SelectItem>
                   <SelectItem value="packed">Packed</SelectItem>
+                  <SelectItem value="ready_to_ship">Ready to Ship</SelectItem>
                   <SelectItem value="shipped">Shipped</SelectItem>
                   <SelectItem value="on_hold">On Hold</SelectItem>
                   <SelectItem value="cancelled">Cancelled</SelectItem>
                 </SelectContent>
               </Select>
+              {/* ShipStation Label Button - show when ready to ship */}
+              {(order.status === 'ready_to_ship' || order.status === 'packed') && !order.is_internal && (
+                <Button
+                  variant="default"
+                  onClick={() => setShipStationDialogOpen(true)}
+                >
+                  <Truck className="h-4 w-4 mr-2" />
+                  Create Label
+                </Button>
+              )}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" size="icon">
@@ -1263,6 +1291,14 @@ const OrderDetail = () => {
         </Card>
       </div>
 
+      {/* Packing Details - Show when order is in packing or later */}
+      {userRole === 'admin' && order && (order.status === 'in_packing' || order.status === 'packed' || order.status === 'ready_to_ship') && (
+        <PackingDetails
+          orderId={order.id}
+          totalItems={totalBottles}
+        />
+      )}
+
       <Card>
         <CardHeader>
           <CardTitle>Line Items</CardTitle>
@@ -1303,6 +1339,30 @@ const OrderDetail = () => {
           </Table>
         </CardContent>
       </Card>
+
+      {/* Order Add-Ons */}
+      {order && !order.is_internal && (
+        <OrderAddOnsList
+          key={addOnsKey}
+          orderId={order.id}
+          orderStatus={order.status}
+          isAdmin={userRole === 'admin'}
+          onCreateAddOn={() => setAddOnCreatorOpen(true)}
+        />
+      )}
+
+      {/* Invoice Management */}
+      {order && userRole === 'admin' && order.status !== 'draft' && order.status !== 'cancelled' && (
+        <InvoiceManagement
+          orderId={order.id}
+          orderTotal={order.subtotal}
+          depositAmount={order.deposit_amount || 0}
+          depositRequired={order.deposit_required}
+          customerEmail={order.customer?.email || null}
+          orderStatus={order.status}
+          onStatusChange={fetchOrder}
+        />
+      )}
 
       {/* Production Batches */}
       {(order.status === 'in_queue' || order.status === 'in_production' || order.status === 'in_labeling' || order.status === 'in_packing' || batches.length > 0) && (
@@ -1457,6 +1517,8 @@ const OrderDetail = () => {
           </CardContent>
         </Card>
       )}
+
+      {/* Packing Details section moved up - now shown inline after order summary */}
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
@@ -1675,6 +1737,34 @@ const OrderDetail = () => {
           onConfirm={async (overrideNote) => {
             await handleStatusChange(pendingStatusChange, overrideNote);
             setPendingStatusChange(null);
+          }}
+        />
+      )}
+
+      {/* ShipStation Label Dialog */}
+      {order && (
+        <ShipStationLabelDialog
+          open={shipStationDialogOpen}
+          onOpenChange={setShipStationDialogOpen}
+          orderId={order.id}
+          orderNumber={order.human_uid}
+          onSuccess={fetchOrder}
+        />
+      )}
+
+      {/* Add-On Creator Dialog */}
+      {order && !order.is_internal && (
+        <AddOnCreator
+          open={addOnCreatorOpen}
+          onOpenChange={setAddOnCreatorOpen}
+          parentOrderId={order.id}
+          parentOrderNumber={order.human_uid}
+          parentOrderTotal={order.subtotal}
+          customerId={order.customer_id}
+          brandId={order.brand_id}
+          onSuccess={() => {
+            setAddOnsKey(prev => prev + 1);
+            fetchOrder();
           }}
         />
       )}

@@ -47,6 +47,45 @@ export type Database = {
         }
         Relationships: []
       }
+      box_presets: {
+        Row: {
+          active: boolean
+          created_at: string
+          height_inches: number
+          id: string
+          is_default: boolean
+          length_inches: number
+          name: string
+          updated_at: string
+          weight_oz: number | null
+          width_inches: number
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          height_inches: number
+          id?: string
+          is_default?: boolean
+          length_inches: number
+          name: string
+          updated_at?: string
+          weight_oz?: number | null
+          width_inches: number
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          height_inches?: number
+          id?: string
+          is_default?: boolean
+          length_inches?: number
+          name?: string
+          updated_at?: string
+          weight_oz?: number | null
+          width_inches?: number
+        }
+        Relationships: []
+      }
       brands: {
         Row: {
           accent_color: string
@@ -680,6 +719,74 @@ export type Database = {
           },
         ]
       }
+      order_addons: {
+        Row: {
+          addon_so_id: string
+          admin_notes: string | null
+          approved_at: string | null
+          approved_by: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          parent_so_id: string
+          reason: string | null
+          status: string
+        }
+        Insert: {
+          addon_so_id: string
+          admin_notes?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          parent_so_id: string
+          reason?: string | null
+          status?: string
+        }
+        Update: {
+          addon_so_id?: string
+          admin_notes?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          parent_so_id?: string
+          reason?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_addons_addon_so_id_fkey"
+            columns: ["addon_so_id"]
+            isOneToOne: true
+            referencedRelation: "public_quotes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_addons_addon_so_id_fkey"
+            columns: ["addon_so_id"]
+            isOneToOne: true
+            referencedRelation: "sales_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_addons_parent_so_id_fkey"
+            columns: ["parent_so_id"]
+            isOneToOne: false
+            referencedRelation: "public_quotes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_addons_parent_so_id_fkey"
+            columns: ["parent_so_id"]
+            isOneToOne: false
+            referencedRelation: "sales_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       order_comments: {
         Row: {
           admin_response: string | null
@@ -736,6 +843,63 @@ export type Database = {
           },
           {
             foreignKeyName: "order_comments_so_id_fkey"
+            columns: ["so_id"]
+            isOneToOne: false
+            referencedRelation: "sales_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      order_packages: {
+        Row: {
+          created_at: string
+          height_inches: number
+          id: string
+          item_count: number
+          length_inches: number
+          notes: string | null
+          package_number: number
+          so_id: string
+          updated_at: string
+          weight_oz: number
+          width_inches: number
+        }
+        Insert: {
+          created_at?: string
+          height_inches?: number
+          id?: string
+          item_count?: number
+          length_inches?: number
+          notes?: string | null
+          package_number?: number
+          so_id: string
+          updated_at?: string
+          weight_oz?: number
+          width_inches?: number
+        }
+        Update: {
+          created_at?: string
+          height_inches?: number
+          id?: string
+          item_count?: number
+          length_inches?: number
+          notes?: string | null
+          package_number?: number
+          so_id?: string
+          updated_at?: string
+          weight_oz?: number
+          width_inches?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_packages_so_id_fkey"
+            columns: ["so_id"]
+            isOneToOne: false
+            referencedRelation: "public_quotes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_packages_so_id_fkey"
             columns: ["so_id"]
             isOneToOne: false
             referencedRelation: "sales_orders"
@@ -1089,6 +1253,8 @@ export type Database = {
       }
       sales_orders: {
         Row: {
+          archived: boolean
+          archived_at: string | null
           brand_id: string | null
           created_at: string
           customer_id: string | null
@@ -1101,6 +1267,7 @@ export type Database = {
           is_internal: boolean
           label_required: boolean
           manual_payment_notes: string | null
+          parent_order_id: string | null
           promised_date: string | null
           quote_expiration_days: number | null
           quote_expires_at: string | null
@@ -1112,6 +1279,8 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          archived?: boolean
+          archived_at?: string | null
           brand_id?: string | null
           created_at?: string
           customer_id?: string | null
@@ -1124,6 +1293,7 @@ export type Database = {
           is_internal?: boolean
           label_required?: boolean
           manual_payment_notes?: string | null
+          parent_order_id?: string | null
           promised_date?: string | null
           quote_expiration_days?: number | null
           quote_expires_at?: string | null
@@ -1135,6 +1305,8 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          archived?: boolean
+          archived_at?: string | null
           brand_id?: string | null
           created_at?: string
           customer_id?: string | null
@@ -1147,6 +1319,7 @@ export type Database = {
           is_internal?: boolean
           label_required?: boolean
           manual_payment_notes?: string | null
+          parent_order_id?: string | null
           promised_date?: string | null
           quote_expiration_days?: number | null
           quote_expires_at?: string | null
@@ -1170,6 +1343,20 @@ export type Database = {
             columns: ["customer_id"]
             isOneToOne: false
             referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_orders_parent_order_id_fkey"
+            columns: ["parent_order_id"]
+            isOneToOne: false
+            referencedRelation: "public_quotes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_orders_parent_order_id_fkey"
+            columns: ["parent_order_id"]
+            isOneToOne: false
+            referencedRelation: "sales_orders"
             referencedColumns: ["id"]
           },
         ]
@@ -1265,11 +1452,13 @@ export type Database = {
           notes: string | null
           share_link_token: string
           shipped_at: string | null
+          shipstation_shipment_id: string | null
           so_id: string
           tracking_events: Json | null
           tracking_location: string | null
           tracking_no: string
           tracking_status: string | null
+          voided_at: string | null
         }
         Insert: {
           carrier?: string | null
@@ -1281,11 +1470,13 @@ export type Database = {
           notes?: string | null
           share_link_token?: string
           shipped_at?: string | null
+          shipstation_shipment_id?: string | null
           so_id: string
           tracking_events?: Json | null
           tracking_location?: string | null
           tracking_no: string
           tracking_status?: string | null
+          voided_at?: string | null
         }
         Update: {
           carrier?: string | null
@@ -1297,11 +1488,13 @@ export type Database = {
           notes?: string | null
           share_link_token?: string
           shipped_at?: string | null
+          shipstation_shipment_id?: string | null
           so_id?: string
           tracking_events?: Json | null
           tracking_location?: string | null
           tracking_no?: string
           tracking_status?: string | null
+          voided_at?: string | null
         }
         Relationships: [
           {
@@ -1640,6 +1833,96 @@ export type Database = {
           website?: string | null
         }
         Update: {
+          billing_address_line1?: string | null
+          billing_address_line2?: string | null
+          billing_city?: string | null
+          billing_country?: string | null
+          billing_same_as_shipping?: boolean | null
+          billing_state?: string | null
+          billing_zip?: string | null
+          business_type?: string | null
+          company_name?: string
+          contact_name?: string
+          created_at?: string
+          email?: string
+          id?: string
+          message?: string | null
+          notes?: string | null
+          phone?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          shipping_address_line1?: string | null
+          shipping_address_line2?: string | null
+          shipping_city?: string | null
+          shipping_country?: string | null
+          shipping_state?: string | null
+          shipping_zip?: string | null
+          status?: Database["public"]["Enums"]["application_status"]
+          website?: string | null
+        }
+        Relationships: []
+      }
+      wholesale_applications_archive: {
+        Row: {
+          archived_at: string
+          billing_address_line1: string | null
+          billing_address_line2: string | null
+          billing_city: string | null
+          billing_country: string | null
+          billing_same_as_shipping: boolean | null
+          billing_state: string | null
+          billing_zip: string | null
+          business_type: string | null
+          company_name: string
+          contact_name: string
+          created_at: string
+          email: string
+          id: string
+          message: string | null
+          notes: string | null
+          phone: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          shipping_address_line1: string | null
+          shipping_address_line2: string | null
+          shipping_city: string | null
+          shipping_country: string | null
+          shipping_state: string | null
+          shipping_zip: string | null
+          status: Database["public"]["Enums"]["application_status"]
+          website: string | null
+        }
+        Insert: {
+          archived_at?: string
+          billing_address_line1?: string | null
+          billing_address_line2?: string | null
+          billing_city?: string | null
+          billing_country?: string | null
+          billing_same_as_shipping?: boolean | null
+          billing_state?: string | null
+          billing_zip?: string | null
+          business_type?: string | null
+          company_name: string
+          contact_name: string
+          created_at: string
+          email: string
+          id: string
+          message?: string | null
+          notes?: string | null
+          phone?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          shipping_address_line1?: string | null
+          shipping_address_line2?: string | null
+          shipping_city?: string | null
+          shipping_country?: string | null
+          shipping_state?: string | null
+          shipping_zip?: string | null
+          status: Database["public"]["Enums"]["application_status"]
+          website?: string | null
+        }
+        Update: {
+          archived_at?: string
           billing_address_line1?: string | null
           billing_address_line2?: string | null
           billing_city?: string | null

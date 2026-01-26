@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Loader2, Save } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import { SMSTemplateManager } from '@/components/SMSTemplateManager';
+import { ShippingSettings } from '@/components/ShippingSettings';
 
 interface Setting {
   key: string;
@@ -328,6 +329,72 @@ const Settings = () => {
           <div className="md:col-span-2">
             <SMSTemplateManager />
           </div>
+
+          {/* Shipping Settings */}
+          <div className="md:col-span-2">
+            <ShippingSettings />
+          </div>
+
+          {/* Order Add-On Settings */}
+          <Card className="md:col-span-2">
+            <CardHeader>
+              <CardTitle>Order Add-Ons</CardTitle>
+              <CardDescription>Configure add-on order limits and behavior</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-6 sm:grid-cols-2">
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="addon_max_percent">Maximum Add-On Size (%)</Label>
+                    <Input
+                      id="addon_max_percent"
+                      type="number"
+                      min="0"
+                      max="500"
+                      value={settings.addon_max_percent || '100'}
+                      onChange={(e) => setSettings({ ...settings, addon_max_percent: e.target.value })}
+                      placeholder="100"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Max add-on value as % of original order. 0 = no limit.
+                    </p>
+                  </div>
+                  <Button 
+                    onClick={() => handleSave('addon_max_percent', settings.addon_max_percent || '100')}
+                    disabled={saving}
+                    size="sm"
+                  >
+                    <Save className="mr-2 h-4 w-4" />
+                    Save
+                  </Button>
+                </div>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="addon_auto_approve_threshold">Auto-Approve Threshold ($)</Label>
+                    <Input
+                      id="addon_auto_approve_threshold"
+                      type="number"
+                      min="0"
+                      value={settings.addon_auto_approve_threshold || '0'}
+                      onChange={(e) => setSettings({ ...settings, addon_auto_approve_threshold: e.target.value })}
+                      placeholder="0"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Auto-approve add-ons below this amount. 0 = disabled.
+                    </p>
+                  </div>
+                  <Button 
+                    onClick={() => handleSave('addon_auto_approve_threshold', settings.addon_auto_approve_threshold || '0')}
+                    disabled={saving}
+                    size="sm"
+                  >
+                    <Save className="mr-2 h-4 w-4" />
+                    Save
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       )}
     </div>
