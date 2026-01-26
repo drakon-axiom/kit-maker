@@ -30,6 +30,7 @@ import { SendCustomSMS } from '@/components/SendCustomSMS';
 import { StatusChangeDialog } from '@/components/StatusChangeDialog';
 import { InvoiceManagement } from '@/components/InvoiceManagement';
 import { ShipStationLabelDialog } from '@/components/ShipStationLabelDialog';
+import { PackingDetails } from '@/components/PackingDetails';
 import { Database } from '@/integrations/supabase/types';
 import {
   AlertDialog,
@@ -1515,6 +1516,14 @@ const OrderDetail = () => {
             <ProductionPhotosGallery orderId={order.id} />
           </CardContent>
         </Card>
+      )}
+
+      {/* Packing Details - Show when order is in packing or later */}
+      {userRole === 'admin' && order && (order.status === 'in_packing' || order.status === 'packed' || order.status === 'ready_to_ship') && (
+        <PackingDetails
+          orderId={order.id}
+          totalItems={totalBottles}
+        />
       )}
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
