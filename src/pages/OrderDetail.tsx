@@ -1299,6 +1299,14 @@ const OrderDetail = () => {
         </Card>
       </div>
 
+      {/* Packing Details - Show when order is in packing or later */}
+      {userRole === 'admin' && order && (order.status === 'in_packing' || order.status === 'packed' || order.status === 'ready_to_ship') && (
+        <PackingDetails
+          orderId={order.id}
+          totalItems={totalBottles}
+        />
+      )}
+
       <Card>
         <CardHeader>
           <CardTitle>Line Items</CardTitle>
@@ -1518,13 +1526,7 @@ const OrderDetail = () => {
         </Card>
       )}
 
-      {/* Packing Details - Show when order is in packing or later */}
-      {userRole === 'admin' && order && (order.status === 'in_packing' || order.status === 'packed' || order.status === 'ready_to_ship') && (
-        <PackingDetails
-          orderId={order.id}
-          totalItems={totalBottles}
-        />
-      )}
+      {/* Packing Details section moved up - now shown inline after order summary */}
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
