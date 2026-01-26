@@ -41,21 +41,34 @@ function generateSecureToken(): string {
 async function getSmtpConfig(supabase: any, brandId?: string | null): Promise<SmtpConfig | null> {
   // Try brand-specific SMTP first
   if (brandId) {
-    const { data: brand } = await supabase
+    console.log(`Looking up SMTP config for brand: ${brandId}`);
+    const { data: brand, error } = await supabase
       .from('brands')
       .select('smtp_host, smtp_port, smtp_user, smtp_password')
       .eq('id', brandId)
       .single();
 
+    if (error) {
+      console.log(`Error fetching brand SMTP: ${error.message}`);
+    }
+
     if (brand?.smtp_host && brand?.smtp_user && brand?.smtp_password) {
-      console.log('Using brand-specific SMTP configuration');
+      console.log(`Using brand-specific SMTP: ${brand.smtp_host}:${brand.smtp_port || 465}`);
       return {
         host: brand.smtp_host,
         port: brand.smtp_port || 465,
         user: brand.smtp_user,
         password: brand.smtp_password,
       };
+    } else {
+      console.log('Brand SMTP not fully configured:', {
+        hasHost: !!brand?.smtp_host,
+        hasUser: !!brand?.smtp_user,
+        hasPassword: !!brand?.smtp_password
+      });
     }
+  } else {
+    console.log('No brand ID provided for SMTP lookup');
   }
 
   // Fallback to global SMTP from environment variables
@@ -63,16 +76,24 @@ async function getSmtpConfig(supabase: any, brandId?: string | null): Promise<Sm
   const smtpUser = Deno.env.get('SMTP_USER');
   const smtpPassword = Deno.env.get('SMTP_PASSWORD');
 
+  console.log('Checking global SMTP environment variables:', {
+    hasHost: !!smtpHost,
+    hasUser: !!smtpUser,
+    hasPassword: !!smtpPassword
+  });
+
   if (smtpHost && smtpUser && smtpPassword) {
-    console.log('Using global SMTP configuration');
+    const port = parseInt(Deno.env.get('SMTP_PORT') || '465');
+    console.log(`Using global SMTP: ${smtpHost}:${port}`);
     return {
       host: smtpHost,
-      port: parseInt(Deno.env.get('SMTP_PORT') || '465'),
+      port,
       user: smtpUser,
       password: smtpPassword,
     };
   }
 
+  console.log('No SMTP configuration available');
   return null;
 }
 
@@ -194,15 +215,37 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Find the user by email
-    const { data: userData, error: userError } = await supabase.auth.admin.listUsers();
+    // Find the user by email using pagination to handle large user bases
+    let user = null;
+    let page = 1;
+    const perPage = 1000;
 
-    if (userError) {
-      console.error("Error listing users:", userError);
-      throw new Error("Failed to lookup user");
+    while (!user) {
+      const { data: userData, error: userError } = await supabase.auth.admin.listUsers({
+        page,
+        perPage
+      });
+
+      if (userError) {
+        console.error("Error listing users:", userError);
+        throw new Error("Failed to lookup user");
+      }
+
+      user = userData.users.find(u => u.email?.toLowerCase() === email.toLowerCase());
+
+      // If we found the user or there are no more users to check, break
+      if (user || userData.users.length < perPage) {
+        break;
+      }
+
+      page++;
+
+      // Safety limit to prevent infinite loops
+      if (page > 100) {
+        console.error("Too many pages of users, stopping search");
+        break;
+      }
     }
-
-    const user = userData.users.find(u => u.email?.toLowerCase() === email.toLowerCase());
 
     if (!user) {
       // Don't reveal if user exists - return success anyway for security
@@ -213,12 +256,14 @@ serve(async (req) => {
       );
     }
 
-    // Find the user's brand (via customer record)
+    // Find the user's brand (via customer record or user_roles for admins)
     const { data: customer } = await supabase
       .from('customers')
       .select('brand_id')
       .eq('user_id', user.id)
       .single();
+
+    console.log(`User ${user.id} customer record:`, customer);
 
     let brand: Brand | null = null;
 
@@ -229,20 +274,24 @@ serve(async (req) => {
         .eq('id', customer.brand_id)
         .single();
       brand = brandData;
+      console.log(`Found customer brand: ${brand?.name}`);
     }
 
     // If no customer brand, get default brand
     if (!brand) {
+      console.log('No customer brand found, looking for default brand');
       const { data: defaultBrand } = await supabase
         .from('brands')
         .select('*')
         .eq('is_default', true)
         .single();
       brand = defaultBrand;
+      console.log(`Default brand: ${brand?.name}`);
     }
 
     // If still no brand, create a minimal brand object
     if (!brand) {
+      console.log('No brands found in database, using fallback');
       brand = {
         id: '',
         name: 'Axiom Collective',
@@ -291,13 +340,16 @@ serve(async (req) => {
     const { subject, html } = generatePasswordResetEmail(brand, resetLink, email);
 
     // Send the email
-    const effectivePort = smtpConfig.host?.includes("protonmail") ? 465 : smtpConfig.port;
-    const useTls = effectivePort === 465;
+    // Use TLS for port 465, STARTTLS for port 587
+    const port = smtpConfig.port || 465;
+    const useTls = port === 465;
+
+    console.log(`Connecting to SMTP: ${smtpConfig.host}:${port} (TLS: ${useTls})`);
 
     const client = new SMTPClient({
       connection: {
         hostname: smtpConfig.host,
-        port: effectivePort,
+        port: port,
         tls: useTls,
         auth: {
           username: smtpConfig.user,
@@ -309,11 +361,13 @@ serve(async (req) => {
     const fromEmail = brand.contact_email || smtpConfig.user;
     const fromName = brand.name || 'Password Reset';
 
+    console.log(`Sending email from: ${fromName} <${fromEmail}> to: ${email}`);
+
     await client.send({
       from: `${fromName} <${fromEmail}>`,
       to: email,
       subject: subject,
-      content: html,
+      content: "Please view this email in an HTML-capable email client.",
       mimeContent: [{ mimeType: 'text/html', content: html, transferEncoding: '8bit' }],
     });
 
