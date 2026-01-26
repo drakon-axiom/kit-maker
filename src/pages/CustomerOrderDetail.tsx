@@ -20,6 +20,7 @@ import { format } from 'date-fns';
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from '@/components/ui/breadcrumb';
 import { Link } from 'react-router-dom';
 import { ProductionPhotosGallery } from '@/components/ProductionPhotosGallery';
+import { CustomerPackageDetails } from '@/components/CustomerPackageDetails';
 import { useIsMobile } from '@/hooks/use-mobile';
 
 interface Brand {
@@ -502,6 +503,9 @@ export default function CustomerOrderDetail() {
           </Card>
         )}
       </div>
+
+      {/* Package Details */}
+      <CustomerPackageDetails orderId={order.id} orderStatus={order.status} />
 
       {/* Shipment Tracking */}
       <ShipmentTracker shipment={shipment} onUpdate={fetchOrderDetails} />
