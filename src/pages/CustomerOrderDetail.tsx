@@ -192,7 +192,8 @@ export default function CustomerOrderDetail() {
   };
 
   const canRequestModification = (status: string) => {
-    return ['draft', 'quoted', 'deposit_due', 'awaiting_approval', 'in_queue'].includes(status);
+    // Allow modifications until packing starts
+    return !['in_packing', 'packed', 'awaiting_invoice', 'awaiting_payment', 'ready_to_ship', 'shipped', 'cancelled'].includes(status);
   };
 
   const handleModificationRequest = async () => {

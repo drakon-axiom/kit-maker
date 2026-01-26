@@ -719,6 +719,74 @@ export type Database = {
           },
         ]
       }
+      order_addons: {
+        Row: {
+          addon_so_id: string
+          admin_notes: string | null
+          approved_at: string | null
+          approved_by: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          parent_so_id: string
+          reason: string | null
+          status: string
+        }
+        Insert: {
+          addon_so_id: string
+          admin_notes?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          parent_so_id: string
+          reason?: string | null
+          status?: string
+        }
+        Update: {
+          addon_so_id?: string
+          admin_notes?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          parent_so_id?: string
+          reason?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_addons_addon_so_id_fkey"
+            columns: ["addon_so_id"]
+            isOneToOne: true
+            referencedRelation: "public_quotes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_addons_addon_so_id_fkey"
+            columns: ["addon_so_id"]
+            isOneToOne: true
+            referencedRelation: "sales_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_addons_parent_so_id_fkey"
+            columns: ["parent_so_id"]
+            isOneToOne: false
+            referencedRelation: "public_quotes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_addons_parent_so_id_fkey"
+            columns: ["parent_so_id"]
+            isOneToOne: false
+            referencedRelation: "sales_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       order_comments: {
         Row: {
           admin_response: string | null
@@ -1142,6 +1210,7 @@ export type Database = {
           is_internal: boolean
           label_required: boolean
           manual_payment_notes: string | null
+          parent_order_id: string | null
           promised_date: string | null
           quote_expiration_days: number | null
           quote_expires_at: string | null
@@ -1167,6 +1236,7 @@ export type Database = {
           is_internal?: boolean
           label_required?: boolean
           manual_payment_notes?: string | null
+          parent_order_id?: string | null
           promised_date?: string | null
           quote_expiration_days?: number | null
           quote_expires_at?: string | null
@@ -1192,6 +1262,7 @@ export type Database = {
           is_internal?: boolean
           label_required?: boolean
           manual_payment_notes?: string | null
+          parent_order_id?: string | null
           promised_date?: string | null
           quote_expiration_days?: number | null
           quote_expires_at?: string | null
@@ -1215,6 +1286,20 @@ export type Database = {
             columns: ["customer_id"]
             isOneToOne: false
             referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_orders_parent_order_id_fkey"
+            columns: ["parent_order_id"]
+            isOneToOne: false
+            referencedRelation: "public_quotes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_orders_parent_order_id_fkey"
+            columns: ["parent_order_id"]
+            isOneToOne: false
+            referencedRelation: "sales_orders"
             referencedColumns: ["id"]
           },
         ]

@@ -8,6 +8,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ArrowLeft, Loader2, DollarSign, Package, Pencil, Trash2, Plus, Factory, Printer, Calendar as CalendarIcon, Split, Eye, Truck } from 'lucide-react';
+import { OrderAddOnsList } from '@/components/OrderAddOnsList';
+import { AddOnCreator } from '@/components/AddOnCreator';
+import { canCreateAddon } from '@/utils/orderAddons';
 import { Separator } from '@/components/ui/separator';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -153,6 +156,8 @@ const OrderDetail = () => {
   const [statusChangeDialogOpen, setStatusChangeDialogOpen] = useState(false);
   const [pendingStatusChange, setPendingStatusChange] = useState<Database["public"]["Enums"]["order_status"] | null>(null);
   const [shipStationDialogOpen, setShipStationDialogOpen] = useState(false);
+  const [addOnCreatorOpen, setAddOnCreatorOpen] = useState(false);
+  const [addOnsKey, setAddOnsKey] = useState(0);
   const labelRef = useRef<HTMLDivElement>(null);
   
   const handlePrint = useReactToPrint({
@@ -1326,6 +1331,17 @@ const OrderDetail = () => {
         </CardContent>
       </Card>
 
+      {/* Order Add-Ons */}
+      {order && !order.is_internal && (
+        <OrderAddOnsList
+          key={addOnsKey}
+          orderId={order.id}
+          orderStatus={order.status}
+          isAdmin={userRole === 'admin'}
+          onCreateAddOn={() => setAddOnCreatorOpen(true)}
+        />
+      )}
+
       {/* Invoice Management */}
       {order && userRole === 'admin' && order.status !== 'draft' && order.status !== 'cancelled' && (
         <InvoiceManagement
@@ -1722,6 +1738,23 @@ const OrderDetail = () => {
           orderId={order.id}
           orderNumber={order.human_uid}
           onSuccess={fetchOrder}
+        />
+      )}
+
+      {/* Add-On Creator Dialog */}
+      {order && !order.is_internal && (
+        <AddOnCreator
+          open={addOnCreatorOpen}
+          onOpenChange={setAddOnCreatorOpen}
+          parentOrderId={order.id}
+          parentOrderNumber={order.human_uid}
+          parentOrderTotal={order.subtotal}
+          customerId={order.customer_id}
+          brandId={order.brand_id}
+          onSuccess={() => {
+            setAddOnsKey(prev => prev + 1);
+            fetchOrder();
+          }}
         />
       )}
     </div>
