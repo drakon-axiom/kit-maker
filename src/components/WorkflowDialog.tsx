@@ -161,6 +161,12 @@ export const WorkflowDialog = ({ open, onOpenChange, batchId, batchNumber, produ
 
       if (batch?.so_id) {
         // Check if all batches for this order are complete
+        const { data: orderData } = await supabase
+          .from('sales_orders')
+          .select('label_required')
+          .eq('id', batch.so_id)
+          .single();
+
         const { data: allBatches } = await supabase
           .from('production_batches')
           .select('status')
@@ -169,10 +175,12 @@ export const WorkflowDialog = ({ open, onOpenChange, batchId, batchNumber, produ
         const allComplete = allBatches?.every(b => b.status === 'complete');
 
         if (allComplete) {
-          // Update order status to packed
+          // Update order status based on label requirement
+          const nextStatus = orderData?.label_required ? 'in_labeling' : 'in_packing';
+          
           const { error: orderError } = await supabase
             .from('sales_orders')
-            .update({ status: 'packed' })
+            .update({ status: nextStatus })
             .eq('id', batch.so_id);
 
           if (orderError) {
