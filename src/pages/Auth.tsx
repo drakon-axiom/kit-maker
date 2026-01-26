@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useBrand } from '@/contexts/BrandContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -14,6 +14,9 @@ import { Eye, EyeOff, Palette } from 'lucide-react';
 import axiomLogo from '@/assets/axiom-logo.png';
 
 const Auth = () => {
+  const [searchParams] = useSearchParams();
+  const resetToken = searchParams.get('reset_token');
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -27,6 +30,9 @@ const Auth = () => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [passwordChangeLoading, setPasswordChangeLoading] = useState(false);
   const [showBrandSwitcher, setShowBrandSwitcher] = useState(false);
+  const [isResettingPassword, setIsResettingPassword] = useState(!!resetToken);
+  const [resetNewPassword, setResetNewPassword] = useState('');
+  const [resetConfirmPassword, setResetConfirmPassword] = useState('');
   const { signIn, user } = useAuth();
   const { currentBrand, allBrands, setCurrentBrandById } = useBrand();
   const { toast } = useToast();
@@ -94,26 +100,88 @@ const Auth = () => {
   const handlePasswordReset = async (e: React.FormEvent) => {
     e.preventDefault();
     setResetLoading(true);
-    const {
-      error
-    } = await supabase.auth.resetPasswordForEmail(resetEmail, {
-      redirectTo: `${window.location.origin}/auth`
-    });
-    if (error) {
-      toast({
-        title: 'Error',
-        description: error instanceof Error ? error.message : 'An error occurred',
-        variant: 'destructive'
+
+    try {
+      const { data, error } = await supabase.functions.invoke('send-password-reset', {
+        body: {
+          email: resetEmail,
+          redirectTo: `${window.location.origin}/auth`
+        }
       });
-    } else {
+
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
       toast({
         title: 'Success',
         description: 'Password reset email sent! Check your inbox.'
       });
       setResetDialogOpen(false);
       setResetEmail('');
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to send reset email',
+        variant: 'destructive'
+      });
+    } finally {
+      setResetLoading(false);
     }
-    setResetLoading(false);
+  };
+
+  const handleResetPasswordSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (resetNewPassword !== resetConfirmPassword) {
+      toast({
+        title: 'Error',
+        description: 'Passwords do not match',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    if (resetNewPassword.length < 8) {
+      toast({
+        title: 'Error',
+        description: 'Password must be at least 8 characters',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    setPasswordChangeLoading(true);
+
+    try {
+      const { data, error } = await supabase.functions.invoke('verify-password-reset', {
+        body: {
+          token: resetToken,
+          newPassword: resetNewPassword
+        }
+      });
+
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      toast({
+        title: 'Success',
+        description: 'Password updated successfully! You can now sign in.'
+      });
+
+      // Clear the token from URL and reset state
+      setIsResettingPassword(false);
+      setResetNewPassword('');
+      setResetConfirmPassword('');
+      navigate('/auth', { replace: true });
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to reset password',
+        variant: 'destructive'
+      });
+    } finally {
+      setPasswordChangeLoading(false);
+    }
   };
 
   const handlePasswordChange = async (e: React.FormEvent) => {
@@ -195,6 +263,82 @@ const Auth = () => {
       description: 'Preview updated with new brand styling'
     });
   };
+
+  // Show password reset form if token is present
+  if (isResettingPassword && resetToken) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-secondary/5 p-4">
+        <Card className="w-full max-w-md border-primary/10 shadow-xl">
+          <CardHeader className="space-y-1 text-center">
+            <div className="flex justify-center mb-4">
+              <img src={currentBrand?.logo_url || axiomLogo} alt={currentBrand?.name || "Company"} className="h-12" />
+            </div>
+            <CardTitle className="text-2xl font-bold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
+              Reset Your Password
+            </CardTitle>
+            <CardDescription>
+              Enter your new password below
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleResetPasswordSubmit} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="reset-new-password">New Password</Label>
+                <div className="relative">
+                  <Input
+                    id="reset-new-password"
+                    type={showPassword ? "text" : "password"}
+                    value={resetNewPassword}
+                    onChange={e => setResetNewPassword(e.target.value)}
+                    placeholder="Minimum 8 characters"
+                    required
+                    className="pr-10 border-primary/20 focus:border-primary"
+                    minLength={8}
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                    onClick={() => setShowPassword(!showPassword)}
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4 text-muted-foreground" /> : <Eye className="h-4 w-4 text-muted-foreground" />}
+                  </Button>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="reset-confirm-password">Confirm Password</Label>
+                <Input
+                  id="reset-confirm-password"
+                  type={showPassword ? "text" : "password"}
+                  value={resetConfirmPassword}
+                  onChange={e => setResetConfirmPassword(e.target.value)}
+                  placeholder="Re-enter password"
+                  required
+                  minLength={8}
+                  className="border-primary/20 focus:border-primary"
+                />
+              </div>
+              <Button type="submit" className="w-full bg-primary hover:bg-primary/90" disabled={passwordChangeLoading}>
+                {passwordChangeLoading ? 'Resetting Password...' : 'Reset Password'}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full"
+                onClick={() => {
+                  setIsResettingPassword(false);
+                  navigate('/auth', { replace: true });
+                }}
+              >
+                Back to Sign In
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   // Show password change form if required
   if (requiresPasswordChange && user) {
