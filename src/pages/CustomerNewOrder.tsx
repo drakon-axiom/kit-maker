@@ -54,13 +54,6 @@ export default function CustomerNewOrder() {
   const [requestingAccess, setRequestingAccess] = useState(false);
   const [hasRequestedAccess, setHasRequestedAccess] = useState(false);
 
-  useEffect(() => {
-    if (user) {
-      fetchData();
-      checkAccessRequest();
-    }
-  }, [user]);
-
   const checkAccessRequest = useCallback(async () => {
     if (!user) return;
     try {

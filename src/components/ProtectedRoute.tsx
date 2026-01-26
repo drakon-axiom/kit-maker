@@ -44,7 +44,7 @@ const ProtectedRoute = ({ children, requiredRole }: ProtectedRouteProps) => {
     // Redirect customers away from admin/operator routes to customer portal
     if (!loading && user && userRole === 'customer') {
       const isCustomerRoute = location.pathname.startsWith('/customer');
-      const isPublicRoute = ['/auth', '/landing', '/wholesale-signup', '/quote-approval'].includes(location.pathname);
+      const isPublicRoute = ['/auth', '/wholesale-signup', '/quote-approval'].includes(location.pathname);
       
       if (!isCustomerRoute && !isPublicRoute) {
         navigate('/customer');

@@ -99,17 +99,17 @@ const Customers = () => {
   });
   const { toast } = useToast();
 
-  const fetchBrands = async () => {
+  const fetchBrands = useCallback(async () => {
     const { data } = await supabase
       .from('brands')
       .select('id, name, slug, is_default')
       .eq('active', true)
       .order('is_default', { ascending: false });
-    
+
     if (data) {
       setBrands(data);
     }
-  };
+  }, []);
 
   const fetchCustomers = useCallback(async () => {
     try {
@@ -150,7 +150,7 @@ const Customers = () => {
   useEffect(() => {
     fetchCustomers();
     fetchBrands();
-  }, [fetchCustomers]);
+  }, [fetchCustomers, fetchBrands]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

@@ -56,6 +56,7 @@ export default function CustomerPortal() {
           .from('sales_orders')
           .select('id, human_uid, status, subtotal, created_at, promised_date')
           .eq('customer_id', customer.id)
+          .eq('is_internal', false)
           .order('created_at', { ascending: false });
 
         if (error) throw error;
@@ -63,7 +64,6 @@ export default function CustomerPortal() {
       }
     } catch (error) {
       toast.error('Failed to load orders');
-      // Error handled silently
     } finally {
       setLoading(false);
     }
@@ -109,7 +109,6 @@ export default function CustomerPortal() {
 
     setFilteredOrders(filtered);
   }, [orders, searchTerm, statusFilter, sortBy]);
-
 
   const handleReorder = async (orderId: string) => {
     setReorderingId(orderId);

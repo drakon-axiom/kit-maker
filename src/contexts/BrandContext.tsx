@@ -76,25 +76,12 @@ export const BrandProvider = ({ children }: { children: React.ReactNode }) => {
     root.style.setProperty('--muted', brand.muted_color);
   }, []);
 
-  const checkIfCustomer = async (): Promise<boolean> => {
-    if (!user) return false;
-    
-    const { data: roles } = await supabase
-      .from('user_roles')
-      .select('role')
-      .eq('user_id', user.id);
-    
-    // If user has only customer role (or no admin/operator role), they are a customer
-    const hasAdminOrOperator = roles?.some(r => r.role === 'admin' || r.role === 'operator');
-    return !hasAdminOrOperator;
-  };
-
-  const fetchBrands = useCallback(async (isCustomer: boolean = false) => {
+  const fetchBrands = useCallback(async (isCustomer: boolean = false): Promise<Brand[]> => {
     // For customers, we don't fetch all brands - they should only see their own
     if (isCustomer) {
       return [];
     }
-    
+
     const { data, error } = await supabase
       .from('brands')
       .select('*')
@@ -129,13 +116,25 @@ export const BrandProvider = ({ children }: { children: React.ReactNode }) => {
     return null;
   }, [user]);
 
+  const checkIfCustomer = useCallback(async (): Promise<boolean> => {
+    if (!user) return false;
+
+    const { data: roles } = await supabase
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', user.id);
+
+    // If user has only customer role (or no admin/operator role), they are a customer
+    const hasAdminOrOperator = roles?.some(r => r.role === 'admin' || r.role === 'operator');
+    return !hasAdminOrOperator;
+  }, [user]);
+
   const refreshBrands = useCallback(async () => {
     // Check if user is a customer - customers shouldn't see all brands
     const isCustomer = await checkIfCustomer();
     const brands = await fetchBrands(isCustomer);
     setAllBrands(brands);
-  }, [fetchBrands]);
-
+  }, [fetchBrands, checkIfCustomer]);
 
   useEffect(() => {
     const initializeBrand = async () => {
@@ -218,7 +217,7 @@ export const BrandProvider = ({ children }: { children: React.ReactNode }) => {
     };
 
     initializeBrand();
-  }, [user, location.pathname, fetchBrands, fetchUserBrand, applyBrandTheme]);
+  }, [user, location.pathname, fetchBrands, fetchUserBrand, applyBrandTheme, checkIfCustomer]);
 
   const setCurrentBrandById = (brandId: string) => {
     const brand = allBrands.find(b => b.id === brandId);
