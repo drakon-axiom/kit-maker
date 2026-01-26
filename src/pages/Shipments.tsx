@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Loader2, Package, Plus, Pencil, Trash2, Search, ExternalLink, RefreshCw, Clock, Filter, TrendingUp, Calendar, Download, CheckSquare, Square, Ban, Truck } from 'lucide-react';
 import { ShipStationLabelDialog } from '@/components/ShipStationLabelDialog';
+import { BoxPresetsManager } from '@/components/BoxPresetsManager';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -751,6 +752,9 @@ const Shipments = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* Box Presets Manager */}
+      <BoxPresetsManager />
 
       <Card>
         <CardHeader>

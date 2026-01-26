@@ -328,16 +328,41 @@ export function PackingDetails({ orderId, totalItems, onPackagesChange }: Packin
                       onChange={(e) => updateLocalPackage(pkg.id, 'height_inches', parseFloat(e.target.value) || 0)}
                     />
                   </div>
-                  <div>
-                    <Label htmlFor={`weight-${pkg.id}`}>Weight (oz)</Label>
-                    <Input
-                      id={`weight-${pkg.id}`}
-                      type="number"
-                      step="0.1"
-                      min="0"
-                      value={pkg.weight_oz}
-                      onChange={(e) => updateLocalPackage(pkg.id, 'weight_oz', parseFloat(e.target.value) || 0)}
-                    />
+                  <div className="space-y-2">
+                    <Label>Weight</Label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <Label htmlFor={`weight-lbs-${pkg.id}`} className="text-xs text-muted-foreground">lbs</Label>
+                        <Input
+                          id={`weight-lbs-${pkg.id}`}
+                          type="number"
+                          step="1"
+                          min="0"
+                          value={Math.floor(pkg.weight_oz / 16)}
+                          onChange={(e) => {
+                            const lbs = parseInt(e.target.value) || 0;
+                            const oz = pkg.weight_oz % 16;
+                            updateLocalPackage(pkg.id, 'weight_oz', lbs * 16 + oz);
+                          }}
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor={`weight-oz-${pkg.id}`} className="text-xs text-muted-foreground">oz</Label>
+                        <Input
+                          id={`weight-oz-${pkg.id}`}
+                          type="number"
+                          step="0.1"
+                          min="0"
+                          max="15.9"
+                          value={Math.round((pkg.weight_oz % 16) * 10) / 10}
+                          onChange={(e) => {
+                            const lbs = Math.floor(pkg.weight_oz / 16);
+                            const oz = parseFloat(e.target.value) || 0;
+                            updateLocalPackage(pkg.id, 'weight_oz', lbs * 16 + oz);
+                          }}
+                        />
+                      </div>
+                    </div>
                   </div>
                 </div>
 
