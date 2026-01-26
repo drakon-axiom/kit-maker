@@ -94,26 +94,32 @@ const Auth = () => {
   const handlePasswordReset = async (e: React.FormEvent) => {
     e.preventDefault();
     setResetLoading(true);
-    const {
-      error
-    } = await supabase.auth.resetPasswordForEmail(resetEmail, {
-      redirectTo: `${window.location.origin}/auth`
-    });
-    if (error) {
-      toast({
-        title: 'Error',
-        description: error instanceof Error ? error.message : 'An error occurred',
-        variant: 'destructive'
+    
+    try {
+      // First trigger Supabase password reset to generate the token
+      const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
+        redirectTo: `${window.location.origin}/auth`
       });
-    } else {
+      
+      if (error) {
+        throw error;
+      }
+      
       toast({
         title: 'Success',
         description: 'Password reset email sent! Check your inbox.'
       });
       setResetDialogOpen(false);
       setResetEmail('');
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'An error occurred',
+        variant: 'destructive'
+      });
+    } finally {
+      setResetLoading(false);
     }
-    setResetLoading(false);
   };
 
   const handlePasswordChange = async (e: React.FormEvent) => {
