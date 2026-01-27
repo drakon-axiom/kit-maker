@@ -1,10 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, FileText, Download, Send, Plus, Receipt } from 'lucide-react';
+import { Loader2, FileText, Download, Send, Plus, Receipt, Layers } from 'lucide-react';
 import { downloadBrandedInvoice, downloadBrandedReceipt } from '@/utils/brandedPdfDownload';
 import {
   Dialog,
@@ -16,6 +16,8 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Separator } from '@/components/ui/separator';
+import { fetchAddOnOrders, AddOnOrder } from '@/utils/consolidatedOrder';
 
 interface Invoice {
   id: string;
@@ -40,6 +42,7 @@ interface Payment {
 interface InvoiceManagementProps {
   orderId: string;
   orderTotal: number;
+  orderUid?: string;
   depositAmount: number;
   depositRequired: boolean;
   customerEmail: string | null;
@@ -50,6 +53,7 @@ interface InvoiceManagementProps {
 export function InvoiceManagement({
   orderId,
   orderTotal,
+  orderUid = '',
   depositAmount,
   depositRequired,
   customerEmail,
@@ -66,6 +70,24 @@ export function InvoiceManagement({
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [invoiceTypeToCreate, setInvoiceTypeToCreate] = useState<'deposit' | 'final'>('deposit');
   const [customAmount, setCustomAmount] = useState('');
+  const [addOns, setAddOns] = useState<AddOnOrder[]>([]);
+  const [loadingAddOns, setLoadingAddOns] = useState(false);
+
+  // Fetch add-ons when opening final invoice dialog
+  const fetchAddOns = useCallback(async () => {
+    setLoadingAddOns(true);
+    try {
+      const data = await fetchAddOnOrders(orderId);
+      setAddOns(data);
+    } catch (error) {
+      console.error('Error fetching add-ons:', error);
+    } finally {
+      setLoadingAddOns(false);
+    }
+  }, [orderId]);
+
+  // Calculate consolidated total for final invoices
+  const consolidatedTotal = orderTotal + addOns.reduce((sum, addon) => sum + (addon.subtotal || 0), 0);
 
   const fetchInvoices = async () => {
     try {
@@ -119,10 +141,12 @@ export function InvoiceManagement({
   const handleCreateInvoice = async () => {
     setCreating(true);
     try {
-      const amount = invoiceTypeToCreate === 'deposit' 
-        ? (customAmount ? parseFloat(customAmount) : depositAmount)
-        : (customAmount ? parseFloat(customAmount) : orderTotal);
-
+      // For final invoices, use consolidated total if there are add-ons
+      const baseAmount = invoiceTypeToCreate === 'deposit' 
+        ? depositAmount
+        : (addOns.length > 0 ? consolidatedTotal : orderTotal);
+      
+      const amount = customAmount ? parseFloat(customAmount) : baseAmount;
       const taxAmount = 0; // Tax calculation can be added later
       const total = amount + taxAmount;
 
@@ -138,9 +162,17 @@ export function InvoiceManagement({
 
       if (error) throw error;
 
+      // If this is a final invoice with add-ons, update the consolidated_total on the parent order
+      if (invoiceTypeToCreate === 'final' && addOns.length > 0) {
+        await supabase
+          .from('sales_orders')
+          .update({ consolidated_total: amount } as any)
+          .eq('id', orderId);
+      }
+
       toast({
         title: 'Invoice Created',
-        description: `${invoiceTypeToCreate === 'deposit' ? 'Deposit' : 'Final'} invoice created successfully`,
+        description: `${invoiceTypeToCreate === 'deposit' ? 'Deposit' : 'Final'} invoice created for $${amount.toFixed(2)}`,
       });
 
       setCreateDialogOpen(false);
@@ -283,9 +315,13 @@ export function InvoiceManagement({
             {(canCreateDeposit || canCreateFinal) && (
               <Button
                 size="sm"
-                onClick={() => {
-                  setInvoiceTypeToCreate(canCreateDeposit ? 'deposit' : 'final');
+                onClick={async () => {
+                  const type = canCreateDeposit ? 'deposit' : 'final';
+                  setInvoiceTypeToCreate(type);
                   setCustomAmount('');
+                  if (type === 'final') {
+                    await fetchAddOns();
+                  }
                   setCreateDialogOpen(true);
                 }}
               >
@@ -434,9 +470,10 @@ export function InvoiceManagement({
                   <Button
                     type="button"
                     variant={invoiceTypeToCreate === 'final' ? 'default' : 'outline'}
-                    onClick={() => {
+                    onClick={async () => {
                       setInvoiceTypeToCreate('final');
                       setCustomAmount('');
+                      await fetchAddOns();
                     }}
                     className="flex-1"
                   >
@@ -445,6 +482,33 @@ export function InvoiceManagement({
                 )}
               </div>
             </div>
+            {/* Consolidated breakdown for final invoices with add-ons */}
+            {invoiceTypeToCreate === 'final' && addOns.length > 0 && (
+              <div className="space-y-2 p-3 bg-primary/5 border border-primary/20 rounded-lg">
+                <div className="flex items-center gap-2 text-sm font-medium">
+                  <Layers className="h-4 w-4" />
+                  Consolidated Invoice
+                </div>
+                <div className="space-y-1 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Parent Order {orderUid}:</span>
+                    <span>${orderTotal.toFixed(2)}</span>
+                  </div>
+                  {addOns.map((addon) => (
+                    <div key={addon.id} className="flex justify-between">
+                      <span className="text-muted-foreground">+ Add-On {addon.human_uid}:</span>
+                      <span>${addon.subtotal.toFixed(2)}</span>
+                    </div>
+                  ))}
+                  <Separator className="my-2" />
+                  <div className="flex justify-between font-bold">
+                    <span>Consolidated Total:</span>
+                    <span className="text-primary">${consolidatedTotal.toFixed(2)}</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div className="space-y-2">
               <Label htmlFor="amount">Amount</Label>
               <div className="relative">
@@ -457,7 +521,7 @@ export function InvoiceManagement({
                   placeholder={
                     invoiceTypeToCreate === 'deposit'
                       ? depositAmount.toFixed(2)
-                      : orderTotal.toFixed(2)
+                      : (addOns.length > 0 ? consolidatedTotal.toFixed(2) : orderTotal.toFixed(2))
                   }
                   value={customAmount}
                   onChange={(e) => setCustomAmount(e.target.value)}
@@ -465,7 +529,12 @@ export function InvoiceManagement({
                 />
               </div>
               <p className="text-xs text-muted-foreground">
-                Default: ${invoiceTypeToCreate === 'deposit' ? depositAmount.toFixed(2) : orderTotal.toFixed(2)}
+                Default: ${invoiceTypeToCreate === 'deposit' 
+                  ? depositAmount.toFixed(2) 
+                  : (addOns.length > 0 ? consolidatedTotal.toFixed(2) : orderTotal.toFixed(2))}
+                {invoiceTypeToCreate === 'final' && addOns.length > 0 && (
+                  <span className="ml-1">(includes {addOns.length} add-on{addOns.length > 1 ? 's' : ''})</span>
+                )}
               </p>
             </div>
           </div>

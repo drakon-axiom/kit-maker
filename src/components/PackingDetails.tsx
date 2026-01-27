@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -7,8 +7,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Package, Plus, Trash2, Save, Loader2 } from 'lucide-react';
+import { Package, Plus, Trash2, Save, Loader2, Layers } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { fetchAddOnOrders, calculateConsolidatedTotals, AddOnOrder } from '@/utils/consolidatedOrder';
 
 interface OrderPackage {
   id: string;
@@ -34,20 +35,43 @@ interface BoxPreset {
 interface PackingDetailsProps {
   orderId: string;
   totalItems: number;
+  parentLineItems?: Array<{ bottle_qty: number }>;
+  orderSubtotal?: number;
   onPackagesChange?: () => void;
 }
 
-export function PackingDetails({ orderId, totalItems, onPackagesChange }: PackingDetailsProps) {
+export function PackingDetails({ orderId, totalItems, parentLineItems = [], orderSubtotal = 0, onPackagesChange }: PackingDetailsProps) {
   const { toast } = useToast();
   const [packages, setPackages] = useState<OrderPackage[]>([]);
   const [boxPresets, setBoxPresets] = useState<BoxPreset[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<string | null>(null);
+  const [addOns, setAddOns] = useState<AddOnOrder[]>([]);
+  const [consolidatedBottles, setConsolidatedBottles] = useState(totalItems);
+
+  // Fetch add-ons to calculate consolidated totals
+  const fetchAddOns = useCallback(async () => {
+    try {
+      const data = await fetchAddOnOrders(orderId);
+      setAddOns(data);
+      
+      if (data.length > 0) {
+        const { bottleCount } = calculateConsolidatedTotals(orderSubtotal, parentLineItems, data);
+        setConsolidatedBottles(bottleCount);
+      } else {
+        setConsolidatedBottles(totalItems);
+      }
+    } catch (error) {
+      console.error('Error fetching add-ons for packing:', error);
+      setConsolidatedBottles(totalItems);
+    }
+  }, [orderId, totalItems, parentLineItems, orderSubtotal]);
 
   useEffect(() => {
     fetchPackages();
     fetchBoxPresets();
-  }, [orderId]);
+    fetchAddOns();
+  }, [orderId, fetchAddOns]);
 
   const fetchPackages = async () => {
     try {
@@ -200,7 +224,7 @@ export function PackingDetails({ orderId, totalItems, onPackagesChange }: Packin
   };
 
   const packedItemCount = packages.reduce((sum, p) => sum + p.item_count, 0);
-  const remainingItems = totalItems - packedItemCount;
+  const remainingItems = consolidatedBottles - packedItemCount;
 
   if (loading) {
     return (
@@ -219,10 +243,16 @@ export function PackingDetails({ orderId, totalItems, onPackagesChange }: Packin
           <div className="flex items-center gap-2">
             <Package className="h-5 w-5" />
             <CardTitle>Packing Details</CardTitle>
+            {addOns.length > 0 && (
+              <Badge variant="secondary" className="flex items-center gap-1">
+                <Layers className="h-3 w-3" />
+                {addOns.length} add-on{addOns.length > 1 ? 's' : ''} included
+              </Badge>
+            )}
           </div>
           <div className="flex items-center gap-4">
             <div className="text-sm text-muted-foreground">
-              <span className="font-medium">{packedItemCount}</span> / {totalItems} items packed
+              <span className="font-medium">{packedItemCount}</span> / {consolidatedBottles} items packed
               {remainingItems > 0 && (
                 <Badge variant="outline" className="ml-2">
                   {remainingItems} remaining
@@ -373,7 +403,7 @@ export function PackingDetails({ orderId, totalItems, onPackagesChange }: Packin
                       id={`items-${pkg.id}`}
                       type="number"
                       min="0"
-                      max={totalItems}
+                      max={consolidatedBottles}
                       value={pkg.item_count}
                       onChange={(e) => updateLocalPackage(pkg.id, 'item_count', parseInt(e.target.value) || 0)}
                     />
