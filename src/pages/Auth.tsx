@@ -99,12 +99,33 @@ const Auth = () => {
 
   const handlePasswordReset = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Validate email before making request
+    const trimmedEmail = resetEmail.trim();
+    if (!trimmedEmail) {
+      toast({
+        title: 'Error',
+        description: 'Please enter your email address',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+      toast({
+        title: 'Error',
+        description: 'Please enter a valid email address',
+        variant: 'destructive'
+      });
+      return;
+    }
+
     setResetLoading(true);
 
     try {
       const { data, error } = await supabase.functions.invoke('send-password-reset', {
         body: {
-          email: resetEmail,
+          email: trimmedEmail,
           redirectTo: `${window.location.origin}/auth`
         }
       });
