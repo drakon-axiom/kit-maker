@@ -367,7 +367,8 @@ serve(async (req) => {
       },
     });
 
-    const fromEmail = brand.contact_email || smtpConfig.user;
+    // SMTP providers require sender to match authenticated user
+    const fromEmail = smtpConfig.user;
     const fromName = brand.name || 'Password Reset';
 
     console.log(`Sending email from: ${fromName} <${fromEmail}> to: ${email}`);
