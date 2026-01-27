@@ -121,6 +121,9 @@ interface Brand {
   wire_bank_name: string | null;
   wire_routing_number: string | null;
   wire_account_number: string | null;
+  btcpay_server_url: string | null;
+  btcpay_store_id: string | null;
+  btcpay_api_key: string | null;
 }
 
 const BrandManagement = () => {
@@ -211,6 +214,9 @@ const BrandManagement = () => {
       wire_bank_name: editingBrand.wire_bank_name || null,
       wire_routing_number: editingBrand.wire_routing_number || null,
       wire_account_number: editingBrand.wire_account_number || null,
+      btcpay_server_url: editingBrand.btcpay_server_url || null,
+      btcpay_store_id: editingBrand.btcpay_store_id || null,
+      btcpay_api_key: editingBrand.btcpay_api_key || null,
     };
 
     if (editingBrand.id) {
@@ -634,6 +640,53 @@ const BrandManagement = () => {
                           />
                         </div>
                       </div>
+                    </div>
+                  </div>
+
+                  <div className="border-t pt-4 mt-2">
+                    <p className="text-sm font-medium mb-3">Cryptocurrency (BTCPay Server)</p>
+                    <div className="grid gap-4">
+                      <div className="grid gap-2">
+                        <Label htmlFor="btcpay-url">BTCPay Server URL</Label>
+                        <Input
+                          id="btcpay-url"
+                          value={editingBrand?.btcpay_server_url || ''}
+                          onChange={(e) => setEditingBrand({ ...editingBrand, btcpay_server_url: e.target.value })}
+                          placeholder="https://btcpay.yourdomain.com"
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="grid gap-2">
+                          <Label htmlFor="btcpay-store-id">Store ID</Label>
+                          <Input
+                            id="btcpay-store-id"
+                            value={editingBrand?.btcpay_store_id || ''}
+                            onChange={(e) => setEditingBrand({ ...editingBrand, btcpay_store_id: e.target.value })}
+                            placeholder="Your BTCPay Store ID"
+                          />
+                        </div>
+                        <div className="grid gap-2">
+                          <Label htmlFor="btcpay-api-key">API Key</Label>
+                          <Input
+                            id="btcpay-api-key"
+                            type="password"
+                            value={editingBrand?.btcpay_api_key || ''}
+                            onChange={(e) => setEditingBrand({ ...editingBrand, btcpay_api_key: e.target.value })}
+                            placeholder="••••••••••••••••"
+                          />
+                        </div>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Configure BTCPay Server to accept BTC, Lightning, and stablecoins.{' '}
+                        <a 
+                          href="https://docs.btcpayserver.org/API/Greenfield/v1/" 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="text-blue-600 hover:underline"
+                        >
+                          API Documentation
+                        </a>
+                      </p>
                     </div>
                   </div>
                 </div>

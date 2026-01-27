@@ -30,7 +30,18 @@ const generateInvoiceEmailHtml = (
   tax: number,
   total: number,
   issuedAt: string,
-  lineItems: Array<{ sku_code: string; description: string; qty: number; unit_price: number; line_subtotal: number }>
+  lineItems: Array<{ sku_code: string; description: string; qty: number; unit_price: number; line_subtotal: number }>,
+  paymentConfig: {
+    stripe_enabled?: boolean | null;
+    cashapp_tag?: string | null;
+    paypal_checkout_enabled?: boolean | null;
+    paypal_email?: string | null;
+    wire_bank_name?: string | null;
+    wire_routing_number?: string | null;
+    wire_account_number?: string | null;
+    btcpay_server_url?: string | null;
+  },
+  portalUrl: string
 ): string => {
   const typeLabel = invoiceType === 'deposit' ? 'Deposit Invoice' : 'Invoice';
   const formattedDate = new Date(issuedAt).toLocaleDateString('en-US', { 
@@ -54,7 +65,37 @@ const generateInvoiceEmailHtml = (
   const phoneText = brandPhone ? `<p style="margin:0 0 5px;font-size:13px;color:#666;">${brandPhone}</p>` : '';
   const addressText = brandAddress ? `<p style="margin:0;font-size:13px;color:#666;">${brandAddress}</p>` : '';
 
-  return `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${typeLabel} ${invoiceNo}</title></head><body style="margin:0;padding:0;background-color:#f5f5f5;font-family:Arial,sans-serif;"><table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f5f5f5;padding:40px 20px;"><tr><td align="center"><table width="600" cellpadding="0" cellspacing="0" style="background-color:#ffffff;border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.1);"><tr><td style="background-color:${primaryColor};padding:30px;text-align:center;">${logoOrName}</td></tr><tr><td style="padding:30px 40px 20px;"><h2 style="margin:0 0 10px;color:#333;font-size:28px;">${typeLabel}</h2><p style="margin:0;color:#666;font-size:16px;">Invoice #${invoiceNo}</p><p style="margin:5px 0 0;color:#666;font-size:14px;">Order: ${orderNumber}</p><p style="margin:5px 0 0;color:#666;font-size:14px;">Date: ${formattedDate}</p></td></tr><tr><td style="padding:0 40px 20px;"><table width="100%" cellpadding="0" cellspacing="0"><tr><td style="padding:15px;background-color:#f9f9f9;border-radius:6px;"><p style="margin:0 0 5px;font-size:12px;color:#888;text-transform:uppercase;letter-spacing:1px;">Bill To</p><p style="margin:0;font-size:16px;color:#333;font-weight:bold;">${customerName}</p></td></tr></table></td></tr><tr><td style="padding:0 40px 20px;"><table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #eee;border-radius:6px;overflow:hidden;"><tr style="background-color:#f5f5f5;"><th style="padding:12px;text-align:left;font-family:Arial,sans-serif;font-size:12px;color:#666;text-transform:uppercase;">SKU</th><th style="padding:12px;text-align:left;font-family:Arial,sans-serif;font-size:12px;color:#666;text-transform:uppercase;">Description</th><th style="padding:12px;text-align:center;font-family:Arial,sans-serif;font-size:12px;color:#666;text-transform:uppercase;">Qty</th><th style="padding:12px;text-align:right;font-family:Arial,sans-serif;font-size:12px;color:#666;text-transform:uppercase;">Unit Price</th><th style="padding:12px;text-align:right;font-family:Arial,sans-serif;font-size:12px;color:#666;text-transform:uppercase;">Total</th></tr>${lineItemsHtml}</table></td></tr><tr><td style="padding:0 40px 30px;"><table width="100%" cellpadding="0" cellspacing="0"><tr><td width="60%"></td><td width="40%"><table width="100%" cellpadding="0" cellspacing="0"><tr><td style="padding:8px 0;font-size:14px;color:#666;">Subtotal</td><td style="padding:8px 0;font-size:14px;color:#333;text-align:right;">${formatCurrency(subtotal)}</td></tr>${taxRow}<tr><td style="padding:12px 0;font-size:18px;color:#333;font-weight:bold;border-top:2px solid #333;">Amount Due</td><td style="padding:12px 0;font-size:18px;color:${primaryColor};font-weight:bold;text-align:right;border-top:2px solid #333;">${formatCurrency(total)}</td></tr></table></td></tr></table></td></tr><tr><td style="padding:0 40px 30px;"><div style="background-color:#fff8e1;border-left:4px solid #ffc107;padding:15px 20px;border-radius:0 6px 6px 0;"><p style="margin:0;font-size:14px;color:#856404;"><strong>Payment Instructions:</strong> Please remit payment at your earliest convenience. If you have any questions about this invoice, please contact us.</p></div></td></tr><tr><td style="background-color:#f5f5f5;padding:25px 40px;text-align:center;border-top:1px solid #eee;"><p style="margin:0 0 5px;font-size:14px;color:#333;font-weight:bold;">${brandName}</p>${emailLink}${phoneText}${addressText}<p style="margin:15px 0 0;font-size:12px;color:#999;">&copy; ${new Date().getFullYear()} ${brandName}. All rights reserved.</p></td></tr></table></td></tr></table></body></html>`;
+  // Build payment methods section
+  const paymentMethods: string[] = [];
+  
+  if (paymentConfig.stripe_enabled) {
+    paymentMethods.push(`<div style="margin-bottom:12px;"><strong style="color:#333;">💳 Credit/Debit Card</strong><br/><span style="font-size:13px;color:#666;">Pay instantly with your card</span></div>`);
+  }
+  
+  if (paymentConfig.cashapp_tag) {
+    const cashtag = paymentConfig.cashapp_tag.replace('$', '');
+    const cashappLink = `https://cash.app/$${cashtag}/${total.toFixed(2)}`;
+    paymentMethods.push(`<div style="margin-bottom:12px;"><strong style="color:#333;">📱 CashApp</strong><br/><a href="${cashappLink}" style="color:${primaryColor};font-size:13px;">Pay ${formatCurrency(total)} to ${paymentConfig.cashapp_tag}</a></div>`);
+  }
+  
+  if (paymentConfig.paypal_checkout_enabled || paymentConfig.paypal_email) {
+    const paypalText = paymentConfig.paypal_email ? `Send to: ${paymentConfig.paypal_email}` : 'Pay via PayPal checkout';
+    paymentMethods.push(`<div style="margin-bottom:12px;"><strong style="color:#333;">🅿️ PayPal</strong><br/><span style="font-size:13px;color:#666;">${paypalText}</span></div>`);
+  }
+  
+  if (paymentConfig.btcpay_server_url) {
+    paymentMethods.push(`<div style="margin-bottom:12px;"><strong style="color:#333;">₿ Cryptocurrency</strong><br/><span style="font-size:13px;color:#666;">Bitcoin, Lightning, USDT, USDC & more</span></div>`);
+  }
+  
+  if (paymentConfig.wire_bank_name && paymentConfig.wire_routing_number && paymentConfig.wire_account_number) {
+    paymentMethods.push(`<div style="margin-bottom:12px;"><strong style="color:#333;">🏦 Wire Transfer</strong><br/><span style="font-size:13px;color:#666;">Bank: ${paymentConfig.wire_bank_name}<br/>Routing: ${paymentConfig.wire_routing_number}<br/>Account: ${paymentConfig.wire_account_number}<br/>Reference: Order ${orderNumber}</span></div>`);
+  }
+
+  const paymentSectionHtml = paymentMethods.length > 0 
+    ? `<tr><td style="padding:0 40px 30px;"><div style="background-color:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:20px;"><h3 style="margin:0 0 15px;font-size:16px;color:#333;">💳 Payment Options</h3>${paymentMethods.join('')}<div style="border-top:1px solid #e2e8f0;margin-top:15px;padding-top:15px;"><a href="${portalUrl}" style="display:inline-block;background-color:${primaryColor};color:#ffffff;text-decoration:none;padding:10px 20px;border-radius:6px;font-size:14px;font-weight:500;">Pay in Customer Portal</a><p style="margin:10px 0 0;font-size:12px;color:#888;">Log in to view all payment options and pay securely</p></div></div></td></tr>`
+    : `<tr><td style="padding:0 40px 30px;"><div style="text-align:center;"><a href="${portalUrl}" style="display:inline-block;background-color:${primaryColor};color:#ffffff;text-decoration:none;padding:12px 24px;border-radius:6px;font-size:14px;font-weight:500;">Pay in Customer Portal</a></div></td></tr>`;
+
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${typeLabel} ${invoiceNo}</title></head><body style="margin:0;padding:0;background-color:#f5f5f5;font-family:Arial,sans-serif;"><table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f5f5f5;padding:40px 20px;"><tr><td align="center"><table width="600" cellpadding="0" cellspacing="0" style="background-color:#ffffff;border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.1);"><tr><td style="background-color:${primaryColor};padding:30px;text-align:center;">${logoOrName}</td></tr><tr><td style="padding:30px 40px 20px;"><h2 style="margin:0 0 10px;color:#333;font-size:28px;">${typeLabel}</h2><p style="margin:0;color:#666;font-size:16px;">Invoice #${invoiceNo}</p><p style="margin:5px 0 0;color:#666;font-size:14px;">Order: ${orderNumber}</p><p style="margin:5px 0 0;color:#666;font-size:14px;">Date: ${formattedDate}</p></td></tr><tr><td style="padding:0 40px 20px;"><table width="100%" cellpadding="0" cellspacing="0"><tr><td style="padding:15px;background-color:#f9f9f9;border-radius:6px;"><p style="margin:0 0 5px;font-size:12px;color:#888;text-transform:uppercase;letter-spacing:1px;">Bill To</p><p style="margin:0;font-size:16px;color:#333;font-weight:bold;">${customerName}</p></td></tr></table></td></tr><tr><td style="padding:0 40px 20px;"><table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #eee;border-radius:6px;overflow:hidden;"><tr style="background-color:#f5f5f5;"><th style="padding:12px;text-align:left;font-family:Arial,sans-serif;font-size:12px;color:#666;text-transform:uppercase;">SKU</th><th style="padding:12px;text-align:left;font-family:Arial,sans-serif;font-size:12px;color:#666;text-transform:uppercase;">Description</th><th style="padding:12px;text-align:center;font-family:Arial,sans-serif;font-size:12px;color:#666;text-transform:uppercase;">Qty</th><th style="padding:12px;text-align:right;font-family:Arial,sans-serif;font-size:12px;color:#666;text-transform:uppercase;">Unit Price</th><th style="padding:12px;text-align:right;font-family:Arial,sans-serif;font-size:12px;color:#666;text-transform:uppercase;">Total</th></tr>${lineItemsHtml}</table></td></tr><tr><td style="padding:0 40px 30px;"><table width="100%" cellpadding="0" cellspacing="0"><tr><td width="60%"></td><td width="40%"><table width="100%" cellpadding="0" cellspacing="0"><tr><td style="padding:8px 0;font-size:14px;color:#666;">Subtotal</td><td style="padding:8px 0;font-size:14px;color:#333;text-align:right;">${formatCurrency(subtotal)}</td></tr>${taxRow}<tr><td style="padding:12px 0;font-size:18px;color:#333;font-weight:bold;border-top:2px solid #333;">Amount Due</td><td style="padding:12px 0;font-size:18px;color:${primaryColor};font-weight:bold;text-align:right;border-top:2px solid #333;">${formatCurrency(total)}</td></tr></table></td></tr></table></td></tr>${paymentSectionHtml}<tr><td style="background-color:#f5f5f5;padding:25px 40px;text-align:center;border-top:1px solid #eee;"><p style="margin:0 0 5px;font-size:14px;color:#333;font-weight:bold;">${brandName}</p>${emailLink}${phoneText}${addressText}<p style="margin:15px 0 0;font-size:12px;color:#999;">&copy; ${new Date().getFullYear()} ${brandName}. All rights reserved.</p></td></tr></table></td></tr></table></body></html>`;
 };
 
 serve(async (req) => {
@@ -90,19 +131,27 @@ serve(async (req) => {
             name,
             email
           ),
-          brands (
-            id,
-            name,
-            logo_url,
-            primary_color,
-            contact_email,
-            contact_phone,
-            contact_address,
-            smtp_host,
-            smtp_port,
-            smtp_user,
-            smtp_password
-          ),
+      brands (
+        id,
+        name,
+        logo_url,
+        primary_color,
+        contact_email,
+        contact_phone,
+        contact_address,
+        smtp_host,
+        smtp_port,
+        smtp_user,
+        smtp_password,
+        stripe_enabled,
+        cashapp_tag,
+        paypal_checkout_enabled,
+        paypal_email,
+        wire_bank_name,
+        wire_routing_number,
+        wire_account_number,
+        btcpay_server_url
+      ),
           sales_order_lines (
             id,
             qty_entered,
@@ -141,7 +190,7 @@ serve(async (req) => {
       console.log("[send-invoice-email] No brand on order, fetching default brand");
       const { data: defaultBrand } = await supabase
         .from("brands")
-        .select("id, name, logo_url, primary_color, contact_email, contact_phone, contact_address, smtp_host, smtp_port, smtp_user, smtp_password")
+        .select("id, name, logo_url, primary_color, contact_email, contact_phone, contact_address, smtp_host, smtp_port, smtp_user, smtp_password, stripe_enabled, cashapp_tag, paypal_checkout_enabled, paypal_email, wire_bank_name, wire_routing_number, wire_account_number, btcpay_server_url")
         .eq("is_default", true)
         .single();
       brand = defaultBrand;
@@ -155,6 +204,9 @@ serve(async (req) => {
     const brandPhone = brand?.contact_phone || null;
     const brandAddress = brand?.contact_address || null;
     const primaryColor = brand?.primary_color || "#2563eb";
+
+    // Build portal URL for the order
+    const portalUrl = `https://naprodmgr.lovable.app/customer/orders/${order.id}`;
 
     // Prepare line items from parent order
     const lineItems: Array<{ sku_code: string; description: string; qty: number; unit_price: number; line_subtotal: number }> = (order.sales_order_lines || []).map((line: any) => ({
@@ -222,7 +274,18 @@ serve(async (req) => {
       invoice.tax,
       invoice.total,
       invoice.issued_at,
-      lineItems
+      lineItems,
+      {
+        stripe_enabled: brand?.stripe_enabled,
+        cashapp_tag: brand?.cashapp_tag,
+        paypal_checkout_enabled: brand?.paypal_checkout_enabled,
+        paypal_email: brand?.paypal_email,
+        wire_bank_name: brand?.wire_bank_name,
+        wire_routing_number: brand?.wire_routing_number,
+        wire_account_number: brand?.wire_account_number,
+        btcpay_server_url: brand?.btcpay_server_url,
+      },
+      portalUrl
     );
 
     const subject = `${invoice.type === 'deposit' ? 'Deposit Invoice' : 'Invoice'} ${invoice.invoice_no} from ${brandName}`;

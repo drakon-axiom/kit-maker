@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { DollarSign, CreditCard, AlertCircle, Loader2, Wallet, Building2, Copy, Check, Send } from 'lucide-react';
+import { DollarSign, CreditCard, AlertCircle, Loader2, Wallet, Building2, Copy, Check, Send, Bitcoin } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   Dialog,
@@ -28,6 +28,8 @@ interface BrandPaymentConfig {
   wire_routing_number?: string | null;
   wire_account_number?: string | null;
   contact_email?: string | null;
+  btcpay_server_url?: string | null;
+  btcpay_store_id?: string | null;
 }
 
 interface PaymentCardProps {
@@ -59,6 +61,9 @@ const PaymentCard = ({ type, amount, status, orderId, orderNumber, brandConfig }
   const hasPayPalCheckout = brandConfig?.paypal_checkout_enabled && !!brandConfig?.paypal_client_id;
   const hasPayPal = hasPayPalEmail || hasPayPalCheckout;
   const hasWire = !!brandConfig?.wire_bank_name && !!brandConfig?.wire_routing_number && !!brandConfig?.wire_account_number;
+  const hasBTCPay = !!brandConfig?.btcpay_server_url && !!brandConfig?.btcpay_store_id;
+
+  const [isCreatingBTCPayInvoice, setIsCreatingBTCPayInvoice] = useState(false);
 
   const handleStripePayment = async () => {
     setIsProcessing(true);
@@ -92,8 +97,37 @@ const PaymentCard = ({ type, amount, status, orderId, orderNumber, brandConfig }
       handleStripePayment();
     } else if (method === 'paypal_checkout') {
       setShowPayPalModal(true);
+    } else if (method === 'btcpay') {
+      handleBTCPayPayment();
     } else {
       setShowPaymentDialog(true);
+    }
+  };
+
+  const handleBTCPayPayment = async () => {
+    setIsCreatingBTCPayInvoice(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('create-btcpay-invoice', {
+        body: {
+          orderId,
+          amount,
+          paymentType: type,
+        },
+      });
+
+      if (error) throw error;
+
+      if (data?.checkoutUrl) {
+        window.open(data.checkoutUrl, '_blank');
+        toast.success('Opening cryptocurrency checkout...');
+      } else {
+        throw new Error('No checkout URL returned');
+      }
+    } catch (error) {
+      console.error('BTCPay invoice error:', error);
+      toast.error('Failed to create crypto payment. Please try again.');
+    } finally {
+      setIsCreatingBTCPayInvoice(false);
     }
   };
 
@@ -294,9 +328,26 @@ const PaymentCard = ({ type, amount, status, orderId, orderNumber, brandConfig }
                   <span className="text-xs">Wire Transfer</span>
                 </Button>
               )}
+
+              {hasBTCPay && (
+                <Button 
+                  onClick={() => handlePaymentMethodSelect('btcpay')} 
+                  variant="outline"
+                  size="lg"
+                  disabled={isCreatingBTCPayInvoice}
+                  className="h-auto py-4 flex flex-col gap-2 border-orange-300 bg-orange-50 hover:bg-orange-100"
+                >
+                  {isCreatingBTCPayInvoice ? (
+                    <Loader2 className="h-5 w-5 animate-spin text-orange-600" />
+                  ) : (
+                    <Bitcoin className="h-5 w-5 text-orange-600" />
+                  )}
+                  <span className="text-xs text-orange-700">Crypto</span>
+                </Button>
+              )}
             </div>
 
-            {!isStripeEnabled && !hasCashApp && !hasPayPal && !hasWire && (
+            {!isStripeEnabled && !hasCashApp && !hasPayPal && !hasWire && !hasBTCPay && (
               <p className="text-sm text-muted-foreground text-center">
                 No payment methods configured. Please contact support.
               </p>
