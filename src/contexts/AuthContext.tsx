@@ -76,9 +76,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signIn = async (email: string, password: string) => {
+    const cleanEmail = (email ?? '').trim();
+    const cleanPassword = password ?? '';
+
+    // Defensive guard: never fire a password grant request with empty credentials.
+    // This prevents "missing email or phone" errors from being triggered by
+    // unintended submits (e.g., nested forms / portal event bubbling).
+    if (!cleanEmail || !cleanPassword) {
+      return { error: new Error('Email and password are required') };
+    }
+
     const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
+      email: cleanEmail,
+      password: cleanPassword,
     });
     return { error };
   };
