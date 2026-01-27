@@ -31,12 +31,24 @@ const Auth = () => {
   const [passwordChangeLoading, setPasswordChangeLoading] = useState(false);
   const [showBrandSwitcher, setShowBrandSwitcher] = useState(false);
   const [isResettingPassword, setIsResettingPassword] = useState(!!resetToken);
+  const [isRecoveryMode, setIsRecoveryMode] = useState(false);
   const [resetNewPassword, setResetNewPassword] = useState('');
   const [resetConfirmPassword, setResetConfirmPassword] = useState('');
   const { signIn, user } = useAuth();
   const { currentBrand, allBrands, setCurrentBrandById } = useBrand();
   const { toast } = useToast();
   const navigate = useNavigate();
+
+  // Listen for password recovery event from Supabase
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        setIsRecoveryMode(true);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
 
   useEffect(() => {
     const checkUserRole = async () => {
@@ -123,15 +135,11 @@ const Auth = () => {
     setResetLoading(true);
 
     try {
-      const { data, error } = await supabase.functions.invoke('send-password-reset', {
-        body: {
-          email: trimmedEmail,
-          redirectTo: `${window.location.origin}/auth`
-        }
+      const { error } = await supabase.auth.resetPasswordForEmail(trimmedEmail, {
+        redirectTo: `${window.location.origin}/auth`
       });
 
       if (error) throw error;
-      if (data?.error) throw new Error(data.error);
 
       toast({
         title: 'Success',
@@ -174,23 +182,21 @@ const Auth = () => {
     setPasswordChangeLoading(true);
 
     try {
-      const { data, error } = await supabase.functions.invoke('verify-password-reset', {
-        body: {
-          token: resetToken,
-          newPassword: resetNewPassword
-        }
+      const { error } = await supabase.auth.updateUser({
+        password: resetNewPassword
       });
 
       if (error) throw error;
-      if (data?.error) throw new Error(data.error);
 
       toast({
         title: 'Success',
         description: 'Password updated successfully! You can now sign in.'
       });
 
-      // Clear the token from URL and reset state
+      // Sign out and redirect to login
+      await supabase.auth.signOut();
       setIsResettingPassword(false);
+      setIsRecoveryMode(false);
       setResetNewPassword('');
       setResetConfirmPassword('');
       navigate('/auth', { replace: true });
@@ -285,8 +291,8 @@ const Auth = () => {
     });
   };
 
-  // Show password reset form if token is present
-  if (isResettingPassword && resetToken) {
+  // Show password reset form if in recovery mode or token is present
+  if (isRecoveryMode || (isResettingPassword && resetToken)) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-secondary/5 p-4">
         <Card className="w-full max-w-md border-primary/10 shadow-xl">
