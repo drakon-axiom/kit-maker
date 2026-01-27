@@ -92,6 +92,9 @@ export type Database = {
           accent_foreground: string
           active: boolean | null
           background_color: string
+          btcpay_api_key: string | null
+          btcpay_server_url: string | null
+          btcpay_store_id: string | null
           card_color: string
           cashapp_tag: string | null
           contact_address: string | null
@@ -129,6 +132,9 @@ export type Database = {
           accent_foreground?: string
           active?: boolean | null
           background_color?: string
+          btcpay_api_key?: string | null
+          btcpay_server_url?: string | null
+          btcpay_store_id?: string | null
           card_color?: string
           cashapp_tag?: string | null
           contact_address?: string | null
@@ -166,6 +172,9 @@ export type Database = {
           accent_foreground?: string
           active?: boolean | null
           background_color?: string
+          btcpay_api_key?: string | null
+          btcpay_server_url?: string | null
+          btcpay_store_id?: string | null
           card_color?: string
           cashapp_tag?: string | null
           contact_address?: string | null

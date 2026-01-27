@@ -60,3 +60,6 @@ verify_jwt = false
 
 [functions.send-invoice-email]
 verify_jwt = true
+
+[functions.create-btcpay-invoice]
+verify_jwt = false
