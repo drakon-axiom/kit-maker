@@ -6,6 +6,7 @@ import { encode as base64Encode } from "https://deno.land/std@0.190.0/encoding/b
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
 interface SmtpConfig {
@@ -199,7 +200,11 @@ function generatePasswordResetEmail(
 serve(async (req) => {
   // Handle CORS preflight
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { status: 204, headers: corsHeaders });
+  }
+
+  if (req.method !== 'POST') {
+    return new Response('Method not allowed', { status: 405, headers: corsHeaders });
   }
 
   try {
@@ -343,15 +348,17 @@ serve(async (req) => {
 
     // Send the email
     // Use TLS for port 465, STARTTLS for port 587
-    const port = smtpConfig.port || 465;
-    const useTls = port === 465;
+    // ProtonMail SMTP often requires implicit TLS on 465. If a brand is configured with 587,
+    // denomailer can fail in edge runtime; force 465 for protonmail hosts.
+    const effectivePort = smtpConfig.host.includes("protonmail") ? 465 : (smtpConfig.port || 465);
+    const useTls = effectivePort === 465;
 
-    console.log(`Connecting to SMTP: ${smtpConfig.host}:${port} (TLS: ${useTls})`);
+    console.log(`Connecting to SMTP: ${smtpConfig.host}:${effectivePort} (TLS: ${useTls})`);
 
     const client = new SMTPClient({
       connection: {
         hostname: smtpConfig.host,
-        port: port,
+        port: effectivePort,
         tls: useTls,
         auth: {
           username: smtpConfig.user,

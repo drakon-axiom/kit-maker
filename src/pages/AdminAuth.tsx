@@ -70,8 +70,15 @@ const AdminAuth = () => {
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+
+    // NOTE: Some browsers/password managers can autofill without triggering onChange.
+    // Read from the form as the source of truth to avoid "missing email or phone".
+    const form = e.currentTarget as HTMLFormElement;
+    const fd = new FormData(form);
+    const emailFromForm = (fd.get('email') as string | null)?.trim();
+    const passwordFromForm = (fd.get('password') as string | null) ?? '';
     
-    const { error } = await signIn(email, password);
+    const { error } = await signIn(emailFromForm ?? email, passwordFromForm ?? password);
     
     if (error) {
       toast({
@@ -93,10 +100,15 @@ const AdminAuth = () => {
     e.preventDefault();
     setResetLoading(true);
 
+    const form = e.currentTarget as HTMLFormElement;
+    const fd = new FormData(form);
+    const emailFromForm = (fd.get('resetEmail') as string | null)?.trim();
+    const effectiveEmail = emailFromForm ?? resetEmail;
+
     try {
       const { data, error } = await supabase.functions.invoke('send-password-reset', {
         body: {
-          email: resetEmail,
+          email: effectiveEmail,
           redirectTo: `${window.location.origin}/admin-login`
         }
       });
@@ -290,6 +302,8 @@ const AdminAuth = () => {
                 placeholder="admin@company.com" 
                 value={email} 
                 onChange={e => setEmail(e.target.value)} 
+                name="email"
+                autoComplete="email"
                 required 
                 className="bg-slate-900/50 border-slate-600 text-slate-100 focus:border-blue-500"
               />
@@ -303,6 +317,8 @@ const AdminAuth = () => {
                   type={showPassword ? "text" : "password"} 
                   value={password} 
                   onChange={e => setPassword(e.target.value)} 
+                  name="password"
+                  autoComplete="current-password"
                   required 
                   className="pr-10 bg-slate-900/50 border-slate-600 text-slate-100 focus:border-blue-500" 
                 />
@@ -341,6 +357,8 @@ const AdminAuth = () => {
                         placeholder="admin@company.com" 
                         value={resetEmail} 
                         onChange={e => setResetEmail(e.target.value)} 
+                        name="resetEmail"
+                        autoComplete="email"
                         required 
                         className="bg-slate-900/50 border-slate-600 text-slate-100 focus:border-blue-500"
                       />
