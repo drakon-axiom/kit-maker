@@ -36,6 +36,7 @@ interface Order {
     phone?: string;
   };
   subtotal: number;
+  consolidated_total?: number | null;
   deposit_required: boolean;
   deposit_status: string;
   created_at: string;
@@ -971,7 +972,7 @@ const Orders = () => {
                           <span className="text-muted-foreground">-</span>
                         )}
                       </TableCell>
-                      <TableCell>${order.subtotal.toFixed(2)}</TableCell>
+                      <TableCell>${(order.consolidated_total ?? order.subtotal).toFixed(2)}</TableCell>
                       <TableCell>{new Date(order.created_at).toLocaleDateString()}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-1">

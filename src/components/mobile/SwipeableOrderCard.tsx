@@ -15,6 +15,7 @@ interface Order {
     phone?: string;
   };
   subtotal: number;
+  consolidated_total?: number | null;
   deposit_required: boolean;
   deposit_status: string;
   created_at: string;
@@ -185,7 +186,7 @@ export const SwipeableOrderCard = ({
               </p>
             </div>
             <div className="text-right flex-shrink-0">
-              <p className="font-semibold text-sm">${order.subtotal.toFixed(2)}</p>
+              <p className="font-semibold text-sm">${(order.consolidated_total ?? order.subtotal).toFixed(2)}</p>
               <p className="text-[10px] text-muted-foreground">
                 {new Date(order.created_at).toLocaleDateString()}
               </p>
