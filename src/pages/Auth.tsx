@@ -138,7 +138,8 @@ const Auth = () => {
       const { data, error } = await supabase.functions.invoke('send-password-reset', {
         body: {
           email: effectiveEmail,
-          redirectTo: `${window.location.origin}/auth`
+          redirectTo: `${window.location.origin}/auth`,
+          brandId: currentBrand?.id // Pass current brand context for proper SMTP selection
         }
       });
 
