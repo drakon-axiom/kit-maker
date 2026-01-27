@@ -179,10 +179,21 @@ export function InvoicePreviewDialog({
 
       // Fetch add-on orders for final invoices
       if (invoice.type === 'final') {
-        const { data: addons } = await supabase
+        // First get addon order IDs
+        const { data: addonLinks, error: addonLinksError } = await supabase
           .from('order_addons')
-          .select(`
-            addon_order:sales_orders!order_addons_addon_so_id_fkey (
+          .select('addon_so_id')
+          .eq('parent_so_id', order.id);
+
+        console.log('Addon links found:', addonLinks, 'Error:', addonLinksError);
+
+        if (addonLinks && addonLinks.length > 0) {
+          const addonOrderIds = addonLinks.map(a => a.addon_so_id);
+          
+          // Fetch the add-on orders with their line items
+          const { data: addonOrders, error: addonOrdersError } = await supabase
+            .from('sales_orders')
+            .select(`
               id,
               human_uid,
               sales_order_lines (
@@ -195,26 +206,27 @@ export function InvoicePreviewDialog({
                   description
                 )
               )
-            )
-          `)
-          .eq('parent_so_id', order.id);
+            `)
+            .in('id', addonOrderIds);
 
-        // Add add-on line items
-        (addons || []).forEach((addon: any) => {
-          const addonOrder = addon.addon_order;
-          if (addonOrder?.sales_order_lines) {
-            addonOrder.sales_order_lines.forEach((line: any) => {
-              lineItems.push({
-                sku_code: line.skus?.code || 'N/A',
-                description: line.skus?.description || 'Item',
-                qty: line.qty_entered,
-                unit_price: line.unit_price,
-                line_subtotal: line.line_subtotal,
-                source: `Add-on ${addonOrder.human_uid}`,
+          console.log('Addon orders:', addonOrders, 'Error:', addonOrdersError);
+
+          // Add add-on line items
+          (addonOrders || []).forEach((addonOrder: any) => {
+            if (addonOrder?.sales_order_lines) {
+              addonOrder.sales_order_lines.forEach((line: any) => {
+                lineItems.push({
+                  sku_code: line.skus?.code || 'N/A',
+                  description: line.skus?.description || 'Item',
+                  qty: line.qty_entered,
+                  unit_price: line.unit_price,
+                  line_subtotal: line.line_subtotal,
+                  source: `Add-on ${addonOrder.human_uid}`,
+                });
               });
-            });
-          }
-        });
+            }
+          });
+        }
       }
 
       const invoiceData: InvoiceData = {
