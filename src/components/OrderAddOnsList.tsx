@@ -3,9 +3,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Loader2, Package, ExternalLink, Plus } from 'lucide-react';
+import { Loader2, Package, ExternalLink, Plus, AlertTriangle, ShieldAlert } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { canCreateAddon } from '@/utils/orderAddons';
+import { canCreateAddon, canAdminOverrideAddon, getAddonBlockedReason } from '@/utils/orderAddons';
 
 interface AddOn {
   id: string;
@@ -24,6 +24,7 @@ interface OrderAddOnsListProps {
   orderId: string;
   orderStatus: string;
   onCreateAddOn?: () => void;
+  onOverrideAddOn?: () => void;
   isAdmin?: boolean;
 }
 
@@ -38,7 +39,7 @@ const statusColors: Record<string, string> = {
   shipped: 'bg-muted-foreground',
 };
 
-export function OrderAddOnsList({ orderId, orderStatus, onCreateAddOn, isAdmin = false }: OrderAddOnsListProps) {
+export function OrderAddOnsList({ orderId, orderStatus, onCreateAddOn, onOverrideAddOn, isAdmin = false }: OrderAddOnsListProps) {
   const [addOns, setAddOns] = useState<AddOn[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -81,6 +82,8 @@ export function OrderAddOnsList({ orderId, orderStatus, onCreateAddOn, isAdmin =
   };
 
   const canAdd = canCreateAddon(orderStatus);
+  const canOverride = !canAdd && canAdminOverrideAddon(orderStatus);
+  const blockedReason = getAddonBlockedReason(orderStatus);
 
   if (loading) {
     return (
@@ -123,6 +126,29 @@ export function OrderAddOnsList({ orderId, orderStatus, onCreateAddOn, isAdmin =
         </div>
       </CardHeader>
       <CardContent>
+        {/* Show blocked message with override option for admins */}
+        {!canAdd && isAdmin && blockedReason && (
+          <div className="mb-4 p-3 bg-warning/10 border border-warning/20 rounded-lg">
+            <div className="flex items-start gap-2">
+              <AlertTriangle className="h-4 w-4 text-warning mt-0.5 shrink-0" />
+              <div className="flex-1">
+                <p className="text-sm font-medium text-warning">{blockedReason}</p>
+                {canOverride && onOverrideAddOn && (
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="mt-2"
+                    onClick={onOverrideAddOn}
+                  >
+                    <ShieldAlert className="h-4 w-4 mr-1" />
+                    Override & Add Items
+                  </Button>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
         {addOns.length === 0 ? (
           <div className="text-center py-6">
             <Package className="h-10 w-10 mx-auto text-muted-foreground mb-2" />
