@@ -52,20 +52,67 @@ export const WorkflowDialog = ({ open, onOpenChange, batchId, batchNumber, produ
   const { user } = useAuth();
   const { toast } = useToast();
 
+  // Map SKU codes/prefixes to SOP filenames
+  const getSopFilename = (skuCode: string): string => {
+    // Normalize the SKU code to create a filename
+    const normalized = skuCode.toLowerCase().replace(/[^a-z0-9]/g, '_');
+    
+    // Map of known SKU codes to their SOP files
+    const sopMap: Record<string, string> = {
+      'lipo_c': 'lipo_c_bioboost_plus_sop_gui.json',
+      'lipo': 'lipo_c_bioboost_plus_sop_gui.json',
+      // Add more mappings as SOPs are created for other products
+    };
+
+    // Check if we have a specific mapping for this SKU
+    for (const [key, filename] of Object.entries(sopMap)) {
+      if (normalized.includes(key)) {
+        return filename;
+      }
+    }
+
+    // Default: try to find a file matching the normalized SKU code
+    return `${normalized}_sop_gui.json`;
+  };
+
   useEffect(() => {
-    if (open) {
-      // Load the workflow data
-      fetch('/sop/lipo_c_bioboost_plus_sop_gui.json')
-        .then(res => res.json())
-        .then(data => setWorkflowData(data))
-        .catch(() => { /* Workflow load error handled silently */ });
-      
-      // Reset timer and set start time when opening
+    if (open && productCode) {
+      // Reset state when opening
       setElapsedSeconds(0);
       setIsTimerRunning(false);
       setWorkflowStartTime(new Date());
       setCompletedSteps(new Set());
       setCurrentStep(0);
+      setWorkflowData(null);
+
+      // Load the workflow data based on the product code
+      const sopFilename = getSopFilename(productCode);
+      console.log(`Loading SOP for product ${productCode}: /sop/${sopFilename}`);
+      
+      fetch(`/sop/${sopFilename}`)
+        .then(res => {
+          if (!res.ok) {
+            throw new Error(`SOP not found: ${sopFilename}`);
+          }
+          return res.json();
+        })
+        .then(data => {
+          console.log(`Loaded SOP: ${data.formula_name}`);
+          setWorkflowData(data);
+        })
+        .catch((err) => {
+          console.warn(`SOP file not found for ${productCode}, trying default...`, err);
+          // Fallback to default SOP if specific one doesn't exist
+          fetch('/sop/lipo_c_bioboost_plus_sop_gui.json')
+            .then(res => res.json())
+            .then(data => {
+              console.log(`Using fallback SOP: ${data.formula_name}`);
+              setWorkflowData(data);
+            })
+            .catch(() => {
+              console.error('No SOP files available');
+            });
+        });
 
       // Update batch status to 'wip' when workflow opens
       const updateBatchStatus = async () => {
@@ -75,12 +122,12 @@ export const WorkflowDialog = ({ open, onOpenChange, batchId, batchNumber, produ
           .eq('id', batchId);
         
         if (error) {
-          // Error handled silently
+          console.error('Failed to update batch status:', error);
         }
       };
       updateBatchStatus();
     }
-  }, [open, batchId]);
+  }, [open, batchId, productCode]);
 
   // Timer effect
   useEffect(() => {
