@@ -32,7 +32,9 @@ interface Brand {
 function generateSecureToken(): string {
   const array = new Uint8Array(32);
   crypto.getRandomValues(array);
-  return base64Encode(array).replace(/[+/=]/g, (c) =>
+  // Convert Uint8Array to regular array buffer for base64 encoding
+  const buffer = array.buffer;
+  return base64Encode(buffer).replace(/[+/=]/g, (c) =>
     c === '+' ? '-' : c === '/' ? '_' : ''
   );
 }
