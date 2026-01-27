@@ -1,200 +1,164 @@
 
 
-# Admin Override for Late Add-Ons
+# Add Payment Methods to Invoice Email + BTCPay Server Integration
 
-## Problem Statement
-When an order is already packed or in later fulfillment stages, the normal add-on window is closed. However, admins sometimes need to add forgotten items or last-minute requests from customers. Currently, there's no way to do this without manually manipulating database records.
+## Summary
 
-## Proposed Solution
-Add an **Admin Override** capability for add-on creation that:
-1. Shows the blocked reason to the admin
-2. Requires a justification note (just like status change overrides)
-3. Logs the override to the audit trail
-4. Automatically recalculates the `consolidated_total` after the late add-on is created
+This plan adds two major capabilities:
+1. **Payment methods section in invoice emails** - Shows all available payment options with direct payment links where possible, plus a "Pay in Portal" fallback
+2. **BTCPay Server integration** - Full crypto payment support using BTCPay Server (works with both hosted and self-hosted instances)
 
-This follows the existing override pattern used in `StatusChangeDialog`.
+## What Customers Will See
+
+### In Invoice Emails
+The invoice email will include a new "Payment Options" section at the bottom, showing:
+
+- **Credit/Debit Card** - Direct link to Stripe checkout (if enabled)
+- **CashApp** - Deep link to open CashApp with pre-filled amount + $CashTag
+- **PayPal** - Link to PayPal payment (if SDK enabled) or manual email
+- **Wire Transfer** - Bank details for wire payments
+- **Cryptocurrency** - Link to BTCPay Server checkout page
+
+All methods also include a "Pay in Portal" fallback link for customers who prefer logging in.
+
+### In Customer Portal
+A new "Cryptocurrency" button will appear alongside existing payment methods, which opens the BTCPay Server checkout modal/page supporting all cryptocurrencies your BTCPay instance accepts.
 
 ## Implementation Details
 
-### 1. Update Add-On Eligibility Logic (`src/utils/orderAddons.ts`)
+### 1. Database Changes
 
-Add a new function to check if admin override is possible:
+Add BTCPay Server configuration fields to the `brands` table:
 
-```typescript
-// Statuses where admin override is allowed (not cancelled or shipped)
-const ADMIN_OVERRIDE_ALLOWED_STATUSES = [
-  'in_packing',
-  'packed',
-  'awaiting_invoice',
-  'awaiting_payment',
-  'ready_to_ship',
-];
+| Column | Type | Description |
+|--------|------|-------------|
+| `btcpay_server_url` | text | Your BTCPay Server instance URL (e.g., `https://btcpay.example.com`) |
+| `btcpay_store_id` | text | The store ID from BTCPay Server |
+| `btcpay_api_key` | text | API key for creating invoices programmatically |
 
-export const canAdminOverrideAddon = (status: string): boolean => {
-  return ADMIN_OVERRIDE_ALLOWED_STATUSES.includes(status);
-};
-```
+### 2. Brand Management Updates
 
-### 2. Update OrderAddOnsList Component
+Add a new "Cryptocurrency (BTCPay Server)" section in the Payment Configuration area with:
+- Toggle to enable/disable crypto payments
+- BTCPay Server URL input
+- Store ID input  
+- API Key input (securely stored)
+- Link to BTCPay Server documentation
 
-Modify the button visibility logic to show an "Admin Override" option when:
-- Normal add-on is blocked (`canCreateAddon` returns false)
-- Admin override is allowed (`canAdminOverrideAddon` returns true)
-- User is an admin
+### 3. Invoice Preview & Email Updates
 
-The UI will show the blocked reason with a warning, plus an override button:
+Modify both the preview component and edge function to:
+1. Fetch full brand payment configuration
+2. Generate a "Payment Options" section showing all enabled methods
+3. Include direct payment links for applicable methods:
+   - Stripe: Generate a checkout URL on-the-fly
+   - CashApp: Deep link with amount (`cash.app/$tag/amount`)
+   - PayPal: Either SDK checkout link or manual email
+   - BTCPay: Link to create invoice via API
+   - Wire: Display bank details inline
+4. Always include a "Pay in Customer Portal" fallback link
 
-```text
-+---------------------------------------------+
-| Add-On Orders                               |
-+---------------------------------------------+
-| [!] Add-ons blocked: Order already packed   |
-|                                             |
-| [Override & Add Items] (Admin Only)         |
-+---------------------------------------------+
-```
+### 4. BTCPay Server Edge Function
 
-### 3. Add Override Confirmation Dialog
-
-Create a new dialog or extend `AddOnCreator` to:
-- Display a warning about the late add-on
-- Require a justification note (mandatory)
-- Show the impact on consolidated totals
+Create a new `create-btcpay-invoice` edge function that:
+- Accepts order details (ID, amount, customer email)
+- Fetches brand's BTCPay configuration
+- Creates an invoice via BTCPay Server API
+- Returns the checkout URL for customer
 
 ```text
-+---------------------------------------------+
-| Override Add-On Block                       |
-+---------------------------------------------+
-| ! Warning: This order is already packed.    |
-| Adding items will require:                  |
-| - Re-calculating consolidated total         |
-| - Updating final invoice (if exists)        |
-|                                             |
-| Justification Required *                    |
-| [Customer forgot to include items...]       |
-|                                             |
-| This will be logged to the audit trail.     |
-|                                             |
-|              [Cancel] [Proceed to Add Items]|
-+---------------------------------------------+
-```
-
-### 4. Extend AddOnCreator for Override Mode
-
-Pass an `isOverride` prop and `overrideNote` to the creator:
-- When `isOverride` is true, the add-on goes through normal creation
-- After creation, trigger consolidated total recalculation
-- Log the override action with justification
-
-### 5. Add Consolidated Total Recalculation
-
-Create a utility function to recalculate `consolidated_total`:
-
-```typescript
-export const recalculateConsolidatedTotal = async (parentOrderId: string): Promise<number> => {
-  // Fetch parent order subtotal
-  const { data: parent } = await supabase
-    .from('sales_orders')
-    .select('subtotal')
-    .eq('id', parentOrderId)
-    .single();
-
-  // Fetch all add-on subtotals
-  const { data: addons } = await supabase
-    .from('order_addons')
-    .select('addon_order:sales_orders!order_addons_addon_so_id_fkey(subtotal)')
-    .eq('parent_so_id', parentOrderId);
-
-  const total = (parent?.subtotal || 0) + 
-    addons.reduce((sum, a) => sum + (a.addon_order?.subtotal || 0), 0);
-
-  // Update parent order
-  await supabase
-    .from('sales_orders')
-    .update({ consolidated_total: total })
-    .eq('id', parentOrderId);
-
-  return total;
-};
-```
-
-### 6. Update Existing Final Invoice (if applicable)
-
-After recalculating the consolidated total, check if there's an unpaid final invoice and update it:
-
-```typescript
-// If unpaid final invoice exists, update its total
-const { data: invoice } = await supabase
-  .from('invoices')
-  .select('*')
-  .eq('so_id', parentOrderId)
-  .eq('type', 'final')
-  .eq('status', 'unpaid')
-  .single();
-
-if (invoice) {
-  await supabase
-    .from('invoices')
-    .update({ 
-      subtotal: newConsolidatedTotal,
-      total: newConsolidatedTotal + (invoice.tax || 0)
-    })
-    .eq('id', invoice.id);
+POST /functions/v1/create-btcpay-invoice
+{
+  "orderId": "uuid",
+  "amount": 150.00,
+  "paymentType": "deposit" | "final"
 }
+→ Returns: { "checkoutUrl": "https://btcpay.example.com/i/abc123" }
 ```
 
-### 7. Audit Trail Entry
+### 5. Customer Payment Card Updates
 
-Log the override with full context:
+Add a new "Crypto" payment button that:
+- Opens BTCPay Server checkout in a new tab/modal
+- Shows all available cryptocurrencies (BTC, Lightning, stablecoins, etc.)
+- Handles callback/redirect after payment completion
 
-```typescript
-await supabase.from('audit_log').insert({
-  entity: 'order_addon',
-  entity_id: newOrder.id,
-  action: 'created_override',
-  actor_id: user?.id,
-  before: { 
-    parent_status: parentOrderStatus,
-    blocked_reason: getAddonBlockedReason(parentOrderStatus)
-  },
-  after: {
-    parent_order: parentOrderNumber,
-    addon_order: orderNumber,
-    total: addonTotal,
-    override_note: overrideNote,
-    new_consolidated_total: newTotal
-  },
-});
+### 6. Invoice Email Payment Section Design
+
+```text
++------------------------------------------------+
+|  💳 PAYMENT OPTIONS                            |
++------------------------------------------------+
+|                                                |
+|  [Pay with Card] ────────────────────────────► |
+|  Pay instantly with credit or debit card       |
+|                                                |
+|  [Pay with CashApp] ─────────────────────────► |
+|  Send to: $YourCashTag                         |
+|                                                |
+|  [Pay with PayPal] ──────────────────────────► |
+|  Via PayPal checkout                           |
+|                                                |
+|  [Pay with Crypto] ──────────────────────────► |
+|  Bitcoin, Lightning, USDT, USDC & more         |
+|                                                |
+|  Wire Transfer                                 |
+|  Bank: Chase Bank                              |
+|  Routing: 123456789                            |
+|  Account: XXXX1234                             |
+|  Reference: Order SO-ABC123                    |
+|                                                |
+|  ─────────────────────────────────────────     |
+|  Or log in to pay: [View in Customer Portal]  |
++------------------------------------------------+
 ```
 
-## Files to Modify
+## Files to Modify/Create
 
 | File | Changes |
 |------|---------|
-| `src/utils/orderAddons.ts` | Add `canAdminOverrideAddon` function |
-| `src/utils/consolidatedOrder.ts` | Add `recalculateConsolidatedTotal` function |
-| `src/components/OrderAddOnsList.tsx` | Show override option when blocked but overridable |
-| `src/components/AddOnCreator.tsx` | Accept `isOverride` and `overrideNote` props, trigger recalculation |
-| `src/pages/OrderDetail.tsx` | Add state management for override confirmation dialog |
+| `brands` table | Add 3 new columns for BTCPay configuration |
+| `src/pages/BrandManagement.tsx` | Add BTCPay Server configuration section |
+| `src/components/InvoicePreviewDialog.tsx` | Fetch payment config, add payment methods section to preview |
+| `supabase/functions/send-invoice-email/index.ts` | Add payment methods section to email HTML |
+| `supabase/functions/create-btcpay-invoice/index.ts` | New function to create BTCPay invoices |
+| `src/components/PaymentCard.tsx` | Add crypto payment button with BTCPay integration |
 
-## User Workflow
+## BTCPay Server Integration Flow
 
-1. Admin opens a packed order (e.g., `SO-MKJ3VUM4JF5M2`)
-2. In the Add-On Orders section, they see: "Add-ons blocked: Order already packed"
-3. An "Override & Add Items" button is visible (admin only)
-4. Clicking it opens a confirmation dialog requiring justification
-5. After confirming, the normal Add-On Creator opens
-6. Upon successful creation:
-   - New add-on order is created and linked
-   - `consolidated_total` is recalculated
-   - Unpaid final invoice is updated (if exists)
-   - Override is logged to audit trail
-7. Admin can now proceed with invoicing/shipping as normal
+```text
+1. Customer clicks "Pay with Crypto" in email or portal
+                    ↓
+2. Edge function calls BTCPay Server API:
+   POST {btcpay_url}/api/v1/stores/{store_id}/invoices
+   {
+     "amount": 150.00,
+     "currency": "USD",
+     "metadata": { "orderId": "...", "orderNumber": "SO-ABC123" }
+   }
+                    ↓
+3. BTCPay returns checkout URL
+                    ↓
+4. Customer redirected to BTCPay checkout page
+   (shows BTC, Lightning, USDT, USDC, etc. based on your BTCPay config)
+                    ↓
+5. Customer pays in preferred cryptocurrency
+                    ↓
+6. BTCPay webhook notifies your system (optional future enhancement)
+   OR admin manually marks payment as received
+```
 
-## Edge Cases Handled
+## Security Considerations
 
-- **Shipped orders**: Override NOT allowed (too late)
-- **Cancelled orders**: Override NOT allowed (invalid state)
-- **Paid invoices**: Warning shown, but override allowed (admin may need to issue credit/refund separately)
-- **No existing invoice**: Override allowed, consolidated total updated for future invoice
+- BTCPay API key is stored in the brands table (same security model as PayPal client secret)
+- Only admins can view/edit BTCPay configuration via existing RLS policies
+- API key is only used server-side in edge functions, never exposed to frontend
+- Checkout URLs are one-time use and expire (configurable in BTCPay)
+
+## Edge Cases
+
+- **BTCPay Server unreachable**: Show error message, fallback to "Contact us" option
+- **No payment methods configured**: Email still sends but shows only "Contact us for payment options"
+- **Partial configuration**: Only show methods that are fully configured
+- **Self-hosted migration**: URL field allows easy switch from hosted to self-hosted BTCPay
 
