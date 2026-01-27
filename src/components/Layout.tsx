@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import axiomLogo from '@/assets/axiom-logo.png';
 import { Outlet } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useBrand } from '@/contexts/BrandContext';
