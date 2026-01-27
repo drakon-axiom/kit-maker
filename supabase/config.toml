@@ -37,6 +37,12 @@ verify_jwt = false
 [functions.send-password-reset-email]
 verify_jwt = false
 
+[functions.send-password-reset]
+verify_jwt = false
+
+[functions.verify-password-reset]
+verify_jwt = false
+
 [functions.request-customer-access]
 verify_jwt = true
 
