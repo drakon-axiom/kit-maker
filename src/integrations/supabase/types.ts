@@ -1283,6 +1283,7 @@ export type Database = {
           archived: boolean
           archived_at: string | null
           brand_id: string | null
+          consolidated_total: number | null
           created_at: string
           customer_id: string | null
           deposit_amount: number | null
@@ -1309,6 +1310,7 @@ export type Database = {
           archived?: boolean
           archived_at?: string | null
           brand_id?: string | null
+          consolidated_total?: number | null
           created_at?: string
           customer_id?: string | null
           deposit_amount?: number | null
@@ -1335,6 +1337,7 @@ export type Database = {
           archived?: boolean
           archived_at?: string | null
           brand_id?: string | null
+          consolidated_total?: number | null
           created_at?: string
           customer_id?: string | null
           deposit_amount?: number | null

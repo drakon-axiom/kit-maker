@@ -31,6 +31,9 @@ import { StatusChangeDialog } from '@/components/StatusChangeDialog';
 import { InvoiceManagement } from '@/components/InvoiceManagement';
 import { ShipStationLabelDialog } from '@/components/ShipStationLabelDialog';
 import { PackingDetails } from '@/components/PackingDetails';
+import { ConsolidatedOrderSummary } from '@/components/ConsolidatedOrderSummary';
+import { ConsolidatedLineItems } from '@/components/ConsolidatedLineItems';
+import { shouldShowConsolidatedView } from '@/utils/consolidatedOrder';
 import { Database } from '@/integrations/supabase/types';
 import {
   AlertDialog,
@@ -1291,11 +1294,24 @@ const OrderDetail = () => {
         </Card>
       </div>
 
+      {/* Consolidated Order Summary - Show in fulfillment phase for parent orders with add-ons */}
+      {order && !order.is_internal && shouldShowConsolidatedView(order.status) && (
+        <ConsolidatedOrderSummary
+          orderId={order.id}
+          orderUid={order.human_uid}
+          orderStatus={order.status}
+          orderSubtotal={order.subtotal}
+          parentLineItems={order.sales_order_lines}
+        />
+      )}
+
       {/* Packing Details - Show when order is in packing or later */}
       {userRole === 'admin' && order && (order.status === 'in_packing' || order.status === 'packed' || order.status === 'ready_to_ship') && (
         <PackingDetails
           orderId={order.id}
           totalItems={totalBottles}
+          parentLineItems={order.sales_order_lines}
+          orderSubtotal={order.subtotal}
         />
       )}
 
@@ -1351,11 +1367,22 @@ const OrderDetail = () => {
         />
       )}
 
+      {/* Consolidated Line Items - Show in fulfillment phase for parent orders with add-ons */}
+      {order && !order.is_internal && shouldShowConsolidatedView(order.status) && (
+        <ConsolidatedLineItems
+          orderId={order.id}
+          orderUid={order.human_uid}
+          orderStatus={order.status}
+          parentLineItems={order.sales_order_lines}
+        />
+      )}
+
       {/* Invoice Management */}
       {order && userRole === 'admin' && order.status !== 'draft' && order.status !== 'cancelled' && (
         <InvoiceManagement
           orderId={order.id}
           orderTotal={order.subtotal}
+          orderUid={order.human_uid}
           depositAmount={order.deposit_amount || 0}
           depositRequired={order.deposit_required}
           customerEmail={order.customer?.email || null}
