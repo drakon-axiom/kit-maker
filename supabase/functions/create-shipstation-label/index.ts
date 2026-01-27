@@ -44,6 +44,47 @@ interface ShipStationV2LabelRequest {
   label_layout?: "4x6" | "letter";
 }
 
+// ShipStation v1 Order types
+interface ShipStationV1OrderItem {
+  lineItemKey: string;
+  sku: string;
+  name: string;
+  quantity: number;
+  unitPrice: number;
+  weight?: { value: number; units: "ounces" | "pounds" | "grams" };
+}
+
+interface ShipStationV1Address {
+  name: string;
+  street1: string;
+  street2?: string;
+  city: string;
+  state: string;
+  postalCode: string;
+  country: string;
+  phone?: string;
+}
+
+interface ShipStationV1Order {
+  orderNumber: string;
+  orderKey: string;
+  orderDate: string;
+  orderStatus: "awaiting_shipment" | "shipped" | "on_hold" | "cancelled";
+  customerEmail?: string;
+  billTo: ShipStationV1Address;
+  shipTo: ShipStationV1Address;
+  items: ShipStationV1OrderItem[];
+  amountPaid?: number;
+  carrierCode?: string;
+  serviceCode?: string;
+  weight?: { value: number; units: "ounces" | "pounds" };
+  dimensions?: { length: number; width: number; height: number; units: "inches" | "centimeters" };
+  advancedOptions?: {
+    storeId?: number;
+    warehouseId?: number;
+  };
+}
+
 type ShipStationV2Carrier = {
   carrier_id?: string;
   carrier_code?: string;
@@ -159,6 +200,37 @@ function getCountryCode(country: string | null): string {
   return countryMap[normalized] || "US";
 }
 
+// Create order in ShipStation v1 API
+async function createShipStationOrder(
+  shipstationApiKey: string,
+  order: ShipStationV1Order
+): Promise<{ orderId: number; orderNumber: string }> {
+  console.log("Creating ShipStation order:", JSON.stringify(order, null, 2));
+  
+  const response = await fetch("https://ssapi.shipstation.com/orders/createorder", {
+    method: "POST",
+    headers: {
+      "Authorization": `Basic ${btoa(shipstationApiKey + ":")}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(order),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error("ShipStation v1 order creation error:", errorText);
+    throw new Error(`Failed to create ShipStation order: ${errorText}`);
+  }
+
+  const result = await response.json();
+  console.log("ShipStation order created:", JSON.stringify(result, null, 2));
+  
+  return {
+    orderId: result.orderId,
+    orderNumber: result.orderNumber,
+  };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -168,6 +240,7 @@ Deno.serve(async (req) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const shipstationApiKey = Deno.env.get("SHIPSTATION_API_KEY");
+    const storeId = Deno.env.get("SHIPSTATION_STORE_ID");
 
     if (!shipstationApiKey) {
       return new Response(
@@ -187,13 +260,15 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Fetch order with customer details
+    // Fetch order with customer details AND line items with SKU info
     const { data: order, error: orderError } = await supabase
       .from("sales_orders")
       .select(`
         id,
         human_uid,
         status,
+        subtotal,
+        created_at,
         customer_id,
         customers (
           id,
@@ -205,7 +280,25 @@ Deno.serve(async (req) => {
           shipping_city,
           shipping_state,
           shipping_zip,
-          shipping_country
+          shipping_country,
+          billing_address_line1,
+          billing_address_line2,
+          billing_city,
+          billing_state,
+          billing_zip,
+          billing_country,
+          billing_same_as_shipping
+        ),
+        sales_order_lines (
+          id,
+          bottle_qty,
+          unit_price,
+          line_subtotal,
+          skus (
+            id,
+            code,
+            description
+          )
         )
       `)
       .eq("id", orderId)
@@ -230,6 +323,13 @@ Deno.serve(async (req) => {
       shipping_state: string | null;
       shipping_zip: string | null;
       shipping_country: string | null;
+      billing_address_line1: string | null;
+      billing_address_line2: string | null;
+      billing_city: string | null;
+      billing_state: string | null;
+      billing_zip: string | null;
+      billing_country: string | null;
+      billing_same_as_shipping: boolean | null;
     } | null;
 
     if (!customer) {
@@ -238,6 +338,21 @@ Deno.serve(async (req) => {
         { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
+    // Extract order lines with SKU info
+    const orderLines = (order.sales_order_lines || []) as unknown as Array<{
+      id: string;
+      bottle_qty: number;
+      unit_price: number;
+      line_subtotal: number;
+      skus: {
+        id: string;
+        code: string;
+        description: string;
+      } | null;
+    }>;
+
+    console.log(`Order ${order.human_uid} has ${orderLines.length} line items`);
 
     // Validate required shipping address fields
     const missingFields: string[] = [];
@@ -302,7 +417,89 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Build ship-from address (warehouse)
+    // ===============================================
+    // STEP 1: Create Order in ShipStation (v1 API)
+    // ===============================================
+    
+    // Build ship-to address for v1 API
+    const v1ShipTo: ShipStationV1Address = {
+      name: customer.name || "Customer",
+      street1: customer.shipping_address_line1!,
+      street2: customer.shipping_address_line2 || undefined,
+      city: customer.shipping_city!,
+      state: customer.shipping_state || "",
+      postalCode: customer.shipping_zip!,
+      country: countryCode,
+      phone: customer.phone || undefined,
+    };
+
+    // Build bill-to address (use billing if different, otherwise same as shipping)
+    const useBillingAddress = !customer.billing_same_as_shipping && customer.billing_address_line1;
+    const v1BillTo: ShipStationV1Address = useBillingAddress ? {
+      name: customer.name || "Customer",
+      street1: customer.billing_address_line1!,
+      street2: customer.billing_address_line2 || undefined,
+      city: customer.billing_city || customer.shipping_city!,
+      state: customer.billing_state || customer.shipping_state || "",
+      postalCode: customer.billing_zip || customer.shipping_zip!,
+      country: getCountryCode(customer.billing_country),
+      phone: customer.phone || undefined,
+    } : v1ShipTo;
+
+    // Build line items from actual order data
+    const v1Items: ShipStationV1OrderItem[] = orderLines.map((line) => ({
+      lineItemKey: line.id,
+      sku: line.skus?.code || "UNKNOWN",
+      name: line.skus?.description || "Product",
+      quantity: line.bottle_qty,
+      unitPrice: line.unit_price,
+      weight: { value: 1, units: "ounces" as const }, // Per-item weight estimate
+    }));
+
+    // Log the line items being sent
+    console.log("Order line items:", JSON.stringify(v1Items, null, 2));
+
+    // Build v1 order payload
+    const v1OrderPayload: ShipStationV1Order = {
+      orderNumber: order.human_uid,
+      orderKey: order.id, // UUID ensures idempotency
+      orderDate: order.created_at,
+      orderStatus: "awaiting_shipment",
+      customerEmail: customer.email || undefined,
+      billTo: v1BillTo,
+      shipTo: v1ShipTo,
+      items: v1Items,
+      amountPaid: order.subtotal,
+      carrierCode: carrierCode,
+      serviceCode: serviceCode,
+      weight: weightOz ? { value: weightOz, units: "ounces" } : undefined,
+      dimensions: dimensions ? {
+        length: dimensions.length,
+        width: dimensions.width,
+        height: dimensions.height,
+        units: "inches",
+      } : undefined,
+      advancedOptions: storeId ? {
+        storeId: parseInt(storeId),
+      } : undefined,
+    };
+
+    let shipstationOrderId: number | null = null;
+    try {
+      const orderResult = await createShipStationOrder(shipstationApiKey, v1OrderPayload);
+      shipstationOrderId = orderResult.orderId;
+      console.log(`ShipStation order created with ID: ${shipstationOrderId}`);
+    } catch (orderError) {
+      console.error("Failed to create ShipStation order:", orderError);
+      // Continue with label creation even if order creation fails
+      // The order might already exist (idempotent via orderKey)
+    }
+
+    // ===============================================
+    // STEP 2: Create Label (v2 API)
+    // ===============================================
+
+    // Build ship-from address (warehouse) for v2 API
     const shipFrom: ShipStationV2Address = {
       name: settingsMap.shipstation_warehouse_name || "Warehouse",
       address_line1: settingsMap.shipstation_warehouse_address1,
@@ -314,7 +511,7 @@ Deno.serve(async (req) => {
       phone: settingsMap.shipstation_warehouse_phone || undefined,
     };
 
-    // Build ship-to address (customer)
+    // Build ship-to address (customer) for v2 API
     const shipTo: ShipStationV2Address = {
       name: customer.name || "Customer",
       address_line1: customer.shipping_address_line1!,
@@ -435,6 +632,7 @@ Deno.serve(async (req) => {
           tracking_no: trackingNumber,
           label_url: labelUrl,
           shipstation_shipment_id: shipmentId,
+          shipstation_order_id: shipstationOrderId?.toString() || null,
           shipped_at: new Date().toISOString(),
           voided_at: null,
         })
@@ -449,6 +647,7 @@ Deno.serve(async (req) => {
           tracking_no: trackingNumber,
           label_url: labelUrl,
           shipstation_shipment_id: shipmentId,
+          shipstation_order_id: shipstationOrderId?.toString() || null,
           shipped_at: new Date().toISOString(),
         });
     }
@@ -465,7 +664,9 @@ Deno.serve(async (req) => {
         trackingNumber,
         labelUrl,
         shipmentId,
+        shipstationOrderId,
         carrier: carrierCode.toUpperCase(),
+        lineItemsProcessed: orderLines.length,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
