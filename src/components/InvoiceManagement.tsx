@@ -4,7 +4,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, FileText, Download, Send, Plus, Receipt, Layers } from 'lucide-react';
+import { Loader2, FileText, Download, Send, Plus, Receipt, Layers, Eye } from 'lucide-react';
 import { downloadBrandedInvoice, downloadBrandedReceipt } from '@/utils/brandedPdfDownload';
 import {
   Dialog,
@@ -18,6 +18,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { fetchAddOnOrders, AddOnOrder } from '@/utils/consolidatedOrder';
+import { InvoicePreviewDialog } from './InvoicePreviewDialog';
 
 interface Invoice {
   id: string;
@@ -76,6 +77,7 @@ export function InvoiceManagement({
   const [customAmount, setCustomAmount] = useState('');
   const [addOns, setAddOns] = useState<AddOnOrder[]>([]);
   const [loadingAddOns, setLoadingAddOns] = useState(false);
+  const [previewInvoice, setPreviewInvoice] = useState<Invoice | null>(null);
 
   // Fetch add-ons when opening final invoice dialog
   const fetchAddOns = useCallback(async () => {
@@ -478,15 +480,10 @@ export function InvoiceManagement({
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => handleSendInvoice(invoice)}
-                        disabled={sending === invoice.id}
+                        onClick={() => setPreviewInvoice(invoice)}
                       >
-                        {sending === invoice.id ? (
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        ) : (
-                          <Send className="mr-2 h-4 w-4" />
-                        )}
-                        Send
+                        <Eye className="mr-2 h-4 w-4" />
+                        Preview & Send
                       </Button>
                     )}
                     {invoice.status === 'unpaid' && (
@@ -615,6 +612,22 @@ export function InvoiceManagement({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Invoice Preview Dialog */}
+      {previewInvoice && customerEmail && (
+        <InvoicePreviewDialog
+          open={!!previewInvoice}
+          onOpenChange={(open) => !open && setPreviewInvoice(null)}
+          invoiceId={previewInvoice.id}
+          invoiceNo={previewInvoice.invoice_no}
+          customerEmail={customerEmail}
+          onSend={async () => {
+            await handleSendInvoice(previewInvoice);
+            setPreviewInvoice(null);
+          }}
+          sending={sending === previewInvoice.id}
+        />
+      )}
     </>
   );
 }
