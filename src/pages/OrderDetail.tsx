@@ -66,6 +66,7 @@ interface OrderDetail {
   human_uid: string;
   status: string;
   subtotal: number;
+  consolidated_total?: number | null;
   deposit_required: boolean;
   deposit_amount: number;
   deposit_status: string;
@@ -1382,6 +1383,7 @@ const OrderDetail = () => {
         <InvoiceManagement
           orderId={order.id}
           orderTotal={order.subtotal}
+          consolidatedTotalStored={order.consolidated_total ?? null}
           orderUid={order.human_uid}
           depositAmount={order.deposit_amount || 0}
           depositRequired={order.deposit_required}
