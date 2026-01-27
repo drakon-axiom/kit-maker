@@ -51,6 +51,7 @@ const OrderRequestManagement = lazy(() => import("./pages/OrderRequestManagement
 const PendingPaymentVerification = lazy(() => import("./pages/PendingPaymentVerification"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
+// Version check component
 function VersionChecker() {
   useVersionCheck();
   return null;
