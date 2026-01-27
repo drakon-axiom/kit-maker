@@ -156,14 +156,55 @@ serve(async (req) => {
     const brandAddress = brand?.contact_address || null;
     const primaryColor = brand?.primary_color || "#2563eb";
 
-    // Prepare line items
-    const lineItems = (order.sales_order_lines || []).map((line: any) => ({
+    // Prepare line items from parent order
+    const lineItems: Array<{ sku_code: string; description: string; qty: number; unit_price: number; line_subtotal: number }> = (order.sales_order_lines || []).map((line: any) => ({
       sku_code: line.skus?.code || "N/A",
       description: line.skus?.description || "Item",
       qty: line.qty_entered,
       unit_price: line.unit_price,
       line_subtotal: line.line_subtotal,
     }));
+
+    // For final invoices, also fetch add-on order line items
+    if (invoice.type === 'final') {
+      const { data: addons } = await supabase
+        .from('order_addons')
+        .select(`
+          addon_order:sales_orders!order_addons_addon_so_id_fkey (
+            id,
+            human_uid,
+            sales_order_lines (
+              id,
+              qty_entered,
+              unit_price,
+              line_subtotal,
+              skus (
+                code,
+                description
+              )
+            )
+          )
+        `)
+        .eq('parent_so_id', order.id);
+
+      // Add add-on line items
+      (addons || []).forEach((addon: any) => {
+        const addonOrder = addon.addon_order;
+        if (addonOrder?.sales_order_lines) {
+          addonOrder.sales_order_lines.forEach((line: any) => {
+            lineItems.push({
+              sku_code: `${line.skus?.code || "N/A"} (${addonOrder.human_uid})`,
+              description: line.skus?.description || "Item",
+              qty: line.qty_entered,
+              unit_price: line.unit_price,
+              line_subtotal: line.line_subtotal,
+            });
+          });
+        }
+      });
+
+      console.log(`[send-invoice-email] Including ${lineItems.length} total line items (parent + add-ons)`);
+    }
 
     // Generate email HTML
     const emailHtml = generateInvoiceEmailHtml(
