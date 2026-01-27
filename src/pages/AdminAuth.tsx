@@ -69,16 +69,33 @@ const AdminAuth = () => {
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
-
-    // NOTE: Some browsers/password managers can autofill without triggering onChange.
-    // Read from the form as the source of truth to avoid "missing email or phone".
+    // Read from the form as the source of truth to avoid autofill issues.
     const form = e.currentTarget as HTMLFormElement;
     const fd = new FormData(form);
-    const emailFromForm = (fd.get('email') as string | null)?.trim();
-    const passwordFromForm = (fd.get('password') as string | null) ?? '';
-    
-    const { error } = await signIn(emailFromForm ?? email, passwordFromForm ?? password);
+    const emailFromForm = (fd.get('email') as string | null)?.trim() || email.trim();
+    const passwordFromForm = (fd.get('password') as string | null) || password;
+
+    // Validate before attempting sign-in (prevents "missing email or phone" requests)
+    if (!emailFromForm) {
+      toast({
+        title: 'Email required',
+        description: 'Please enter your email address',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    if (!passwordFromForm) {
+      toast({
+        title: 'Password required',
+        description: 'Please enter your password',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    setLoading(true);
+    const { error } = await signIn(emailFromForm, passwordFromForm);
     
     if (error) {
       toast({
@@ -98,6 +115,9 @@ const AdminAuth = () => {
 
   const handlePasswordReset = async (e: React.FormEvent) => {
     e.preventDefault();
+    // Prevent bubbling to the parent sign-in form (Dialog is a portal but React
+    // events still bubble through the React tree).
+    e.stopPropagation();
     setResetLoading(true);
 
     const form = e.currentTarget as HTMLFormElement;

@@ -123,6 +123,10 @@ const Auth = () => {
 
   const handlePasswordReset = async (e: React.FormEvent) => {
     e.preventDefault();
+    // The reset form lives inside a Dialog (portal) rendered within the sign-in form.
+    // React event bubbling can still reach the parent <form onSubmit={handleSignIn}>,
+    // accidentally triggering a password sign-in with empty credentials.
+    e.stopPropagation();
     setResetLoading(true);
 
     const form = e.currentTarget as HTMLFormElement;
