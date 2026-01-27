@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useBrand } from '@/contexts/BrandContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -27,6 +28,7 @@ const AdminAuth = () => {
   const [resetConfirmPassword, setResetConfirmPassword] = useState('');
   const [passwordChangeLoading, setPasswordChangeLoading] = useState(false);
   const { signIn, user } = useAuth();
+  const { currentBrand } = useBrand();
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -129,7 +131,8 @@ const AdminAuth = () => {
       const { data, error } = await supabase.functions.invoke('send-password-reset', {
         body: {
           email: effectiveEmail,
-          redirectTo: `${window.location.origin}/admin-login`
+          redirectTo: `${window.location.origin}/admin-login`,
+          brandId: currentBrand?.id // Pass current brand context for proper SMTP selection
         }
       });
 

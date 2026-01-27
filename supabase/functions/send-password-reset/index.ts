@@ -208,7 +208,7 @@ serve(async (req) => {
   }
 
   try {
-    const { email, redirectTo } = await req.json();
+    const { email, redirectTo, brandId: requestedBrandId } = await req.json();
 
     if (!email) {
       return new Response(
@@ -216,6 +216,8 @@ serve(async (req) => {
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
+    console.log(`Password reset requested for ${email}, requested brand: ${requestedBrandId || 'none'}`);
 
     // Initialize Supabase client with service role
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
@@ -263,30 +265,48 @@ serve(async (req) => {
       );
     }
 
-    // Find the user's brand (via customer record or user_roles for admins)
-    const { data: customer } = await supabase
-      .from('customers')
-      .select('brand_id')
-      .eq('user_id', user.id)
-      .single();
-
-    console.log(`User ${user.id} customer record:`, customer);
-
+    // Determine brand: prioritize requested brand from UI, then customer record, then default
     let brand: Brand | null = null;
 
-    if (customer?.brand_id) {
-      const { data: brandData } = await supabase
+    // 1. First, try to use the brand explicitly passed from the frontend (UI context)
+    if (requestedBrandId) {
+      const { data: requestedBrand } = await supabase
         .from('brands')
         .select('*')
-        .eq('id', customer.brand_id)
+        .eq('id', requestedBrandId)
+        .eq('active', true)
         .single();
-      brand = brandData;
-      console.log(`Found customer brand: ${brand?.name}`);
+      
+      if (requestedBrand) {
+        brand = requestedBrand;
+        console.log(`Using requested brand from UI: ${requestedBrand.name}`);
+      }
     }
 
-    // If no customer brand, get default brand
+    // 2. If no requested brand, find the user's brand via customer record
     if (!brand) {
-      console.log('No customer brand found, looking for default brand');
+      const { data: customer } = await supabase
+        .from('customers')
+        .select('brand_id')
+        .eq('user_id', user.id)
+        .single();
+
+      console.log(`User ${user.id} customer record:`, customer);
+
+      if (customer?.brand_id) {
+        const { data: brandData } = await supabase
+          .from('brands')
+          .select('*')
+          .eq('id', customer.brand_id)
+          .single();
+        brand = brandData;
+        console.log(`Found customer brand: ${brand?.name}`);
+      }
+    }
+
+    // 3. If still no brand, get default brand
+    if (!brand) {
+      console.log('No brand found, looking for default brand');
       const { data: defaultBrand } = await supabase
         .from('brands')
         .select('*')
