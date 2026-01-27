@@ -1,197 +1,200 @@
 
-# Consolidated Invoicing & Packaging for Add-On Orders
 
-## Current State Analysis
+# Admin Override for Late Add-Ons
 
-Your system currently handles add-ons as **separate linked orders**:
-- Each add-on order (`AO-xxxx`) has its own `parent_order_id` pointing to the main order
-- The `order_addons` table tracks the relationship and approval status
-- Invoices are created per-order (`so_id`), meaning add-ons get their own invoices
-- Packaging (`order_packages`) is recorded per-order
-
-**The Problem**: When it's time to ship, you have:
-- Multiple invoices to track (parent order + each add-on)
-- Separate packaging records that don't reflect the actual consolidated shipment
-- No unified "master" view for billing and fulfillment
+## Problem Statement
+When an order is already packed or in later fulfillment stages, the normal add-on window is closed. However, admins sometimes need to add forgotten items or last-minute requests from customers. Currently, there's no way to do this without manually manipulating database records.
 
 ## Proposed Solution
+Add an **Admin Override** capability for add-on creation that:
+1. Shows the blocked reason to the admin
+2. Requires a justification note (just like status change overrides)
+3. Logs the override to the audit trail
+4. Automatically recalculates the `consolidated_total` after the late add-on is created
 
-Your approach makes sense with one key refinement: **consolidation should happen at the fulfillment stage** (when packing begins), not before. This preserves the audit trail of individual add-ons while giving you a single billing and shipping view.
-
-### Recommended Flow
-
-```text
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                        Consolidated Order Lifecycle                         │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                             │
-│   PRODUCTION PHASE                    │   FULFILLMENT PHASE                 │
-│   (Add-ons allowed)                   │   (Add-ons blocked)                 │
-│                                       │                                     │
-│   ┌────────────┐                      │   ┌─────────────────────────────┐   │
-│   │ Parent     │ ── creates ──────────┼─► │ Consolidated View           │   │
-│   │ Order      │                      │   │                             │   │
-│   │ AXC-0042   │                      │   │ • Combined line items       │   │
-│   └────────────┘                      │   │ • Consolidated subtotal     │   │
-│        │                              │   │ • Single final invoice      │   │
-│        │ add-ons                      │   │ • Unified packing details   │   │
-│        ▼                              │   │                             │   │
-│   ┌────────────┐                      │   │ Parent: $5,000              │   │
-│   │ Add-On 1   │ ── merges into ──────┼─► │ + AO-0001: $800             │   │
-│   │ AO-0001    │                      │   │ + AO-0002: $350             │   │
-│   └────────────┘                      │   │ ─────────────────           │   │
-│        │                              │   │ TOTAL: $6,150               │   │
-│        ▼                              │   │                             │   │
-│   ┌────────────┐                      │   └─────────────────────────────┘   │
-│   │ Add-On 2   │ ── merges into ──────┼───────────────┘                     │
-│   │ AO-0002    │                      │                                     │
-│   └────────────┘                      │                                     │
-│                                       │                                     │
-│         ▲                             │                                     │
-│         │                             │                                     │
-│   ┌─────┴─────┐                       │                                     │
-│   │ in_packing│ ◄─────────────────────┘ Cutoff point                        │
-│   └───────────┘                                                             │
-│                                                                             │
-└─────────────────────────────────────────────────────────────────────────────┘
-```
-
-### Key Design Decisions
-
-| Aspect | Approach | Rationale |
-|--------|----------|-----------|
-| **Invoice Consolidation** | Single "final" invoice on parent order that sums parent + all add-on subtotals | Avoids duplicate invoicing; customer sees one bill |
-| **Line Item Display** | Show all items (parent + add-ons) grouped by source order | Clear visibility into what was added |
-| **Packing** | All packages recorded on parent order | ShipStation integration already uses parent order; single shipment origin |
-| **Individual Totals** | Preserved on each order for audit trail | Can always drill down to see original add-on amounts |
+This follows the existing override pattern used in `StatusChangeDialog`.
 
 ## Implementation Details
 
-### Phase 1: Database Changes
+### 1. Update Add-On Eligibility Logic (`src/utils/orderAddons.ts`)
 
-**New column on `sales_orders`**:
-```sql
-ALTER TABLE sales_orders 
-ADD COLUMN consolidated_total numeric DEFAULT NULL;
+Add a new function to check if admin override is possible:
+
+```typescript
+// Statuses where admin override is allowed (not cancelled or shipped)
+const ADMIN_OVERRIDE_ALLOWED_STATUSES = [
+  'in_packing',
+  'packed',
+  'awaiting_invoice',
+  'awaiting_payment',
+  'ready_to_ship',
+];
+
+export const canAdminOverrideAddon = (status: string): boolean => {
+  return ADMIN_OVERRIDE_ALLOWED_STATUSES.includes(status);
+};
 ```
 
-This stores the combined total when consolidation is triggered, while preserving each order's `subtotal`.
+### 2. Update OrderAddOnsList Component
 
-**New setting**:
-```sql
-INSERT INTO settings (key, value, description)
-VALUES ('auto_consolidate_on_packing', 'true', 'Automatically consolidate add-ons when parent enters in_packing status');
+Modify the button visibility logic to show an "Admin Override" option when:
+- Normal add-on is blocked (`canCreateAddon` returns false)
+- Admin override is allowed (`canAdminOverrideAddon` returns true)
+- User is an admin
+
+The UI will show the blocked reason with a warning, plus an override button:
+
+```text
++---------------------------------------------+
+| Add-On Orders                               |
++---------------------------------------------+
+| [!] Add-ons blocked: Order already packed   |
+|                                             |
+| [Override & Add Items] (Admin Only)         |
++---------------------------------------------+
 ```
 
-### Phase 2: Invoice Management Enhancement
+### 3. Add Override Confirmation Dialog
 
-**Changes to `InvoiceManagement.tsx`**:
+Create a new dialog or extend `AddOnCreator` to:
+- Display a warning about the late add-on
+- Require a justification note (mandatory)
+- Show the impact on consolidated totals
 
-1. When creating a **final invoice** for a parent order, automatically:
-   - Fetch all linked add-on orders via `order_addons` table
-   - Sum subtotals: `parentSubtotal + SUM(addonSubtotals)`
-   - Display breakdown in invoice creation dialog
-   - Store consolidated total on parent order
+```text
++---------------------------------------------+
+| Override Add-On Block                       |
++---------------------------------------------+
+| ! Warning: This order is already packed.    |
+| Adding items will require:                  |
+| - Re-calculating consolidated total         |
+| - Updating final invoice (if exists)        |
+|                                             |
+| Justification Required *                    |
+| [Customer forgot to include items...]       |
+|                                             |
+| This will be logged to the audit trail.     |
+|                                             |
+|              [Cancel] [Proceed to Add Items]|
++---------------------------------------------+
+```
 
-2. Add new UI section showing:
-   ```
-   ┌────────────────────────────────────────┐
-   │ Consolidated Invoice Total             │
-   ├────────────────────────────────────────┤
-   │ Parent Order (AXC-0042):    $5,000.00  │
-   │ + Add-On (AO-0001):           $800.00  │
-   │ + Add-On (AO-0002):           $350.00  │
-   │ ────────────────────────────────────── │
-   │ TOTAL:                      $6,150.00  │
-   └────────────────────────────────────────┘
-   ```
+### 4. Extend AddOnCreator for Override Mode
 
-### Phase 3: Order Detail Consolidation View
+Pass an `isOverride` prop and `overrideNote` to the creator:
+- When `isOverride` is true, the add-on goes through normal creation
+- After creation, trigger consolidated total recalculation
+- Log the override action with justification
 
-**Changes to `OrderDetail.tsx`**:
+### 5. Add Consolidated Total Recalculation
 
-1. When viewing a parent order in `in_packing` or later statuses:
-   - Show a **"Consolidated View"** toggle/section
-   - Display all line items from parent + add-ons in a unified table
-   - Show combined totals prominently
+Create a utility function to recalculate `consolidated_total`:
 
-2. Add a **"Consolidated Order Summary"** card:
-   ```
-   ┌────────────────────────────────────────┐
-   │ Consolidated Order Summary             │
-   │ Status: In Packing                     │
-   ├────────────────────────────────────────┤
-   │ 3 orders combined (1 parent + 2 addons)│
-   │                                        │
-   │ Total Line Items: 8                    │
-   │ Total Bottles: 450                     │
-   │ Combined Subtotal: $6,150.00           │
-   │                                        │
-   │ [View Individual Orders]               │
-   └────────────────────────────────────────┘
-   ```
+```typescript
+export const recalculateConsolidatedTotal = async (parentOrderId: string): Promise<number> => {
+  // Fetch parent order subtotal
+  const { data: parent } = await supabase
+    .from('sales_orders')
+    .select('subtotal')
+    .eq('id', parentOrderId)
+    .single();
 
-### Phase 4: Unified Packing Experience
+  // Fetch all add-on subtotals
+  const { data: addons } = await supabase
+    .from('order_addons')
+    .select('addon_order:sales_orders!order_addons_addon_so_id_fkey(subtotal)')
+    .eq('parent_so_id', parentOrderId);
 
-**Changes to `PackingDetails.tsx`**:
+  const total = (parent?.subtotal || 0) + 
+    addons.reduce((sum, a) => sum + (a.addon_order?.subtotal || 0), 0);
 
-1. For parent orders with add-ons:
-   - Show combined item count from all linked orders
-   - Calculate `totalItems` as sum of all `bottle_qty` from parent + add-ons
-   - Package records remain on parent order only
+  // Update parent order
+  await supabase
+    .from('sales_orders')
+    .update({ consolidated_total: total })
+    .eq('id', parentOrderId);
 
-2. Add visual indicator:
-   ```
-   ┌────────────────────────────────────────┐
-   │ Packing Details                        │
-   │ Items: 350/450 packed (2 add-ons incl.)│
-   └────────────────────────────────────────┘
-   ```
+  return total;
+};
+```
 
-### Phase 5: Automatic Status Synchronization
+### 6. Update Existing Final Invoice (if applicable)
 
-**Database trigger or edge function**:
+After recalculating the consolidated total, check if there's an unpaid final invoice and update it:
 
-When parent order reaches `in_packing`:
-1. Update all linked add-on orders to `in_packing` status
-2. Calculate and store `consolidated_total` on parent
-3. Log consolidation event to audit trail
+```typescript
+// If unpaid final invoice exists, update its total
+const { data: invoice } = await supabase
+  .from('invoices')
+  .select('*')
+  .eq('so_id', parentOrderId)
+  .eq('type', 'final')
+  .eq('status', 'unpaid')
+  .single();
 
-When parent order reaches `shipped`:
-1. Update all linked add-on orders to `shipped` status
-2. Ensure single shipment record covers all items
+if (invoice) {
+  await supabase
+    .from('invoices')
+    .update({ 
+      subtotal: newConsolidatedTotal,
+      total: newConsolidatedTotal + (invoice.tax || 0)
+    })
+    .eq('id', invoice.id);
+}
+```
+
+### 7. Audit Trail Entry
+
+Log the override with full context:
+
+```typescript
+await supabase.from('audit_log').insert({
+  entity: 'order_addon',
+  entity_id: newOrder.id,
+  action: 'created_override',
+  actor_id: user?.id,
+  before: { 
+    parent_status: parentOrderStatus,
+    blocked_reason: getAddonBlockedReason(parentOrderStatus)
+  },
+  after: {
+    parent_order: parentOrderNumber,
+    addon_order: orderNumber,
+    total: addonTotal,
+    override_note: overrideNote,
+    new_consolidated_total: newTotal
+  },
+});
+```
 
 ## Files to Modify
 
 | File | Changes |
 |------|---------|
-| `supabase/migrations/xxx.sql` | Add `consolidated_total` column, new setting, consolidation trigger |
-| `src/components/InvoiceManagement.tsx` | Fetch add-ons, calculate consolidated total, show breakdown |
-| `src/pages/OrderDetail.tsx` | Add consolidated view section for parent orders with add-ons |
-| `src/components/PackingDetails.tsx` | Calculate combined item totals from parent + add-ons |
-| `src/components/OrderAddOnsList.tsx` | Add consolidation status indicator |
-| `src/utils/orderAddons.ts` | Add utility function to fetch consolidated totals |
+| `src/utils/orderAddons.ts` | Add `canAdminOverrideAddon` function |
+| `src/utils/consolidatedOrder.ts` | Add `recalculateConsolidatedTotal` function |
+| `src/components/OrderAddOnsList.tsx` | Show override option when blocked but overridable |
+| `src/components/AddOnCreator.tsx` | Accept `isOverride` and `overrideNote` props, trigger recalculation |
+| `src/pages/OrderDetail.tsx` | Add state management for override confirmation dialog |
 
-## Alternative Considered
+## User Workflow
 
-**Why not merge add-ons into parent order directly?**
+1. Admin opens a packed order (e.g., `SO-MKJ3VUM4JF5M2`)
+2. In the Add-On Orders section, they see: "Add-ons blocked: Order already packed"
+3. An "Override & Add Items" button is visible (admin only)
+4. Clicking it opens a confirmation dialog requiring justification
+5. After confirming, the normal Add-On Creator opens
+6. Upon successful creation:
+   - New add-on order is created and linked
+   - `consolidated_total` is recalculated
+   - Unpaid final invoice is updated (if exists)
+   - Override is logged to audit trail
+7. Admin can now proceed with invoicing/shipping as normal
 
-Merging would mean:
-- Modifying `parent_order_id` of add-on line items to point to parent
-- Deleting the add-on order record
-- Losing audit trail of when add-ons were created and approved
+## Edge Cases Handled
 
-The consolidation approach preserves:
-- Full history of each add-on as a separate order
-- Original approval/creation timestamps
-- Ability to "unconsolidate" if needed (e.g., customer cancels part of order)
+- **Shipped orders**: Override NOT allowed (too late)
+- **Cancelled orders**: Override NOT allowed (invalid state)
+- **Paid invoices**: Warning shown, but override allowed (admin may need to issue credit/refund separately)
+- **No existing invoice**: Override allowed, consolidated total updated for future invoice
 
-## Summary
-
-Your instinct is correct: consolidation for invoicing and packing makes operational sense. The recommended approach:
-
-1. **Keep add-ons as separate orders** during production (preserves audit trail)
-2. **Consolidate at the UI/invoice level** when packing begins
-3. **Single final invoice** calculated from parent + all add-on subtotals
-4. **Unified packing screen** showing combined items from all linked orders
-5. **Synchronized status changes** so shipping one order ships them all
