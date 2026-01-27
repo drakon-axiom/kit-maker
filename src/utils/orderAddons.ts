@@ -11,12 +11,29 @@ const ADDON_BLOCKED_STATUSES = [
   'cancelled'
 ];
 
+// Statuses where admin override is allowed (not cancelled or shipped)
+const ADMIN_OVERRIDE_ALLOWED_STATUSES = [
+  'in_packing',
+  'packed',
+  'awaiting_invoice',
+  'awaiting_payment',
+  'ready_to_ship',
+];
+
 /**
  * Check if an order can have add-ons created for it
  * Add-ons are allowed until packing begins
  */
 export const canCreateAddon = (status: string): boolean => {
   return !ADDON_BLOCKED_STATUSES.includes(status);
+};
+
+/**
+ * Check if an admin can override the add-on block
+ * Override is allowed for orders in fulfillment but not yet shipped/cancelled
+ */
+export const canAdminOverrideAddon = (status: string): boolean => {
+  return ADMIN_OVERRIDE_ALLOWED_STATUSES.includes(status);
 };
 
 /**

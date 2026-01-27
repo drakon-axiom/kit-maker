@@ -11,6 +11,7 @@ import { ArrowLeft, Loader2, DollarSign, Package, Pencil, Trash2, Plus, Factory,
 import { OrderAddOnsList } from '@/components/OrderAddOnsList';
 import { AddOnCreator } from '@/components/AddOnCreator';
 import { canCreateAddon } from '@/utils/orderAddons';
+import { AddOnOverrideDialog } from '@/components/AddOnOverrideDialog';
 import { Separator } from '@/components/ui/separator';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -162,6 +163,9 @@ const OrderDetail = () => {
   const [pendingStatusChange, setPendingStatusChange] = useState<Database["public"]["Enums"]["order_status"] | null>(null);
   const [shipStationDialogOpen, setShipStationDialogOpen] = useState(false);
   const [addOnCreatorOpen, setAddOnCreatorOpen] = useState(false);
+  const [addOnOverrideDialogOpen, setAddOnOverrideDialogOpen] = useState(false);
+  const [addOnOverrideNote, setAddOnOverrideNote] = useState('');
+  const [addOnIsOverride, setAddOnIsOverride] = useState(false);
   const [addOnsKey, setAddOnsKey] = useState(0);
   const labelRef = useRef<HTMLDivElement>(null);
   
@@ -1364,7 +1368,12 @@ const OrderDetail = () => {
           orderId={order.id}
           orderStatus={order.status}
           isAdmin={userRole === 'admin'}
-          onCreateAddOn={() => setAddOnCreatorOpen(true)}
+          onCreateAddOn={() => {
+            setAddOnIsOverride(false);
+            setAddOnOverrideNote('');
+            setAddOnCreatorOpen(true);
+          }}
+          onOverrideAddOn={() => setAddOnOverrideDialogOpen(true)}
         />
       )}
 
@@ -1785,15 +1794,41 @@ const OrderDetail = () => {
       {order && !order.is_internal && (
         <AddOnCreator
           open={addOnCreatorOpen}
-          onOpenChange={setAddOnCreatorOpen}
+          onOpenChange={(open) => {
+            setAddOnCreatorOpen(open);
+            if (!open) {
+              setAddOnIsOverride(false);
+              setAddOnOverrideNote('');
+            }
+          }}
           parentOrderId={order.id}
           parentOrderNumber={order.human_uid}
           parentOrderTotal={order.subtotal}
+          parentOrderStatus={order.status}
           customerId={order.customer_id}
           brandId={order.brand_id}
+          isOverride={addOnIsOverride}
+          overrideNote={addOnOverrideNote}
           onSuccess={() => {
             setAddOnsKey(prev => prev + 1);
+            setAddOnIsOverride(false);
+            setAddOnOverrideNote('');
             fetchOrder();
+          }}
+        />
+      )}
+
+      {/* Add-On Override Confirmation Dialog */}
+      {order && !order.is_internal && (
+        <AddOnOverrideDialog
+          open={addOnOverrideDialogOpen}
+          onOpenChange={setAddOnOverrideDialogOpen}
+          orderStatus={order.status}
+          onConfirm={(justification) => {
+            setAddOnOverrideNote(justification);
+            setAddOnIsOverride(true);
+            setAddOnOverrideDialogOpen(false);
+            setAddOnCreatorOpen(true);
           }}
         />
       )}

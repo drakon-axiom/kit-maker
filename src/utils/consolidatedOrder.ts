@@ -216,3 +216,78 @@ export const getAddOnCount = async (orderId: string): Promise<number> => {
   if (error) return 0;
   return count || 0;
 };
+
+/**
+ * Recalculate and update the consolidated_total for a parent order
+ * Used after creating late add-ons via admin override
+ */
+export const recalculateConsolidatedTotal = async (parentOrderId: string): Promise<number> => {
+  // Fetch parent order subtotal
+  const { data: parent, error: parentError } = await supabase
+    .from('sales_orders')
+    .select('subtotal')
+    .eq('id', parentOrderId)
+    .single();
+
+  if (parentError) throw parentError;
+
+  // Fetch all add-on subtotals
+  const { data: addons, error: addonsError } = await supabase
+    .from('order_addons')
+    .select(`
+      addon_order:sales_orders!order_addons_addon_so_id_fkey(subtotal)
+    `)
+    .eq('parent_so_id', parentOrderId);
+
+  if (addonsError) throw addonsError;
+
+  const total = (parent?.subtotal || 0) + 
+    (addons || []).reduce((sum, a) => {
+      const addonOrder = a.addon_order as unknown as { subtotal: number } | null;
+      return sum + (addonOrder?.subtotal || 0);
+    }, 0);
+
+  // Update parent order
+  const { error: updateError } = await supabase
+    .from('sales_orders')
+    .update({ consolidated_total: total })
+    .eq('id', parentOrderId);
+
+  if (updateError) throw updateError;
+
+  return total;
+};
+
+/**
+ * Update unpaid final invoice after consolidated total recalculation
+ */
+export const updateUnpaidFinalInvoice = async (
+  parentOrderId: string, 
+  newConsolidatedTotal: number
+): Promise<boolean> => {
+  // Check if there's an unpaid final invoice
+  const { data: invoice, error: fetchError } = await supabase
+    .from('invoices')
+    .select('id, tax')
+    .eq('so_id', parentOrderId)
+    .eq('type', 'final')
+    .eq('status', 'unpaid')
+    .maybeSingle();
+
+  if (fetchError) throw fetchError;
+
+  if (invoice) {
+    const { error: updateError } = await supabase
+      .from('invoices')
+      .update({ 
+        subtotal: newConsolidatedTotal,
+        total: newConsolidatedTotal + (invoice.tax || 0)
+      })
+      .eq('id', invoice.id);
+
+    if (updateError) throw updateError;
+    return true;
+  }
+
+  return false;
+};

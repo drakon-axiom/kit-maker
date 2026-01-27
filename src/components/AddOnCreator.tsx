@@ -9,7 +9,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Loader2, Plus, Minus, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
-import { validateAddonSize } from '@/utils/orderAddons';
+import { validateAddonSize, getAddonBlockedReason } from '@/utils/orderAddons';
+import { recalculateConsolidatedTotal, updateUnpaidFinalInvoice } from '@/utils/consolidatedOrder';
 
 interface SKU {
   id: string;
@@ -25,9 +26,12 @@ interface AddOnCreatorProps {
   parentOrderId: string;
   parentOrderNumber: string;
   parentOrderTotal: number;
+  parentOrderStatus: string;
   customerId: string | null;
   brandId: string | null;
   onSuccess: () => void;
+  isOverride?: boolean;
+  overrideNote?: string;
 }
 
 export function AddOnCreator({
@@ -36,9 +40,12 @@ export function AddOnCreator({
   parentOrderId,
   parentOrderNumber,
   parentOrderTotal,
+  parentOrderStatus,
   customerId,
   brandId,
   onSuccess,
+  isOverride = false,
+  overrideNote = '',
 }: AddOnCreatorProps) {
   const { user } = useAuth();
   const [skus, setSkus] = useState<SKU[]>([]);
@@ -183,7 +190,7 @@ export function AddOnCreator({
           customer_id: customerId,
           brand_id: brandId,
           parent_order_id: parentOrderId,
-          status: 'in_queue', // Add-ons go directly to queue
+          status: isOverride ? parentOrderStatus as any : 'in_queue', // Override: match parent status
           subtotal: addonTotal,
           deposit_required: false,
           label_required: false,
@@ -216,7 +223,7 @@ export function AddOnCreator({
 
       if (linesError) throw linesError;
 
-      // Create the add-on link
+      // Create the add-on link with override note if applicable
       const { error: addonError } = await supabase
         .from('order_addons')
         .insert({
@@ -224,6 +231,7 @@ export function AddOnCreator({
           addon_so_id: newOrder.id,
           created_by: user?.id,
           reason: reason || `Add-on for ${parentOrderNumber}`,
+          admin_notes: isOverride ? overrideNote : null,
           status: 'approved',
           approved_by: user?.id,
           approved_at: new Date().toISOString(),
@@ -231,20 +239,41 @@ export function AddOnCreator({
 
       if (addonError) throw addonError;
 
-      // Audit log
+      // If this is an override, recalculate consolidated total and update invoice
+      let newConsolidatedTotal: number | null = null;
+      let invoiceUpdated = false;
+      
+      if (isOverride) {
+        newConsolidatedTotal = await recalculateConsolidatedTotal(parentOrderId);
+        invoiceUpdated = await updateUnpaidFinalInvoice(parentOrderId, newConsolidatedTotal);
+      }
+
+      // Audit log - different action for override
       await supabase.from('audit_log').insert({
         entity: 'order_addon',
         entity_id: newOrder.id,
-        action: 'created',
+        action: isOverride ? 'created_override' : 'created',
         actor_id: user?.id,
+        before: isOverride ? {
+          parent_status: parentOrderStatus,
+          blocked_reason: getAddonBlockedReason(parentOrderStatus)
+        } : null,
         after: {
           parent_order: parentOrderNumber,
           addon_order: orderNumber,
           total: addonTotal,
+          ...(isOverride && {
+            override_note: overrideNote,
+            new_consolidated_total: newConsolidatedTotal,
+            invoice_updated: invoiceUpdated
+          })
         },
       });
 
-      toast.success(`Add-on order ${orderNumber} created successfully`);
+      const successMessage = isOverride
+        ? `Add-on order ${orderNumber} created via override. ${invoiceUpdated ? 'Invoice updated.' : ''}`
+        : `Add-on order ${orderNumber} created successfully`;
+      toast.success(successMessage);
       onOpenChange(false);
       onSuccess();
     } catch (error) {
@@ -258,11 +287,24 @@ export function AddOnCreator({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Create Add-On Order</DialogTitle>
+          <DialogTitle>
+            {isOverride ? 'Create Add-On Order (Override)' : 'Create Add-On Order'}
+          </DialogTitle>
           <DialogDescription>
             Add products to order {parentOrderNumber}. These will be produced and shipped together.
           </DialogDescription>
         </DialogHeader>
+
+        {isOverride && (
+          <div className="p-3 bg-warning/10 border border-warning/20 rounded-lg">
+            <p className="text-sm font-medium text-warning">
+              Override Mode: This add-on bypasses the normal window.
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Consolidated total will be recalculated. Any unpaid final invoice will be updated.
+            </p>
+          </div>
+        )}
 
         {loading ? (
           <div className="flex justify-center py-12">
