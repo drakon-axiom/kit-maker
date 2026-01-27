@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -42,6 +42,8 @@ interface Payment {
 interface InvoiceManagementProps {
   orderId: string;
   orderTotal: number;
+  /** If present, indicates this order has add-ons consolidated for fulfillment/invoicing */
+  consolidatedTotalStored?: number | null;
   orderUid?: string;
   depositAmount: number;
   depositRequired: boolean;
@@ -53,6 +55,7 @@ interface InvoiceManagementProps {
 export function InvoiceManagement({
   orderId,
   orderTotal,
+  consolidatedTotalStored = null,
   orderUid = '',
   depositAmount,
   depositRequired,
@@ -61,6 +64,7 @@ export function InvoiceManagement({
   onStatusChange,
 }: InvoiceManagementProps) {
   const { toast } = useToast();
+  const isSyncingLegacyFinalInvoice = useRef(false);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [payments, setPayments] = useState<Record<string, Payment[]>>({});
   const [loading, setLoading] = useState(true);
@@ -89,6 +93,61 @@ export function InvoiceManagement({
   // Calculate consolidated total for final invoices
   const consolidatedTotal = orderTotal + addOns.reduce((sum, addon) => sum + (addon.subtotal || 0), 0);
 
+  const maybeSyncLegacyFinalInvoice = useCallback(
+    async (invoiceRows: Invoice[], paymentsByInvoice: Record<string, Payment[]>) => {
+      // Only relevant when we have a stored consolidated total (parent + add-ons)
+      if (!consolidatedTotalStored || consolidatedTotalStored <= orderTotal) return;
+      if (isSyncingLegacyFinalInvoice.current) return;
+
+      const finalInvoice = invoiceRows.find((inv) => inv.type === 'final');
+      if (!finalInvoice) return;
+      if (finalInvoice.status !== 'unpaid') return;
+
+      const paidAmount = (paymentsByInvoice[finalInvoice.id] || []).reduce(
+        (sum, p) => sum + (p.amount || 0),
+        0
+      );
+      if (paidAmount > 0) return;
+
+      // Only auto-fix invoices that look like the pre-consolidation behavior:
+      // final invoice subtotal == parent order subtotal.
+      const legacySubtotalMatch = Math.abs((finalInvoice.subtotal || 0) - orderTotal) < 0.01;
+      const legacyTotalMatch =
+        Math.abs((finalInvoice.total || 0) - (orderTotal + (finalInvoice.tax || 0))) < 0.01;
+      if (!legacySubtotalMatch || !legacyTotalMatch) return;
+
+      const expectedSubtotal = consolidatedTotalStored;
+      const expectedTotal = expectedSubtotal + (finalInvoice.tax || 0);
+      const alreadySynced =
+        Math.abs((finalInvoice.subtotal || 0) - expectedSubtotal) < 0.01 &&
+        Math.abs((finalInvoice.total || 0) - expectedTotal) < 0.01;
+      if (alreadySynced) return;
+
+      isSyncingLegacyFinalInvoice.current = true;
+      const { error } = await supabase
+        .from('invoices')
+        .update({ subtotal: expectedSubtotal, total: expectedTotal })
+        .eq('id', finalInvoice.id);
+      isSyncingLegacyFinalInvoice.current = false;
+
+      if (error) throw error;
+
+      setInvoices((prev) =>
+        prev.map((inv) =>
+          inv.id === finalInvoice.id
+            ? { ...inv, subtotal: expectedSubtotal, total: expectedTotal }
+            : inv
+        )
+      );
+
+      toast({
+        title: 'Invoice Updated',
+        description: `Final invoice synced to consolidated total ($${expectedTotal.toFixed(2)})`,
+      });
+    },
+    [consolidatedTotalStored, orderTotal, toast]
+  );
+
   const fetchInvoices = async () => {
     try {
       const { data, error } = await supabase
@@ -98,25 +157,31 @@ export function InvoiceManagement({
         .order('created_at', { ascending: true });
 
       if (error) throw error;
-      setInvoices(data || []);
+      const invoiceRows = (data || []) as Invoice[];
+      setInvoices(invoiceRows);
 
       // Fetch payments for each invoice
-      if (data && data.length > 0) {
-        const invoiceIds = data.map((inv) => inv.id);
+      if (invoiceRows.length > 0) {
+        const invoiceIds = invoiceRows.map((inv) => inv.id);
         const { data: paymentData, error: paymentError } = await supabase
           .from('invoice_payments')
           .select('*')
           .in('invoice_id', invoiceIds)
           .order('recorded_at', { ascending: false });
 
+        const grouped: Record<string, Payment[]> = {};
         if (!paymentError && paymentData) {
-          const grouped: Record<string, Payment[]> = {};
           paymentData.forEach((p) => {
             if (!grouped[p.invoice_id]) grouped[p.invoice_id] = [];
             grouped[p.invoice_id].push(p);
           });
-          setPayments(grouped);
         }
+
+        setPayments(grouped);
+
+        // Retroactive fix: if we consolidated after a final invoice already existed,
+        // auto-sync that legacy invoice to the consolidated total (only when unpaid + no payments).
+        await maybeSyncLegacyFinalInvoice(invoiceRows, grouped);
       }
     } catch (error) {
       console.error('Error fetching invoices:', error);
@@ -127,7 +192,8 @@ export function InvoiceManagement({
 
   useEffect(() => {
     fetchInvoices();
-  }, [orderId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orderId, consolidatedTotalStored]);
 
   const generateInvoiceNumber = (type: 'deposit' | 'final') => {
     const prefix = type === 'deposit' ? 'DEP' : 'INV';
