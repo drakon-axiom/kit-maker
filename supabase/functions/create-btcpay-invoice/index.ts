@@ -106,14 +106,28 @@ serve(async (req) => {
     console.log(`[create-btcpay-invoice] Creating BTCPay invoice at ${btcpayUrl}/api/v1/stores/${storeId}/invoices`);
 
     // Create invoice via BTCPay Server API
-    const btcpayResponse = await fetch(`${btcpayUrl}/api/v1/stores/${storeId}/invoices`, {
-      method: "POST",
-      headers: {
-        "Authorization": `token ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(invoiceData),
-    });
+    let btcpayResponse: Response;
+    try {
+      btcpayResponse = await fetch(`${btcpayUrl}/api/v1/stores/${storeId}/invoices`, {
+        method: "POST",
+        headers: {
+          "Authorization": `token ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(invoiceData),
+      });
+    } catch (fetchError) {
+      console.error("[create-btcpay-invoice] Network/DNS error:", fetchError);
+      const errorMessage = fetchError instanceof Error ? fetchError.message : String(fetchError);
+      
+      if (errorMessage.includes("dns error") || errorMessage.includes("Name or service not known")) {
+        throw new Error(`Cannot reach BTCPay Server at ${btcpayUrl}. Please verify the server URL is correct and the server is online.`);
+      }
+      if (errorMessage.includes("connection refused") || errorMessage.includes("ECONNREFUSED")) {
+        throw new Error(`BTCPay Server at ${btcpayUrl} refused the connection. Please verify the server is running.`);
+      }
+      throw new Error(`Failed to connect to BTCPay Server: ${errorMessage}`);
+    }
 
     if (!btcpayResponse.ok) {
       const errorText = await btcpayResponse.text();
