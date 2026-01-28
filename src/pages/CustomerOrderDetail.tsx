@@ -34,6 +34,8 @@ interface Brand {
   wire_routing_number?: string | null;
   wire_account_number?: string | null;
   contact_email?: string | null;
+  btcpay_server_url?: string | null;
+  btcpay_store_id?: string | null;
 }
 
 interface Order {
@@ -106,7 +108,9 @@ export default function CustomerOrderDetail() {
             wire_bank_name,
             wire_routing_number,
             wire_account_number,
-            contact_email
+            contact_email,
+            btcpay_server_url,
+            btcpay_store_id
           )
         `)
         .eq('id', id)
@@ -129,7 +133,9 @@ export default function CustomerOrderDetail() {
             wire_bank_name,
             wire_routing_number,
             wire_account_number,
-            contact_email
+            contact_email,
+            btcpay_server_url,
+            btcpay_store_id
           `)
           .eq('is_default', true)
           .single();
