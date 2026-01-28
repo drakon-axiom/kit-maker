@@ -118,7 +118,15 @@ serve(async (req) => {
     if (!btcpayResponse.ok) {
       const errorText = await btcpayResponse.text();
       console.error("[create-btcpay-invoice] BTCPay API error:", errorText);
-      throw new Error(`BTCPay Server error: ${btcpayResponse.status} - ${errorText}`);
+      
+      // Provide user-friendly error messages for common issues
+      if (btcpayResponse.status === 502 || btcpayResponse.status === 503 || btcpayResponse.status === 504) {
+        throw new Error("BTCPay Server is currently unavailable. Please try again later or contact support.");
+      }
+      if (btcpayResponse.status === 401 || btcpayResponse.status === 403) {
+        throw new Error("BTCPay Server authentication failed. Please check API key configuration.");
+      }
+      throw new Error(`BTCPay Server error: ${btcpayResponse.status}`);
     }
 
     const btcpayInvoice = await btcpayResponse.json();
