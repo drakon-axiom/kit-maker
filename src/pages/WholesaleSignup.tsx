@@ -49,21 +49,17 @@ const WholesaleSignup = () => {
       return;
     }
 
-    // Validate shipping address if any field is filled
-    const hasShippingFields = formData.shipping_address_line1 || formData.shipping_city || 
-                              formData.shipping_state || formData.shipping_zip;
-    if (hasShippingFields && (!formData.shipping_address_line1 || !formData.shipping_city || 
-                               !formData.shipping_state || !formData.shipping_zip)) {
+    // Validate shipping address - now required
+    if (!formData.shipping_address_line1 || !formData.shipping_city || 
+        !formData.shipping_state || !formData.shipping_zip) {
       toast.error('Please fill in all required shipping address fields (Address Line 1, City, State, ZIP)');
       return;
     }
 
-    // Validate billing address if not same as shipping and any field is filled
+    // Validate billing address - required when not same as shipping
     if (!formData.billing_same_as_shipping) {
-      const hasBillingFields = formData.billing_address_line1 || formData.billing_city || 
-                               formData.billing_state || formData.billing_zip;
-      if (hasBillingFields && (!formData.billing_address_line1 || !formData.billing_city || 
-                                !formData.billing_state || !formData.billing_zip)) {
+      if (!formData.billing_address_line1 || !formData.billing_city || 
+          !formData.billing_state || !formData.billing_zip) {
         toast.error('Please fill in all required billing address fields (Address Line 1, City, State, ZIP)');
         return;
       }
@@ -285,15 +281,16 @@ const WholesaleSignup = () => {
             </div>
 
             <div className="space-y-4 border-t border-border pt-6">
-              <h3 className="text-lg font-semibold text-foreground">Shipping Address</h3>
+              <h3 className="text-lg font-semibold text-foreground">Shipping Address *</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2 col-span-2">
-                  <Label htmlFor="shipping_address_line1">Address Line 1</Label>
+                  <Label htmlFor="shipping_address_line1">Address Line 1 *</Label>
                   <Input
                     id="shipping_address_line1"
                     value={formData.shipping_address_line1}
                     onChange={(e) => setFormData({ ...formData, shipping_address_line1: e.target.value })}
                     placeholder="123 Main Street"
+                    required
                     className="border-primary/20 focus:border-primary"
                   />
                 </div>
@@ -308,41 +305,45 @@ const WholesaleSignup = () => {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="shipping_city">City</Label>
+                  <Label htmlFor="shipping_city">City *</Label>
                   <Input
                     id="shipping_city"
                     value={formData.shipping_city}
                     onChange={(e) => setFormData({ ...formData, shipping_city: e.target.value })}
                     placeholder="New York"
+                    required
                     className="border-primary/20 focus:border-primary"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="shipping_state">State</Label>
+                  <Label htmlFor="shipping_state">State *</Label>
                   <Input
                     id="shipping_state"
                     value={formData.shipping_state}
                     onChange={(e) => setFormData({ ...formData, shipping_state: e.target.value })}
                     placeholder="NY"
+                    required
                     className="border-primary/20 focus:border-primary"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="shipping_zip">ZIP Code</Label>
+                  <Label htmlFor="shipping_zip">ZIP Code *</Label>
                   <Input
                     id="shipping_zip"
                     value={formData.shipping_zip}
                     onChange={(e) => setFormData({ ...formData, shipping_zip: e.target.value })}
                     placeholder="10001"
+                    required
                     className="border-primary/20 focus:border-primary"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="shipping_country">Country</Label>
+                  <Label htmlFor="shipping_country">Country *</Label>
                   <Input
                     id="shipping_country"
                     value={formData.shipping_country}
                     onChange={(e) => setFormData({ ...formData, shipping_country: e.target.value })}
+                    required
                     className="border-primary/20 focus:border-primary"
                   />
                 </div>
@@ -363,15 +364,16 @@ const WholesaleSignup = () => {
 
               {!formData.billing_same_as_shipping && (
                 <>
-                  <h3 className="text-lg font-semibold text-foreground">Billing Address</h3>
+                  <h3 className="text-lg font-semibold text-foreground">Billing Address *</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2 col-span-2">
-                      <Label htmlFor="billing_address_line1">Address Line 1</Label>
+                      <Label htmlFor="billing_address_line1">Address Line 1 *</Label>
                       <Input
                         id="billing_address_line1"
                         value={formData.billing_address_line1}
                         onChange={(e) => setFormData({ ...formData, billing_address_line1: e.target.value })}
                         placeholder="123 Main Street"
+                        required
                         className="border-primary/20 focus:border-primary"
                       />
                     </div>
@@ -386,41 +388,45 @@ const WholesaleSignup = () => {
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="billing_city">City</Label>
+                      <Label htmlFor="billing_city">City *</Label>
                       <Input
                         id="billing_city"
                         value={formData.billing_city}
                         onChange={(e) => setFormData({ ...formData, billing_city: e.target.value })}
                         placeholder="New York"
+                        required
                         className="border-primary/20 focus:border-primary"
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="billing_state">State</Label>
+                      <Label htmlFor="billing_state">State *</Label>
                       <Input
                         id="billing_state"
                         value={formData.billing_state}
                         onChange={(e) => setFormData({ ...formData, billing_state: e.target.value })}
                         placeholder="NY"
+                        required
                         className="border-primary/20 focus:border-primary"
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="billing_zip">ZIP Code</Label>
+                      <Label htmlFor="billing_zip">ZIP Code *</Label>
                       <Input
                         id="billing_zip"
                         value={formData.billing_zip}
                         onChange={(e) => setFormData({ ...formData, billing_zip: e.target.value })}
                         placeholder="10001"
+                        required
                         className="border-primary/20 focus:border-primary"
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="billing_country">Country</Label>
+                      <Label htmlFor="billing_country">Country *</Label>
                       <Input
                         id="billing_country"
                         value={formData.billing_country}
                         onChange={(e) => setFormData({ ...formData, billing_country: e.target.value })}
+                        required
                         className="border-primary/20 focus:border-primary"
                       />
                     </div>
