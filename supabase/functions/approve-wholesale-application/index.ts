@@ -426,12 +426,14 @@ serve(async (req) => {
           },
         });
 
+        // Minify HTML to single line to prevent quoted-printable artifacts
+        const minifiedHtml = emailBody.replace(/\n\s*/g, '').replace(/>\s+</g, '><');
+        
         await client.send({
           from: `Wholesale Portal <${smtpConfig.user}>`,
           to: application.email,
           subject: 'Wholesale Account Approved - Login Credentials',
-          content: emailBody,
-          mimeContent: [{ mimeType: 'text/html', content: emailBody, transferEncoding: '8bit' }],
+          html: minifiedHtml,
         });
 
         await client.close();
