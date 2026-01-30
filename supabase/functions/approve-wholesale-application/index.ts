@@ -211,6 +211,27 @@ serve(async (req) => {
         userId = existingUser.id;
         isExistingUser = true;
         console.log('Found existing user:', userId);
+
+        // Update existing user's password to the temp password and set requires_password_change
+        console.log('Updating existing user password and metadata');
+        const { error: updateError } = await supabase.auth.admin.updateUser(userId, {
+          password: tempPassword,
+          user_metadata: {
+            ...existingUser.user_metadata,
+            full_name: application.contact_name,
+            requires_password_change: true,
+          },
+        });
+
+        if (updateError) {
+          console.error('Error updating existing user:', updateError);
+          await logFailure('wholesale_approval_failed', { stage: 'update_existing_user', userId, error: updateError });
+          return new Response(JSON.stringify({ error: 'Failed to update existing user account', details: updateError }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+        console.log('Existing user password and metadata updated successfully');
       } else {
         await logFailure('wholesale_approval_failed', { stage: 'create_user', email: application.email, error: authError });
         return new Response(JSON.stringify({ error: 'Failed to create user account', details: authError }), {
@@ -500,10 +521,10 @@ serve(async (req) => {
     console.log('Application approval complete');
 
     return new Response(
-      JSON.stringify({ 
-        success: true, 
+      JSON.stringify({
+        success: true,
         userId,
-        tempPassword: isExistingUser ? '(existing user - password unchanged)' : tempPassword,
+        tempPassword, // Password is now always set (both new and existing users)
         isExistingUser,
       }),
       {

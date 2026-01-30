@@ -393,12 +393,14 @@ serve(async (req) => {
 
     console.log(`Sending email from: ${fromName} <${fromEmail}> to: ${email}`);
 
+    // Minify HTML to single line to prevent quoted-printable artifacts
+    const minifiedHtml = html.replace(/\n\s*/g, '').replace(/>\s+</g, '><');
+
     await client.send({
       from: `${fromName} <${fromEmail}>`,
       to: email,
       subject: subject,
-      content: "Please view this email in an HTML-capable email client.",
-      mimeContent: [{ mimeType: 'text/html', content: html, transferEncoding: '8bit' }],
+      html: minifiedHtml,
     });
 
     await client.close();
