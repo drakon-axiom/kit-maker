@@ -52,6 +52,7 @@ interface SKU {
   bundle_overhead_price?: number;
   inserts_optional: boolean;
   categories?: { id: string; name: string };
+  sku_categories?: Array<{ category_id: string; categories: { id: string; name: string } }>;
   default_bottle_size_ml: number;
 }
 
@@ -100,7 +101,8 @@ const SKUs = () => {
     label_required: false,
     price_per_piece: '',
     sizes: [] as number[],
-    category_id: '',
+    category_ids: [] as string[],
+    category_mode: 'unchanged' as 'unchanged' | 'replace' | 'add',
   });
   const [importOpen, setImportOpen] = useState(false);
   const [importData, setImportData] = useState<ImportRow[]>([]);
@@ -118,7 +120,7 @@ const SKUs = () => {
     active: true,
     use_tier_pricing: false,
     sizes: [] as number[],
-    category_id: '',
+    category_ids: [] as string[],
     is_bundle: false,
     pack_size: 1,
     bundle_product_price: '',
@@ -164,7 +166,8 @@ const SKUs = () => {
           *,
           pricing_tiers:sku_pricing_tiers(*),
           sizes:sku_sizes(id, size_ml),
-          categories(id, name)
+          categories(id, name),
+          sku_categories(category_id, categories(id, name))
         `)
         .order('code');
 
@@ -204,7 +207,6 @@ const SKUs = () => {
         price_per_piece: parseFloat(formData.price_per_piece),
         active: formData.active,
         use_tier_pricing: formData.use_tier_pricing,
-        category_id: formData.category_id || null,
         is_bundle: formData.is_bundle,
         pack_size: formData.pack_size,
         bundle_product_price: parseFloat(formData.bundle_product_price) || 0,
@@ -227,7 +229,7 @@ const SKUs = () => {
 
         if (error) throw error;
 
-        // Delete existing tiers and sizes
+        // Delete existing tiers, sizes, and categories
         await supabase
           .from('sku_pricing_tiers')
           .delete()
@@ -235,6 +237,11 @@ const SKUs = () => {
         
         await supabase
           .from('sku_sizes')
+          .delete()
+          .eq('sku_id', editingSKU.id);
+
+        await supabase
+          .from('sku_categories')
           .delete()
           .eq('sku_id', editingSKU.id);
         
@@ -280,6 +287,20 @@ const SKUs = () => {
         if (tiersError) throw tiersError;
       }
 
+      // Insert category associations
+      if (formData.category_ids.length > 0) {
+        const categoryInserts = formData.category_ids.map(catId => ({
+          sku_id: skuId,
+          category_id: catId,
+        }));
+
+        const { error: catsError } = await supabase
+          .from('sku_categories')
+          .insert(categoryInserts);
+
+        if (catsError) throw catsError;
+      }
+
       toast({ 
         title: 'Success', 
         description: editingSKU ? 'SKU updated successfully' : 'SKU created successfully' 
@@ -321,9 +342,8 @@ const SKUs = () => {
         updates.price_per_piece = parseFloat(bulkFormData.price_per_piece);
       }
 
-      if (bulkFormData.category_id && bulkFormData.category_id !== 'unchanged') {
-        updates.category_id = bulkFormData.category_id === 'none' ? null : bulkFormData.category_id;
-      }
+      // Handle category updates after SKU updates
+      const selectedSkuIds = Array.from(selectedSKUs);
 
       const updatePromises = Array.from(selectedSKUs).map(skuId =>
         supabase.from('skus').update(updates).eq('id', skuId)
@@ -336,9 +356,33 @@ const SKUs = () => {
         throw new Error(`Failed to update ${errors.length} SKU(s)`);
       }
 
+      // Handle category updates
+      if (bulkFormData.category_mode !== 'unchanged') {
+        for (const skuId of selectedSkuIds) {
+          if (bulkFormData.category_mode === 'replace') {
+            // Delete existing categories first
+            await supabase.from('sku_categories').delete().eq('sku_id', skuId);
+          }
+          
+          // Insert new categories if any selected
+          if (bulkFormData.category_ids.length > 0) {
+            const categoryInserts = bulkFormData.category_ids.map(catId => ({
+              sku_id: skuId,
+              category_id: catId,
+            }));
+            
+            // Use upsert to handle duplicates when adding
+            await supabase.from('sku_categories').upsert(categoryInserts, { 
+              onConflict: 'sku_id,category_id',
+              ignoreDuplicates: true 
+            });
+          }
+        }
+      }
+
       // Handle size variants if specified
       if (bulkFormData.sizes.length > 0) {
-        const sizePromises = Array.from(selectedSKUs).flatMap(async (skuId) => {
+        for (const skuId of selectedSkuIds) {
           // Delete existing sizes
           await supabase.from('sku_sizes').delete().eq('sku_id', skuId);
           
@@ -348,10 +392,8 @@ const SKUs = () => {
             size_ml: size,
           }));
           
-          return supabase.from('sku_sizes').insert(sizeInserts);
-        });
-        
-        await Promise.all(sizePromises);
+          await supabase.from('sku_sizes').insert(sizeInserts);
+        }
       }
 
       toast({
@@ -366,7 +408,8 @@ const SKUs = () => {
         label_required: false,
         price_per_piece: '',
         sizes: [],
-        category_id: '',
+        category_ids: [],
+        category_mode: 'unchanged',
       });
       fetchSKUs();
     } catch (error) {
@@ -836,7 +879,7 @@ const SKUs = () => {
       active: true,
       use_tier_pricing: false,
       sizes: [],
-      category_id: '',
+      category_ids: [],
       is_bundle: false,
       pack_size: 1,
       bundle_product_price: '',
@@ -869,7 +912,7 @@ const SKUs = () => {
       active: sku.active,
       use_tier_pricing: sku.use_tier_pricing,
       sizes: sku.sizes?.map(s => s.size_ml) || [],
-      category_id: sku.category_id || '',
+      category_ids: sku.sku_categories?.map(sc => sc.category_id) || [],
       is_bundle: sku.is_bundle,
       pack_size: sku.pack_size,
       bundle_product_price: sku.bundle_product_price.toString(),
@@ -1070,18 +1113,28 @@ const SKUs = () => {
               />
               
               <div className="space-y-2">
-                <Label htmlFor="category_id">Category (Optional)</Label>
-                <Select value={formData.category_id || 'none'} onValueChange={(value) => setFormData({ ...formData, category_id: value === 'none' ? '' : value })}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="No category" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">No category</SelectItem>
-                    {categories.filter(cat => cat.id).map((cat) => (
-                      <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Label>Categories (Optional)</Label>
+                <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto border rounded-md p-3">
+                  {categories.filter(cat => cat.id).map((cat) => (
+                    <div key={cat.id} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`cat-${cat.id}`}
+                        checked={formData.category_ids.includes(cat.id)}
+                        onCheckedChange={(checked) => {
+                          if (checked) {
+                            setFormData({ ...formData, category_ids: [...formData.category_ids, cat.id] });
+                          } else {
+                            setFormData({ ...formData, category_ids: formData.category_ids.filter(id => id !== cat.id) });
+                          }
+                        }}
+                      />
+                      <Label htmlFor={`cat-${cat.id}`} className="text-sm cursor-pointer">{cat.name}</Label>
+                    </div>
+                  ))}
+                  {categories.filter(cat => cat.id).length === 0 && (
+                    <p className="text-sm text-muted-foreground col-span-2">No categories available</p>
+                  )}
+                </div>
               </div>
               
               <div className="space-y-2">
@@ -1719,28 +1772,47 @@ const SKUs = () => {
               </p>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="bulk_category">Category</Label>
+              <Label>Category Update Mode</Label>
               <Select
-                value={bulkFormData.category_id}
-                onValueChange={(value) => setBulkFormData({ ...bulkFormData, category_id: value })}
+                value={bulkFormData.category_mode}
+                onValueChange={(value: 'unchanged' | 'replace' | 'add') => setBulkFormData({ ...bulkFormData, category_mode: value })}
               >
-                <SelectTrigger id="bulk_category">
-                  <SelectValue placeholder="Leave unchanged" />
+                <SelectTrigger>
+                  <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="unchanged">Leave unchanged</SelectItem>
-                  <SelectItem value="none">No category</SelectItem>
-                  {categories.filter(cat => cat.id).map((category) => (
-                    <SelectItem key={category.id} value={category.id}>
-                      {category.name}
-                    </SelectItem>
-                  ))}
+                  <SelectItem value="replace">Replace all categories</SelectItem>
+                  <SelectItem value="add">Add to existing categories</SelectItem>
                 </SelectContent>
               </Select>
-              <p className="text-xs text-muted-foreground">
-                Leave unchanged to keep existing categories
-              </p>
             </div>
+            {bulkFormData.category_mode !== 'unchanged' && (
+              <div className="space-y-2">
+                <Label>Categories</Label>
+                <div className="grid grid-cols-2 gap-2 max-h-32 overflow-y-auto border rounded-md p-3">
+                  {categories.filter(cat => cat.id).map((cat) => (
+                    <div key={cat.id} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`bulk-cat-${cat.id}`}
+                        checked={bulkFormData.category_ids.includes(cat.id)}
+                        onCheckedChange={(checked) => {
+                          if (checked) {
+                            setBulkFormData({ ...bulkFormData, category_ids: [...bulkFormData.category_ids, cat.id] });
+                          } else {
+                            setBulkFormData({ ...bulkFormData, category_ids: bulkFormData.category_ids.filter(id => id !== cat.id) });
+                          }
+                        }}
+                      />
+                      <Label htmlFor={`bulk-cat-${cat.id}`} className="text-sm cursor-pointer">{cat.name}</Label>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {bulkFormData.category_mode === 'replace' ? 'Selected categories will replace all existing categories' : 'Selected categories will be added to existing ones'}
+                </p>
+              </div>
+            )}
             <div className="space-y-2">
               <Label>Size Variants (ml)</Label>
               <div className="flex flex-wrap gap-2">
