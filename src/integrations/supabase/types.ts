@@ -1555,6 +1555,42 @@ export type Database = {
           },
         ]
       }
+      sku_categories: {
+        Row: {
+          category_id: string
+          created_at: string
+          id: string
+          sku_id: string
+        }
+        Insert: {
+          category_id: string
+          created_at?: string
+          id?: string
+          sku_id: string
+        }
+        Update: {
+          category_id?: string
+          created_at?: string
+          id?: string
+          sku_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sku_categories_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sku_categories_sku_id_fkey"
+            columns: ["sku_id"]
+            isOneToOne: false
+            referencedRelation: "skus"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sku_pricing_tiers: {
         Row: {
           created_at: string
