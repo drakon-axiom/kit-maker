@@ -78,11 +78,14 @@ serve(async (req) => {
       );
     }
 
-    // Update the user's password
+    // Update the user's password and clear requires_password_change flag
     console.log(`Updating password for user: ${tokenData.user_id}`);
     const { error: updateError } = await supabase.auth.admin.updateUserById(
       tokenData.user_id,
-      { password: newPassword }
+      {
+        password: newPassword,
+        user_metadata: { requires_password_change: false }
+      }
     );
 
     if (updateError) {
