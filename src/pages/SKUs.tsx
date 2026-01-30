@@ -321,7 +321,7 @@ const SKUs = () => {
         updates.price_per_piece = parseFloat(bulkFormData.price_per_piece);
       }
 
-      if (bulkFormData.category_id) {
+      if (bulkFormData.category_id && bulkFormData.category_id !== 'unchanged') {
         updates.category_id = bulkFormData.category_id === 'none' ? null : bulkFormData.category_id;
       }
 
@@ -1071,12 +1071,13 @@ const SKUs = () => {
               
               <div className="space-y-2">
                 <Label htmlFor="category_id">Category (Optional)</Label>
-                <Select value={formData.category_id || undefined} onValueChange={(value) => setFormData({ ...formData, category_id: value })}>
+                <Select value={formData.category_id || 'none'} onValueChange={(value) => setFormData({ ...formData, category_id: value === 'none' ? '' : value })}>
                   <SelectTrigger>
                     <SelectValue placeholder="No category" />
                   </SelectTrigger>
                   <SelectContent>
-                    {categories.map((cat) => (
+                    <SelectItem value="none">No category</SelectItem>
+                    {categories.filter(cat => cat.id).map((cat) => (
                       <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
                     ))}
                   </SelectContent>
@@ -1727,9 +1728,9 @@ const SKUs = () => {
                   <SelectValue placeholder="Leave unchanged" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Leave unchanged</SelectItem>
+                  <SelectItem value="unchanged">Leave unchanged</SelectItem>
                   <SelectItem value="none">No category</SelectItem>
-                  {categories.map((category) => (
+                  {categories.filter(cat => cat.id).map((category) => (
                     <SelectItem key={category.id} value={category.id}>
                       {category.name}
                     </SelectItem>
