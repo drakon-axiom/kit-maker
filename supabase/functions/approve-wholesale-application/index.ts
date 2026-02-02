@@ -149,10 +149,11 @@ serve(async (req) => {
     }
 
     // Generate temporary password (12 chars, mix of letters and numbers)
-    const tempPassword = Array.from({ length: 12 }, () => {
-      const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
-      return chars.charAt(Math.floor(Math.random() * chars.length));
-    }).join('');
+    // Using crypto.getRandomValues() for cryptographically secure randomness
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+    const randomBytes = new Uint8Array(12);
+    crypto.getRandomValues(randomBytes);
+    const tempPassword = Array.from(randomBytes, (byte) => chars[byte % chars.length]).join('');
 
     console.log('Creating user account for:', application.email);
 
@@ -226,7 +227,7 @@ serve(async (req) => {
         if (updateError) {
           console.error('Error updating existing user:', updateError);
           await logFailure('wholesale_approval_failed', { stage: 'update_existing_user', userId, error: updateError });
-          return new Response(JSON.stringify({ error: 'Failed to update existing user account', details: updateError }), {
+          return new Response(JSON.stringify({ error: 'Failed to update existing user account' }), {
             status: 500,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           });
@@ -234,7 +235,7 @@ serve(async (req) => {
         console.log('Existing user password and metadata updated successfully');
       } else {
         await logFailure('wholesale_approval_failed', { stage: 'create_user', email: application.email, error: authError });
-        return new Response(JSON.stringify({ error: 'Failed to create user account', details: authError }), {
+        return new Response(JSON.stringify({ error: 'Failed to create user account' }), {
           status: 500,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
@@ -520,11 +521,11 @@ serve(async (req) => {
 
     console.log('Application approval complete');
 
+    // Note: tempPassword is only sent via email, never in API response for security
     return new Response(
       JSON.stringify({
         success: true,
         userId,
-        tempPassword, // Password is now always set (both new and existing users)
         isExistingUser,
       }),
       {

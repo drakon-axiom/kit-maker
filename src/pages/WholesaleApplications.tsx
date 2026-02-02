@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -8,7 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Loader2, CheckCircle, XCircle, Clock, Archive } from 'lucide-react';
+import { Loader2, CheckCircle, XCircle, Clock, Archive, ShieldAlert } from 'lucide-react';
 import { format } from 'date-fns';
 import Layout from '@/components/Layout';
 
@@ -45,6 +46,7 @@ interface ArchivedApplication extends Application {
 }
 
 const WholesaleApplications = () => {
+  const navigate = useNavigate();
   const [applications, setApplications] = useState<Application[]>([]);
   const [archivedApplications, setArchivedApplications] = useState<ArchivedApplication[]>([]);
   const [archivedIds, setArchivedIds] = useState<Set<string>>(new Set());
@@ -57,11 +59,44 @@ const WholesaleApplications = () => {
   const [activeTab, setActiveTab] = useState('pending');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [archivingSelected, setArchivingSelected] = useState(false);
+  const [authorized, setAuthorized] = useState<boolean | null>(null);
+
+  // Check authorization on mount
+  useEffect(() => {
+    const checkAuthorization = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          setAuthorized(false);
+          return;
+        }
+
+        const { data: roles, error } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', user.id)
+          .in('role', ['admin', 'operator']);
+
+        if (error || !roles || roles.length === 0) {
+          setAuthorized(false);
+          return;
+        }
+
+        setAuthorized(true);
+      } catch {
+        setAuthorized(false);
+      }
+    };
+
+    checkAuthorization();
+  }, []);
 
   useEffect(() => {
-    // Fetch archived IDs first, then fetch applications
-    fetchArchivedIds().then(() => fetchApplications());
-  }, []);
+    // Only fetch data if authorized
+    if (authorized === true) {
+      fetchArchivedIds().then(() => fetchApplications());
+    }
+  }, [authorized]);
 
   useEffect(() => {
     if (activeTab === 'archived' && archivedApplications.length === 0) {
@@ -530,6 +565,35 @@ const WholesaleApplications = () => {
       </CardContent>
     </Card>
   );
+
+  // Show loading while checking authorization
+  if (authorized === null) {
+    return (
+      <Layout>
+        <div className="flex items-center justify-center min-h-screen">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </Layout>
+    );
+  }
+
+  // Show unauthorized message if not admin/operator
+  if (authorized === false) {
+    return (
+      <Layout>
+        <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4">
+          <ShieldAlert className="h-16 w-16 text-destructive" />
+          <h1 className="text-2xl font-bold">Access Denied</h1>
+          <p className="text-muted-foreground text-center max-w-md">
+            You do not have permission to access this page. This area is restricted to administrators and operators only.
+          </p>
+          <Button onClick={() => navigate('/')} variant="outline">
+            Return to Home
+          </Button>
+        </div>
+      </Layout>
+    );
+  }
 
   if (loading) {
     return (

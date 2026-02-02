@@ -46,42 +46,34 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Find the token
-    console.log(`Looking up token: ${token.substring(0, 8)}...`);
-    const { data: tokenData, error: tokenError } = await supabase
+    // Atomically claim the token by marking it as used in a single operation
+    // This prevents race conditions where multiple requests could use the same token
+    console.log(`Attempting to claim token...`);
+    const now = new Date().toISOString();
+    const { data: claimedToken, error: claimError } = await supabase
       .from('password_reset_tokens')
-      .select('*')
+      .update({ used_at: now })
       .eq('token', token)
       .is('used_at', null)
+      .gt('expires_at', new Date().toISOString())
+      .select('*')
       .single();
 
-    if (tokenError) {
-      console.error("Token lookup error:", tokenError.message, tokenError.details);
-    }
-
-    if (tokenError || !tokenData) {
-      console.log("Token not found or already used");
+    if (claimError || !claimedToken) {
+      // Token not found, already used, or expired
+      console.log("Token claim failed - invalid, already used, or expired");
       return new Response(
         JSON.stringify({ error: "Invalid or expired reset token" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    console.log(`Token found for user: ${tokenData.user_id}`);
-
-    // Check if token is expired
-    const expiresAt = new Date(tokenData.expires_at);
-    if (expiresAt < new Date()) {
-      return new Response(
-        JSON.stringify({ error: "Reset token has expired. Please request a new one." }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
+    console.log(`Token claimed successfully for user: ${claimedToken.user_id}`);
 
     // Update the user's password and clear requires_password_change flag
-    console.log(`Updating password for user: ${tokenData.user_id}`);
+    console.log(`Updating password for user: ${claimedToken.user_id}`);
     const { error: updateError } = await supabase.auth.admin.updateUserById(
-      tokenData.user_id,
+      claimedToken.user_id,
       {
         password: newPassword,
         user_metadata: { requires_password_change: false }
@@ -90,26 +82,17 @@ serve(async (req) => {
 
     if (updateError) {
       console.error("Password update error:", updateError.message, updateError);
-      throw new Error("Failed to update password: " + updateError.message);
+      // Token is already marked as used, user will need to request a new reset
+      throw new Error("Failed to update password. Please request a new reset link.");
     }
 
-    console.log('Password updated successfully, marking token as used');
-
-    // Mark the token as used
-    const { error: markError } = await supabase
-      .from('password_reset_tokens')
-      .update({ used_at: new Date().toISOString() })
-      .eq('id', tokenData.id);
-
-    if (markError) {
-      console.error("Error marking token as used:", markError);
-    }
+    console.log('Password updated successfully');
 
     // Invalidate any other unused tokens for this user
     const { error: invalidateError } = await supabase
       .from('password_reset_tokens')
-      .update({ used_at: new Date().toISOString() })
-      .eq('user_id', tokenData.user_id)
+      .update({ used_at: now })
+      .eq('user_id', claimedToken.user_id)
       .is('used_at', null);
 
     if (invalidateError) {
