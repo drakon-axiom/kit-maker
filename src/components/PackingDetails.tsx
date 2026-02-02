@@ -67,11 +67,16 @@ export function PackingDetails({ orderId, totalItems, parentLineItems = [], orde
     }
   }, [orderId, totalItems, parentLineItems, orderSubtotal]);
 
+  // Fetch packages and box presets only when orderId changes
   useEffect(() => {
     fetchPackages();
     fetchBoxPresets();
+  }, [orderId]);
+
+  // Fetch add-ons separately to avoid re-fetching packages when add-on deps change
+  useEffect(() => {
     fetchAddOns();
-  }, [orderId, fetchAddOns]);
+  }, [fetchAddOns]);
 
   const fetchPackages = async () => {
     try {
