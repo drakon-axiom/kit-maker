@@ -1310,8 +1310,8 @@ const OrderDetail = () => {
         />
       )}
 
-      {/* Packing Details - Show when order is in packing or later */}
-      {userRole === 'admin' && order && (order.status === 'in_packing' || order.status === 'packed' || order.status === 'ready_to_ship') && (
+      {/* Packing Details - Show when order is in packing or later (including shipped for edits) */}
+      {userRole === 'admin' && order && ['in_packing', 'packed', 'ready_to_ship', 'awaiting_invoice', 'awaiting_payment', 'shipped'].includes(order.status) && (
         <PackingDetails
           orderId={order.id}
           totalItems={totalBottles}
