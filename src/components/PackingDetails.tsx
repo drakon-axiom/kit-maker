@@ -131,7 +131,7 @@ export function PackingDetails({ orderId, totalItems, parentLineItems = [], orde
 
       if (error) throw error;
 
-      setPackages([...packages, data]);
+      setPackages(prevPackages => [...prevPackages, data]);
       onPackagesChange?.();
       toast({
         title: 'Package Added',
@@ -208,8 +208,8 @@ export function PackingDetails({ orderId, totalItems, parentLineItems = [], orde
     const preset = boxPresets.find(p => p.id === presetId);
     if (!preset) return;
 
-    const updated = packages.map(p => 
-      p.id === pkg.id 
+    setPackages(prevPackages => prevPackages.map(p =>
+      p.id === pkg.id
         ? {
             ...p,
             length_inches: preset.length_inches,
@@ -218,12 +218,11 @@ export function PackingDetails({ orderId, totalItems, parentLineItems = [], orde
             weight_oz: preset.weight_oz || p.weight_oz,
           }
         : p
-    );
-    setPackages(updated);
+    ));
   };
 
   const updateLocalPackage = (id: string, field: keyof OrderPackage, value: number | string | null) => {
-    setPackages(packages.map(p => 
+    setPackages(prevPackages => prevPackages.map(p =>
       p.id === id ? { ...p, [field]: value } : p
     ));
   };
