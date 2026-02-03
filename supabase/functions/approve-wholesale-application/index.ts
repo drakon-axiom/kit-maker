@@ -214,7 +214,7 @@ serve(async (req) => {
 
         // Update existing user's password to the temp password and set requires_password_change
         console.log('Updating existing user password and metadata');
-        const { error: updateError } = await supabase.auth.admin.updateUser(userId, {
+        const { error: updateError } = await supabase.auth.admin.updateUserById(userId, {
           password: tempPassword,
           user_metadata: {
             ...existingUser.user_metadata,

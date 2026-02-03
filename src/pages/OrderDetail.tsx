@@ -31,6 +31,7 @@ import { SendCustomSMS } from '@/components/SendCustomSMS';
 import { StatusChangeDialog } from '@/components/StatusChangeDialog';
 import { InvoiceManagement } from '@/components/InvoiceManagement';
 import { ShipStationLabelDialog } from '@/components/ShipStationLabelDialog';
+import { ManualTrackingDialog } from '@/components/ManualTrackingDialog';
 import { PackingDetails } from '@/components/PackingDetails';
 import { ConsolidatedOrderSummary } from '@/components/ConsolidatedOrderSummary';
 import { ConsolidatedLineItems } from '@/components/ConsolidatedLineItems';
@@ -162,6 +163,7 @@ const OrderDetail = () => {
   const [statusChangeDialogOpen, setStatusChangeDialogOpen] = useState(false);
   const [pendingStatusChange, setPendingStatusChange] = useState<Database["public"]["Enums"]["order_status"] | null>(null);
   const [shipStationDialogOpen, setShipStationDialogOpen] = useState(false);
+  const [manualTrackingDialogOpen, setManualTrackingDialogOpen] = useState(false);
   const [addOnCreatorOpen, setAddOnCreatorOpen] = useState(false);
   const [addOnOverrideDialogOpen, setAddOnOverrideDialogOpen] = useState(false);
   const [addOnOverrideNote, setAddOnOverrideNote] = useState('');
@@ -965,15 +967,25 @@ const OrderDetail = () => {
                   <SelectItem value="cancelled">Cancelled</SelectItem>
                 </SelectContent>
               </Select>
-              {/* ShipStation Label Button - show when ready to ship */}
+              {/* Shipping Options - show when ready to ship */}
               {(order.status === 'ready_to_ship' || order.status === 'packed') && !order.is_internal && (
-                <Button
-                  variant="default"
-                  onClick={() => setShipStationDialogOpen(true)}
-                >
-                  <Truck className="h-4 w-4 mr-2" />
-                  Create Label
-                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="default">
+                      <Truck className="h-4 w-4 mr-2" />
+                      Ship Order
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => setShipStationDialogOpen(true)}>
+                      Create ShipStation Label
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => setManualTrackingDialogOpen(true)}>
+                      Add Tracking Manually
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               )}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -1784,6 +1796,17 @@ const OrderDetail = () => {
         <ShipStationLabelDialog
           open={shipStationDialogOpen}
           onOpenChange={setShipStationDialogOpen}
+          orderId={order.id}
+          orderNumber={order.human_uid}
+          onSuccess={fetchOrder}
+        />
+      )}
+
+      {/* Manual Tracking Dialog */}
+      {order && (
+        <ManualTrackingDialog
+          open={manualTrackingDialogOpen}
+          onOpenChange={setManualTrackingDialogOpen}
           orderId={order.id}
           orderNumber={order.human_uid}
           onSuccess={fetchOrder}
