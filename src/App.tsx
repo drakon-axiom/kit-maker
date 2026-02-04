@@ -43,6 +43,7 @@ const CustomerOrderDetail = lazy(() => import("./pages/CustomerOrderDetail"));
 const CustomerPaymentHistory = lazy(() => import("./pages/CustomerPaymentHistory"));
 const CustomerQuoteManagement = lazy(() => import("./pages/CustomerQuoteManagement"));
 const CustomerAccountSettings = lazy(() => import("./pages/CustomerAccountSettings"));
+const CustomerProductionProgress = lazy(() => import("./pages/CustomerProductionProgress"));
 const CustomerAccess = lazy(() => import("./pages/CustomerAccess"));
 const UserManagement = lazy(() => import("./pages/UserManagement"));
 const EmailHistory = lazy(() => import("./pages/EmailHistory"));
@@ -108,6 +109,7 @@ const App = () => (
                     <Route path="orders/:id" element={<CustomerOrderDetail />} />
                     <Route path="payments" element={<CustomerPaymentHistory />} />
                     <Route path="quotes" element={<CustomerQuoteManagement />} />
+                    <Route path="production" element={<CustomerProductionProgress />} />
                     <Route path="settings" element={<CustomerAccountSettings />} />
                   </Route>
 
