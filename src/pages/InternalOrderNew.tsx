@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Plus, Trash2, ArrowLeft } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
+import { Textarea } from '@/components/ui/textarea';
 
 interface Brand {
   id: string;
@@ -59,6 +60,7 @@ const InternalOrderNew = () => {
   const [skus, setSKUs] = useState<SKU[]>([]);
   const [selectedBrand, setSelectedBrand] = useState('');
   const [labelRequired, setLabelRequired] = useState(true);
+  const [orderNotes, setOrderNotes] = useState('');
   const [lines, setLines] = useState<OrderLine[]>([]);
   const [kitSize, setKitSize] = useState(10);
   const [loading, setLoading] = useState(false);
@@ -287,6 +289,7 @@ const InternalOrderNew = () => {
           deposit_required: false,
           deposit_status: 'paid',
           source_channel: 'internal',
+          notes: orderNotes.trim() || null,
         })
         .select()
         .single();
@@ -380,6 +383,17 @@ const InternalOrderNew = () => {
                 />
                 <Label htmlFor="label-required" className="text-sm">Label Required</Label>
               </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="notes" className="text-sm">Notes</Label>
+              <Textarea
+                id="notes"
+                placeholder="Add any notes about this internal order..."
+                value={orderNotes}
+                onChange={(e) => setOrderNotes(e.target.value)}
+                className="min-h-[80px]"
+              />
             </div>
           </CardContent>
         </Card>

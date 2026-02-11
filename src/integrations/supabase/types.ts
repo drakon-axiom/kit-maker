@@ -1304,6 +1304,7 @@ export type Database = {
           is_internal: boolean
           label_required: boolean
           manual_payment_notes: string | null
+          notes: string | null
           parent_order_id: string | null
           promised_date: string | null
           quote_expiration_days: number | null
@@ -1331,6 +1332,7 @@ export type Database = {
           is_internal?: boolean
           label_required?: boolean
           manual_payment_notes?: string | null
+          notes?: string | null
           parent_order_id?: string | null
           promised_date?: string | null
           quote_expiration_days?: number | null
@@ -1358,6 +1360,7 @@ export type Database = {
           is_internal?: boolean
           label_required?: boolean
           manual_payment_notes?: string | null
+          notes?: string | null
           parent_order_id?: string | null
           promised_date?: string | null
           quote_expiration_days?: number | null
