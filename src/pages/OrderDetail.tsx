@@ -79,6 +79,7 @@ interface OrderDetail {
   quote_expires_at: string | null;
   created_at: string;
   is_internal: boolean;
+  notes: string | null;
   brand_id: string | null;
   brand?: {
     name: string;
@@ -133,6 +134,60 @@ const statusColors: Record<string, string> = {
   queued: 'bg-purple-500',
   wip: 'bg-primary',
   complete: 'bg-success',
+};
+
+const InlineNotes = ({ orderId, initialNotes, onUpdate }: { orderId: string; initialNotes: string | null; onUpdate: () => void }) => {
+  const [editing, setEditing] = useState(false);
+  const [notes, setNotes] = useState(initialNotes || '');
+  const [saving, setSaving] = useState(false);
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const { error } = await supabase
+        .from('sales_orders')
+        .update({ notes: notes.trim() || null })
+        .eq('id', orderId);
+      if (error) throw error;
+      setEditing(false);
+      onUpdate();
+    } catch {
+      // silently fail
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (editing) {
+    return (
+      <div className="space-y-2">
+        <Textarea
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          className="min-h-[80px]"
+          placeholder="Add notes..."
+        />
+        <div className="flex gap-2">
+          <Button size="sm" onClick={handleSave} disabled={saving}>
+            {saving ? 'Saving...' : 'Save'}
+          </Button>
+          <Button size="sm" variant="ghost" onClick={() => { setNotes(initialNotes || ''); setEditing(false); }}>
+            Cancel
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <p
+      className="font-medium cursor-pointer hover:text-primary transition-colors"
+      onClick={() => setEditing(true)}
+      title="Click to edit"
+    >
+      {initialNotes || <span className="text-muted-foreground italic">Click to add notes...</span>}
+    </p>
+  );
 };
 
 const OrderDetail = () => {
@@ -1033,6 +1088,10 @@ const OrderDetail = () => {
               <div>
                 <p className="text-sm text-muted-foreground">Purpose</p>
                 <p className="font-medium">Retail Stock</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Notes</p>
+                <InlineNotes orderId={order.id} initialNotes={order.notes} onUpdate={fetchOrder} />
               </div>
             </CardContent>
           </Card>
