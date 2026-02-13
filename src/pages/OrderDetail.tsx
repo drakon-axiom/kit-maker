@@ -114,6 +114,7 @@ interface Batch {
   qty_bottle_good: number;
   qty_bottle_scrap: number;
   created_at: string;
+  planned_start: string | null;
 }
 
 const statusColors: Record<string, string> = {
@@ -1514,7 +1515,10 @@ const OrderDetail = () => {
                     <div className="flex-1">
                       <div className="font-mono font-medium">{batch.human_uid}</div>
                       <div className="text-sm text-muted-foreground mt-1">
-                        Created {new Date(batch.created_at).toLocaleDateString()}
+                        {batch.planned_start 
+                          ? <>Scheduled: {new Date(batch.planned_start).toLocaleDateString()}</>
+                          : <>Created {new Date(batch.created_at).toLocaleDateString()}</>
+                        }
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
