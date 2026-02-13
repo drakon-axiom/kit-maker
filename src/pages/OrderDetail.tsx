@@ -666,7 +666,7 @@ const OrderDetail = () => {
     }
   };
 
-  const createBatchesFromPlans = async (plans: Array<{ lineId: string; quantity: number }>) => {
+  const createBatchesFromPlans = async (plans: Array<{ lineId: string; quantity: number; plannedStart?: Date }>) => {
     if (!order) return;
 
     try {
@@ -693,6 +693,7 @@ const OrderDetail = () => {
             qty_bottle_good: 0,
             qty_bottle_scrap: 0,
             priority_index: 0,
+            planned_start: plan.plannedStart ? plan.plannedStart.toISOString() : null,
           })
           .select()
           .single();

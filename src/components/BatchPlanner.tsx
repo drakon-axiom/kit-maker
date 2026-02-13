@@ -5,8 +5,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
-import { Plus, Trash2, Package } from 'lucide-react';
+import { Plus, Trash2, Package, CalendarIcon } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
 
 interface OrderLine {
   id: string;
@@ -20,6 +24,7 @@ interface OrderLine {
 interface BatchPlan {
   lineId: string;
   quantity: number;
+  plannedStart?: Date;
 }
 
 interface BatchPlannerProps {
@@ -52,6 +57,12 @@ const BatchPlanner = ({
   const updateBatchQuantity = (index: number, quantity: number) => {
     const updated = [...batchPlans];
     updated[index].quantity = quantity;
+    setBatchPlans(updated);
+  };
+
+  const updateBatchDate = (index: number, date: Date | undefined) => {
+    const updated = [...batchPlans];
+    updated[index].plannedStart = date;
     setBatchPlans(updated);
   };
 
@@ -201,8 +212,8 @@ const BatchPlanner = ({
                   const isOverAllocated = remaining < 0;
                   
                   return (
-                    <div key={index} className="flex items-center gap-3 p-3 border rounded-lg">
-                      <div className="flex-1">
+                    <div key={index} className="flex items-center gap-3 p-3 border rounded-lg flex-wrap">
+                      <div className="flex-1 min-w-[120px]">
                         <div className="font-mono text-sm">{line.sku.code}</div>
                         <div className="text-xs text-muted-foreground">{line.sku.description}</div>
                       </div>
@@ -218,6 +229,33 @@ const BatchPlanner = ({
                           onChange={(e) => updateBatchQuantity(index, parseInt(e.target.value) || 0)}
                           className={`w-24 ${isOverAllocated ? 'border-destructive' : ''}`}
                         />
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className={cn(
+                                'w-[150px] justify-start text-left font-normal text-xs',
+                                !plan.plannedStart && 'text-muted-foreground'
+                              )}
+                            >
+                              <CalendarIcon className="mr-1 h-3 w-3" />
+                              {plan.plannedStart ? format(plan.plannedStart, 'MMM d, yyyy') : 'Schedule'}
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar
+                              mode="single"
+                              selected={plan.plannedStart}
+                              onSelect={(d) => updateBatchDate(index, d)}
+                              initialFocus
+                              disabled={(date) => date < new Date()}
+                              className={cn("p-3 pointer-events-auto")}
+                            />
+                          </PopoverContent>
+                        </Popover>
                         <Button
                           variant="ghost"
                           size="icon"
