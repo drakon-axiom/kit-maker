@@ -251,7 +251,11 @@ const BatchPlanner = ({
                               selected={plan.plannedStart}
                               onSelect={(d) => updateBatchDate(index, d)}
                               initialFocus
-                              disabled={(date) => date < new Date()}
+                            disabled={(date) => {
+                              const today = new Date();
+                              today.setHours(0, 0, 0, 0);
+                              return date < today;
+                            }}
                               className={cn("p-3 pointer-events-auto")}
                             />
                           </PopoverContent>
