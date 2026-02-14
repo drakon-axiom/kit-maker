@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Plus, Trash2, Loader2, Package, Send, Info } from 'lucide-react';
+import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from '@/components/ui/breadcrumb';
 import { Link } from 'react-router-dom';
@@ -162,7 +163,15 @@ export default function CustomerNewOrder() {
   const updateLine = (index: number, field: keyof OrderLine, value: any) => {
     const updatedLines = [...lines];
     updatedLines[index] = { ...updatedLines[index], [field]: value };
-    if (field === 'sku_id' || field === 'sell_mode' || field === 'qty_entered') {
+    if (field === 'unit_price') {
+      const price = parseFloat(value);
+      if (!isNaN(price) && price >= 0) {
+        updatedLines[index].unit_price = price;
+        (updatedLines[index] as any)._priceOverridden = true;
+        const qty = updatedLines[index].qty_entered || 0;
+        updatedLines[index].line_subtotal = qty * price;
+      }
+    } else if (field === 'sku_id' || field === 'sell_mode' || field === 'qty_entered') {
       const sku = skus.find(s => s.id === updatedLines[index].sku_id);
       if (sku) {
         const sellMode = updatedLines[index].sell_mode;
@@ -171,7 +180,10 @@ export default function CustomerNewOrder() {
           qty = MIN_ORDER_QUANTITY;
           updatedLines[index].qty_entered = qty;
         }
-        updatedLines[index].unit_price = sellMode === 'kit' ? getPriceForQuantity(sku, qty) : sku.price_per_piece;
+        if (!(updatedLines[index] as any)._priceOverridden || field === 'sku_id' || field === 'sell_mode') {
+          updatedLines[index].unit_price = sellMode === 'kit' ? getPriceForQuantity(sku, qty) : sku.price_per_piece;
+          (updatedLines[index] as any)._priceOverridden = false;
+        }
         updatedLines[index].bottle_qty = sellMode === 'kit' ? qty * (sku.pack_size || 1) : qty;
         updatedLines[index].line_subtotal = qty * updatedLines[index].unit_price;
       }
@@ -310,9 +322,16 @@ export default function CustomerNewOrder() {
           </div>
 
           <div className="flex items-center justify-between pt-2 border-t text-sm">
-            <div>
-              <span className="text-muted-foreground">Unit: </span>
-              <span className="font-medium">${line.unit_price.toFixed(2)}</span>
+            <div className="flex items-center gap-1">
+              <span className="text-muted-foreground">Unit: $</span>
+              <Input
+                type="number"
+                min="0"
+                step="0.01"
+                value={line.unit_price}
+                onChange={(e) => updateLine(index, 'unit_price', e.target.value)}
+                className="w-20 h-7 text-sm"
+              />
             </div>
             <div>
               <span className="text-muted-foreground">Bottles: </span>
@@ -476,7 +495,16 @@ export default function CustomerNewOrder() {
                               className="w-24"
                             />
                           </TableCell>
-                          <TableCell>${line.unit_price.toFixed(2)}</TableCell>
+                          <TableCell>
+                            <Input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              value={line.unit_price}
+                              onChange={(e) => updateLine(index, 'unit_price', e.target.value)}
+                              className="w-24"
+                            />
+                          </TableCell>
                           <TableCell>{line.bottle_qty}</TableCell>
                           <TableCell>${line.line_subtotal.toFixed(2)}</TableCell>
                           <TableCell>

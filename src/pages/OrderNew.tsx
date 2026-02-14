@@ -188,9 +188,15 @@ const OrderNew = () => {
       const sku = skus.find(s => s.id === line.sku_id);
       line.qty_entered = enteredQty;
       
-      // Update price based on quantity tier for kit mode
-      if (line.sell_mode === 'kit' && sku) {
+      // Update price based on quantity tier for kit mode (only if not manually overridden)
+      if (line.sell_mode === 'kit' && sku && !(line as any)._priceOverridden) {
         line.unit_price = getPriceForQuantity(sku, line.qty_entered);
+      }
+    } else if (field === 'unit_price') {
+      const price = parseFloat(value);
+      if (!isNaN(price) && price >= 0) {
+        line.unit_price = price;
+        (line as any)._priceOverridden = true;
       }
     }
 
@@ -514,7 +520,16 @@ const OrderNew = () => {
                         </div>
                       </TableCell>
                       <TableCell className="font-mono">{line.bottle_qty}</TableCell>
-                      <TableCell>${line.unit_price.toFixed(2)}</TableCell>
+                      <TableCell>
+                        <Input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={line.unit_price}
+                          onChange={(e) => updateLine(index, 'unit_price', e.target.value)}
+                          className="w-24"
+                        />
+                      </TableCell>
                       <TableCell className="font-medium">${line.line_subtotal.toFixed(2)}</TableCell>
                       <TableCell>
                         <Button
