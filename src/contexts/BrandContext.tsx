@@ -74,6 +74,21 @@ export const BrandProvider = ({ children }: { children: React.ReactNode }) => {
     root.style.setProperty('--foreground', brand.foreground_color);
     root.style.setProperty('--card', brand.card_color);
     root.style.setProperty('--muted', brand.muted_color);
+
+    // Update page title
+    document.title = brand.name;
+
+    // Update favicon to brand logo
+    if (brand.logo_url) {
+      let faviconLink = document.querySelector<HTMLLinkElement>("link[rel='icon']");
+      if (!faviconLink) {
+        faviconLink = document.createElement('link');
+        faviconLink.rel = 'icon';
+        document.head.appendChild(faviconLink);
+      }
+      faviconLink.href = brand.logo_url;
+      faviconLink.type = 'image/png';
+    }
   }, []);
 
   const fetchBrands = useCallback(async (isCustomer: boolean = false): Promise<Brand[]> => {
