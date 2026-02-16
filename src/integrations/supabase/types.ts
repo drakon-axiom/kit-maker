@@ -1299,6 +1299,7 @@ export type Database = {
           deposit_required: boolean
           deposit_status: Database["public"]["Enums"]["deposit_status"]
           eta_date: string | null
+          hold_reason: string | null
           human_uid: string
           id: string
           is_internal: boolean
@@ -1327,6 +1328,7 @@ export type Database = {
           deposit_required?: boolean
           deposit_status?: Database["public"]["Enums"]["deposit_status"]
           eta_date?: string | null
+          hold_reason?: string | null
           human_uid: string
           id?: string
           is_internal?: boolean
@@ -1355,6 +1357,7 @@ export type Database = {
           deposit_required?: boolean
           deposit_status?: Database["public"]["Enums"]["deposit_status"]
           eta_date?: string | null
+          hold_reason?: string | null
           human_uid?: string
           id?: string
           is_internal?: boolean
@@ -2193,6 +2196,8 @@ export type Database = {
         | "awaiting_payment"
         | "awaiting_approval"
         | "ready_to_stock"
+        | "on_hold"
+        | "stocked"
       payment_method: "cash" | "check" | "ach" | "wire" | "other"
       sell_mode: "kit" | "piece"
       step_status: "pending" | "wip" | "done"
@@ -2351,6 +2356,8 @@ export const Constants = {
         "awaiting_payment",
         "awaiting_approval",
         "ready_to_stock",
+        "on_hold",
+        "stocked",
       ],
       payment_method: ["cash", "check", "ach", "wire", "other"],
       sell_mode: ["kit", "piece"],

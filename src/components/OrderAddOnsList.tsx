@@ -36,7 +36,14 @@ const statusColors: Record<string, string> = {
   quoted: 'bg-blue-500',
   in_queue: 'bg-purple-500',
   in_production: 'bg-primary',
+  in_packing: 'bg-cyan-500',
+  awaiting_invoice: 'bg-pink-500',
+  awaiting_payment: 'bg-rose-500',
+  ready_to_ship: 'bg-emerald-500',
   shipped: 'bg-muted-foreground',
+  stocked: 'bg-teal-500',
+  on_hold: 'bg-amber-600',
+  cancelled: 'bg-destructive',
 };
 
 export function OrderAddOnsList({ orderId, orderStatus, onCreateAddOn, onOverrideAddOn, isAdmin = false }: OrderAddOnsListProps) {

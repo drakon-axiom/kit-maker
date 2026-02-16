@@ -185,8 +185,13 @@ export default function CustomerPortal() {
       deposit_due: 'bg-yellow-500',
       in_queue: 'bg-purple-500',
       in_production: 'bg-orange-500',
-      packed: 'bg-green-500',
-      shipped: 'bg-emerald-500',
+      in_labeling: 'bg-indigo-500',
+      in_packing: 'bg-cyan-500',
+      awaiting_invoice: 'bg-pink-500',
+      awaiting_payment: 'bg-rose-500',
+      ready_to_ship: 'bg-emerald-500',
+      shipped: 'bg-emerald-600',
+      on_hold: 'bg-amber-600',
       cancelled: 'bg-destructive'
     };
     return statusColors[status] || 'bg-muted';
@@ -388,7 +393,9 @@ export default function CustomerPortal() {
                   <SelectItem value="deposit_due">Deposit Due</SelectItem>
                   <SelectItem value="in_queue">In Queue</SelectItem>
                   <SelectItem value="in_production">In Production</SelectItem>
-                  <SelectItem value="packed">Packed</SelectItem>
+                  <SelectItem value="in_packing">In Packing</SelectItem>
+                  <SelectItem value="awaiting_payment">Awaiting Payment</SelectItem>
+                  <SelectItem value="ready_to_ship">Ready to Ship</SelectItem>
                   <SelectItem value="shipped">Shipped</SelectItem>
                 </SelectContent>
               </Select>

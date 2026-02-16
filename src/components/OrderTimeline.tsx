@@ -39,7 +39,6 @@ const OrderTimeline = ({ currentStatus, depositRequired, depositStatus }: OrderT
     { status: 'in_production', label: 'In Production', icon: Package, description: 'Being manufactured' },
     { status: 'in_labeling', label: 'Labeling', icon: Package, description: 'Labels being applied' },
     { status: 'in_packing', label: 'Packing', icon: Boxes, description: 'Being packed' },
-    { status: 'packed', label: 'Packed', icon: Boxes, description: 'Ready to ship' },
     { status: 'awaiting_invoice', label: 'Invoicing', icon: FileCheck, description: 'Invoice being prepared' },
     { status: 'awaiting_payment', label: 'Payment Due', icon: DollarSign, description: 'Final payment required' },
     { status: 'ready_to_ship', label: 'Ready to Ship', icon: Truck, description: 'Preparing for shipment' },
@@ -48,7 +47,7 @@ const OrderTimeline = ({ currentStatus, depositRequired, depositStatus }: OrderT
 
   const currentStepIndex = allSteps.findIndex(step => step.status === currentStatus);
   const isCancelled = currentStatus === 'cancelled';
-  const isOnHold = currentStatus.includes('hold');
+  const isOnHold = currentStatus === 'on_hold';
 
   const getStepStatus = (index: number) => {
     if (isCancelled) return 'cancelled';
