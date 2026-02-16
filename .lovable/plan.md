@@ -1,164 +1,93 @@
 
 
-# Add Payment Methods to Invoice Email + BTCPay Server Integration
+# Simplify Order Status Workflow: 20 to 13 Statuses
 
 ## Summary
 
-This plan adds two major capabilities:
-1. **Payment methods section in invoice emails** - Shows all available payment options with direct payment links where possible, plus a "Pay in Portal" fallback
-2. **BTCPay Server integration** - Full crypto payment support using BTCPay Server (works with both hosted and self-hosted instances)
+Consolidate the order status enum from 20 values down to 13, removing redundant and duplicate statuses. Add `hold_reason` column and `stocked` terminal status for internal orders.
 
-## What Customers Will See
-
-### In Invoice Emails
-The invoice email will include a new "Payment Options" section at the bottom, showing:
-
-- **Credit/Debit Card** - Direct link to Stripe checkout (if enabled)
-- **CashApp** - Deep link to open CashApp with pre-filled amount + $CashTag
-- **PayPal** - Link to PayPal payment (if SDK enabled) or manual email
-- **Wire Transfer** - Bank details for wire payments
-- **Cryptocurrency** - Link to BTCPay Server checkout page
-
-All methods also include a "Pay in Portal" fallback link for customers who prefer logging in.
-
-### In Customer Portal
-A new "Cryptocurrency" button will appear alongside existing payment methods, which opens the BTCPay Server checkout modal/page supporting all cryptocurrencies your BTCPay instance accepts.
-
-## Implementation Details
-
-### 1. Database Changes
-
-Add BTCPay Server configuration fields to the `brands` table:
-
-| Column | Type | Description |
-|--------|------|-------------|
-| `btcpay_server_url` | text | Your BTCPay Server instance URL (e.g., `https://btcpay.example.com`) |
-| `btcpay_store_id` | text | The store ID from BTCPay Server |
-| `btcpay_api_key` | text | API key for creating invoices programmatically |
-
-### 2. Brand Management Updates
-
-Add a new "Cryptocurrency (BTCPay Server)" section in the Payment Configuration area with:
-- Toggle to enable/disable crypto payments
-- BTCPay Server URL input
-- Store ID input  
-- API Key input (securely stored)
-- Link to BTCPay Server documentation
-
-### 3. Invoice Preview & Email Updates
-
-Modify both the preview component and edge function to:
-1. Fetch full brand payment configuration
-2. Generate a "Payment Options" section showing all enabled methods
-3. Include direct payment links for applicable methods:
-   - Stripe: Generate a checkout URL on-the-fly
-   - CashApp: Deep link with amount (`cash.app/$tag/amount`)
-   - PayPal: Either SDK checkout link or manual email
-   - BTCPay: Link to create invoice via API
-   - Wire: Display bank details inline
-4. Always include a "Pay in Customer Portal" fallback link
-
-### 4. BTCPay Server Edge Function
-
-Create a new `create-btcpay-invoice` edge function that:
-- Accepts order details (ID, amount, customer email)
-- Fetches brand's BTCPay configuration
-- Creates an invoice via BTCPay Server API
-- Returns the checkout URL for customer
+## New Status Flow
 
 ```text
-POST /functions/v1/create-btcpay-invoice
-{
-  "orderId": "uuid",
-  "amount": 150.00,
-  "paymentType": "deposit" | "final"
-}
-→ Returns: { "checkoutUrl": "https://btcpay.example.com/i/abc123" }
+External orders:
+  draft -> quoted -> awaiting_approval -> in_queue -> in_production
+    -> [in_labeling] -> in_packing -> awaiting_invoice -> awaiting_payment
+    -> ready_to_ship -> shipped
+
+Internal orders:
+  draft -> in_queue -> in_production -> [in_labeling] -> in_packing
+    -> stocked
+
+Hold: on_hold (with hold_reason: customer | internal | materials)
+Cancel: cancelled (reachable from most states)
 ```
 
-### 5. Customer Payment Card Updates
+## Statuses Being Removed (7)
 
-Add a new "Crypto" payment button that:
-- Opens BTCPay Server checkout in a new tab/modal
-- Shows all available cryptocurrencies (BTC, Lightning, stablecoins, etc.)
-- Handles callback/redirect after payment completion
+| Old Status | Reason |
+|---|---|
+| `invoiced` | Redundant with `awaiting_payment` |
+| `payment_due` | Duplicate of `awaiting_payment` |
+| `packed` | Auto-transitions to `awaiting_invoice` instantly; invisible state |
+| `ready_to_stock` | Replaced by `stocked` |
+| `on_hold_customer` | Collapsed into `on_hold` + `hold_reason` column |
+| `on_hold_internal` | Collapsed into `on_hold` + `hold_reason` column |
+| `on_hold_materials` | Collapsed into `on_hold` + `hold_reason` column |
 
-### 6. Invoice Email Payment Section Design
+## Statuses Being Added (2)
 
-```text
-+------------------------------------------------+
-|  💳 PAYMENT OPTIONS                            |
-+------------------------------------------------+
-|                                                |
-|  [Pay with Card] ────────────────────────────► |
-|  Pay instantly with credit or debit card       |
-|                                                |
-|  [Pay with CashApp] ─────────────────────────► |
-|  Send to: $YourCashTag                         |
-|                                                |
-|  [Pay with PayPal] ──────────────────────────► |
-|  Via PayPal checkout                           |
-|                                                |
-|  [Pay with Crypto] ──────────────────────────► |
-|  Bitcoin, Lightning, USDT, USDC & more         |
-|                                                |
-|  Wire Transfer                                 |
-|  Bank: Chase Bank                              |
-|  Routing: 123456789                            |
-|  Account: XXXX1234                             |
-|  Reference: Order SO-ABC123                    |
-|                                                |
-|  ─────────────────────────────────────────     |
-|  Or log in to pay: [View in Customer Portal]  |
-+------------------------------------------------+
-```
+| New Status | Purpose |
+|---|---|
+| `stocked` | Terminal status for internal orders |
+| `on_hold` | Single hold status with `hold_reason` field |
 
-## Files to Modify/Create
+## Technical Details
 
-| File | Changes |
-|------|---------|
-| `brands` table | Add 3 new columns for BTCPay configuration |
-| `src/pages/BrandManagement.tsx` | Add BTCPay Server configuration section |
-| `src/components/InvoicePreviewDialog.tsx` | Fetch payment config, add payment methods section to preview |
-| `supabase/functions/send-invoice-email/index.ts` | Add payment methods section to email HTML |
-| `supabase/functions/create-btcpay-invoice/index.ts` | New function to create BTCPay invoices |
-| `src/components/PaymentCard.tsx` | Add crypto payment button with BTCPay integration |
+### 1. Database Migration
 
-## BTCPay Server Integration Flow
+- Add `on_hold` and `stocked` to the `order_status` enum
+- Add `hold_reason` text column to `sales_orders` (nullable, values: `customer`, `internal`, `materials`)
+- Migrate existing data:
+  - `on_hold_customer` -> `on_hold` with `hold_reason = 'customer'`
+  - `on_hold_internal` -> `on_hold` with `hold_reason = 'internal'`
+  - `on_hold_materials` -> `on_hold` with `hold_reason = 'materials'`
+  - `invoiced` -> `awaiting_payment`
+  - `payment_due` -> `awaiting_payment`
+  - `packed` -> `awaiting_invoice`
+  - `ready_to_stock` -> `stocked`
+- Note: Postgres cannot remove enum values, so old values remain in the enum but will no longer be used in the UI or code
 
-```text
-1. Customer clicks "Pay with Crypto" in email or portal
-                    ↓
-2. Edge function calls BTCPay Server API:
-   POST {btcpay_url}/api/v1/stores/{store_id}/invoices
-   {
-     "amount": 150.00,
-     "currency": "USD",
-     "metadata": { "orderId": "...", "orderNumber": "SO-ABC123" }
-   }
-                    ↓
-3. BTCPay returns checkout URL
-                    ↓
-4. Customer redirected to BTCPay checkout page
-   (shows BTC, Lightning, USDT, USDC, etc. based on your BTCPay config)
-                    ↓
-5. Customer pays in preferred cryptocurrency
-                    ↓
-6. BTCPay webhook notifies your system (optional future enhancement)
-   OR admin manually marks payment as received
-```
+### 2. Update Database Triggers/Functions
 
-## Security Considerations
+- **`validate_order_status_transition`**: Remove references to old statuses, add `stocked` and `on_hold` handling
+- **`auto_advance_to_awaiting_invoice`**: Change trigger to fire from `in_packing` completion directly (skip `packed`)
+- **`auto_advance_to_ready_to_ship_on_payment`**: Add branch for internal orders to go to `stocked` instead
+- **`sync_addon_statuses`**: Update synced status list to use new values
+- **`notify_order_status_change`**: Update notification-worthy status list
 
-- BTCPay API key is stored in the brands table (same security model as PayPal client secret)
-- Only admins can view/edit BTCPay configuration via existing RLS policies
-- API key is only used server-side in edge functions, never exposed to frontend
-- Checkout URLs are one-time use and expire (configurable in BTCPay)
+### 3. Frontend Files to Update (11 files)
 
-## Edge Cases
+- **`src/pages/OrderDetail.tsx`**: Update status dropdown (remove old, add `stocked`/`on_hold`), update `formatStatus`, add hold reason selector when `on_hold` is chosen, update shipping button visibility
+- **`src/pages/Orders.tsx`**: Update filter dropdowns, bulk update dropdown, `formatStatus`, status color maps
+- **`src/pages/CustomerPortal.tsx`**: Update status filters, colors, `canRequestCancellation`
+- **`src/pages/Queue.tsx`**: Remove `packed` from queue statuses
+- **`src/pages/Shipments.tsx`**: Remove `packed` from shipment queries
+- **`src/pages/ManualPaymentRecording.tsx`**: Remove `invoiced`/`payment_due`/`deposit_due` from status filter
+- **`src/components/OrderTimeline.tsx`**: Remove `packed`/`deposit_due` steps, add `stocked` as terminal for internal, update step list
+- **`src/components/StatusChangeDialog.tsx`**: Works via RPC, no direct changes needed beyond what the DB function handles
+- **`src/components/InternalOrdersWidget.tsx`**: Replace `packed`/`ready_to_stock` with `stocked` in status maps
+- **`src/components/mobile/OrderCard.tsx`**: Update status color map if defined inline
+- **`src/components/OrderAddOnsList.tsx`**: Update status color map
 
-- **BTCPay Server unreachable**: Show error message, fallback to "Contact us" option
-- **No payment methods configured**: Email still sends but shows only "Contact us for payment options"
-- **Partial configuration**: Only show methods that are fully configured
-- **Self-hosted migration**: URL field allows easy switch from hosted to self-hosted BTCPay
+### 4. Hold Reason UX
+
+When admin selects `on_hold` from the status dropdown, a sub-selector appears asking for the hold reason (Customer / Internal / Materials). The `hold_reason` is saved alongside the status. Display logic shows "On Hold (Customer)" etc. based on the `hold_reason` column.
+
+### 5. Deposit Flow Change
+
+`deposit_due` remains as a status since it represents a distinct point in the pre-production workflow where the customer needs to pay a deposit before the order enters the queue. This is functionally different from `awaiting_payment` (which is post-production final payment). No change here from current behavior.
+
+### 6. Data Safety
+
+Before publishing, any existing orders using removed statuses in the Live environment will be migrated to their new equivalents by the migration SQL. No data loss.
 
