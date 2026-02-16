@@ -90,8 +90,9 @@ const statusColors: Record<string, string> = {
   awaiting_invoice: 'bg-pink-500',
   awaiting_payment: 'bg-rose-500',
   in_packing: 'bg-cyan-500',
-  packed: 'bg-success',
+  ready_to_ship: 'bg-emerald-500',
   shipped: 'bg-muted-foreground',
+  stocked: 'bg-teal-500',
   cancelled: 'bg-destructive',
   on_hold: 'bg-amber-600',
 };
@@ -277,9 +278,6 @@ const Orders = () => {
   };
 
   const formatStatus = (status: string) => {
-    if (status === 'on_hold_customer') return 'On Hold (Customer Hold)';
-    if (status === 'on_hold_internal') return 'On Hold (Internal Hold)';
-    if (status === 'on_hold_materials') return 'On Hold (Materials Hold)';
     return status.split('_').map(word => 
       word.charAt(0).toUpperCase() + word.slice(1)
     ).join(' ');
@@ -607,20 +605,19 @@ const Orders = () => {
                         <SelectContent>
                           <SelectItem value="draft">Draft</SelectItem>
                           <SelectItem value="quoted">Quoted</SelectItem>
+                          <SelectItem value="awaiting_approval">Awaiting Approval</SelectItem>
                           <SelectItem value="deposit_due">Deposit Due</SelectItem>
                           <SelectItem value="in_queue">In Queue</SelectItem>
                           <SelectItem value="in_production">In Production</SelectItem>
                           <SelectItem value="in_labeling">In Labeling</SelectItem>
                           <SelectItem value="in_packing">In Packing</SelectItem>
-                          <SelectItem value="packed">Packed</SelectItem>
-                          <SelectItem value="invoiced">Invoiced</SelectItem>
-                          <SelectItem value="payment_due">Payment Due</SelectItem>
+                          <SelectItem value="awaiting_invoice">Awaiting Invoice</SelectItem>
+                          <SelectItem value="awaiting_payment">Awaiting Payment</SelectItem>
                           <SelectItem value="ready_to_ship">Ready to Ship</SelectItem>
                           <SelectItem value="shipped">Shipped</SelectItem>
+                          <SelectItem value="stocked">Stocked</SelectItem>
+                          <SelectItem value="on_hold">On Hold</SelectItem>
                           <SelectItem value="cancelled">Cancelled</SelectItem>
-                          <SelectItem value="on_hold_customer">On Hold (Customer)</SelectItem>
-                          <SelectItem value="on_hold_internal">On Hold (Internal)</SelectItem>
-                          <SelectItem value="on_hold_materials">On Hold (Materials)</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -776,20 +773,19 @@ const Orders = () => {
                             <SelectItem value="">All statuses</SelectItem>
                             <SelectItem value="draft">Draft</SelectItem>
                             <SelectItem value="quoted">Quoted</SelectItem>
+                            <SelectItem value="awaiting_approval">Awaiting Approval</SelectItem>
                             <SelectItem value="deposit_due">Deposit Due</SelectItem>
                             <SelectItem value="in_queue">In Queue</SelectItem>
                             <SelectItem value="in_production">In Production</SelectItem>
                             <SelectItem value="in_labeling">In Labeling</SelectItem>
                             <SelectItem value="in_packing">In Packing</SelectItem>
-                            <SelectItem value="packed">Packed</SelectItem>
-                            <SelectItem value="invoiced">Invoiced</SelectItem>
-                            <SelectItem value="payment_due">Payment Due</SelectItem>
+                            <SelectItem value="awaiting_invoice">Awaiting Invoice</SelectItem>
+                            <SelectItem value="awaiting_payment">Awaiting Payment</SelectItem>
                             <SelectItem value="ready_to_ship">Ready to Ship</SelectItem>
                             <SelectItem value="shipped">Shipped</SelectItem>
+                            <SelectItem value="stocked">Stocked</SelectItem>
+                            <SelectItem value="on_hold">On Hold</SelectItem>
                             <SelectItem value="cancelled">Cancelled</SelectItem>
-                            <SelectItem value="on_hold_customer">On Hold (Customer)</SelectItem>
-                            <SelectItem value="on_hold_internal">On Hold (Internal)</SelectItem>
-                            <SelectItem value="on_hold_materials">On Hold (Materials)</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>

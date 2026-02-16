@@ -47,9 +47,7 @@ export default function ManualPaymentRecording() {
         .in("status", [
           "awaiting_payment",
           "deposit_due",
-          "awaiting_invoice",
-          "invoiced",
-          "payment_due"
+          "awaiting_invoice"
         ])
         .order("created_at", { ascending: false });
 

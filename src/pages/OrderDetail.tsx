@@ -128,8 +128,9 @@ const statusColors: Record<string, string> = {
   awaiting_invoice: 'bg-pink-500',
   awaiting_payment: 'bg-rose-500',
   in_packing: 'bg-cyan-500',
-  packed: 'bg-success',
+  ready_to_ship: 'bg-emerald-500',
   shipped: 'bg-muted-foreground',
+  stocked: 'bg-teal-500',
   cancelled: 'bg-destructive',
   on_hold: 'bg-amber-600',
   queued: 'bg-purple-500',
@@ -385,9 +386,6 @@ const OrderDetail = () => {
   }, [id, toast, fetchBatches]);
 
   const formatStatus = (status: string) => {
-    if (status === 'on_hold_customer') return 'On Hold (Customer Hold)';
-    if (status === 'on_hold_internal') return 'On Hold (Internal Hold)';
-    if (status === 'on_hold_materials') return 'On Hold (Materials Hold)';
     return status.split('_').map(word => 
       word.charAt(0).toUpperCase() + word.slice(1)
     ).join(' ');
@@ -1014,18 +1012,18 @@ const OrderDetail = () => {
                   <SelectItem value="in_queue">In Queue</SelectItem>
                   <SelectItem value="in_production">In Production</SelectItem>
                   <SelectItem value="in_labeling">In Labeling</SelectItem>
+                  <SelectItem value="in_packing">In Packing</SelectItem>
                   <SelectItem value="awaiting_invoice">Awaiting Invoice</SelectItem>
                   <SelectItem value="awaiting_payment">Awaiting Payment</SelectItem>
-                  <SelectItem value="in_packing">In Packing</SelectItem>
-                  <SelectItem value="packed">Packed</SelectItem>
                   <SelectItem value="ready_to_ship">Ready to Ship</SelectItem>
                   <SelectItem value="shipped">Shipped</SelectItem>
+                  <SelectItem value="stocked">Stocked</SelectItem>
                   <SelectItem value="on_hold">On Hold</SelectItem>
                   <SelectItem value="cancelled">Cancelled</SelectItem>
                 </SelectContent>
               </Select>
               {/* Shipping Options - show when ready to ship */}
-              {(order.status === 'ready_to_ship' || order.status === 'packed') && !order.is_internal && (
+              {order.status === 'ready_to_ship' && !order.is_internal && (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="default">

@@ -42,8 +42,8 @@ const statusColors: Record<string, string> = {
   in_production: 'bg-primary',
   in_labeling: 'bg-indigo-500',
   in_packing: 'bg-cyan-500',
-  packed: 'bg-success',
-  ready_to_ship: 'bg-success',
+  ready_to_ship: 'bg-emerald-500',
+  stocked: 'bg-teal-500',
 };
 
 const Queue = () => {
@@ -80,7 +80,7 @@ const Queue = () => {
       const { data: orders, error: orderError } = await supabase
         .from('sales_orders')
         .select('status')
-        .in('status', ['in_queue', 'in_production', 'in_labeling', 'in_packing', 'packed', 'ready_to_ship']);
+        .in('status', ['in_queue', 'in_production', 'in_labeling', 'in_packing', 'ready_to_ship']);
 
       if (orderError) throw orderError;
 

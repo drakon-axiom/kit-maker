@@ -134,7 +134,7 @@ const Shipments = () => {
           customer:customers(name),
           shipments:shipments(id)
         `)
-        .in('status', ['packed', 'in_packing', 'in_labeling', 'shipped', 'ready_to_ship'])
+        .in('status', ['in_packing', 'in_labeling', 'shipped', 'ready_to_ship'])
         .order('human_uid', { ascending: false });
 
       if (error) throw error;
@@ -142,7 +142,7 @@ const Shipments = () => {
       
       // Filter orders ready for shipping (no shipments yet, not internal)
       const readyOrders = (data || []).filter((order: any) => 
-        ['packed', 'ready_to_ship'].includes(order.status) && 
+        order.status === 'ready_to_ship' && 
         order.shipments.length === 0 &&
         !order.is_internal
       );

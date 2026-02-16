@@ -31,8 +31,7 @@ const statusColors: Record<string, string> = {
   in_production: 'bg-yellow-500',
   in_labeling: 'bg-purple-500',
   in_packing: 'bg-orange-500',
-  packed: 'bg-green-500',
-  ready_to_stock: 'bg-emerald-500',
+  stocked: 'bg-teal-500',
   complete: 'bg-gray-500',
 };
 
@@ -41,8 +40,7 @@ const statusLabels: Record<string, string> = {
   in_production: 'Production',
   in_labeling: 'Labeling',
   in_packing: 'Packing',
-  packed: 'Packed',
-  ready_to_stock: 'Ready to Stock',
+  stocked: 'Stocked',
   complete: 'Complete',
 };
 
