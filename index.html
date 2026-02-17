@@ -20,6 +20,12 @@
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:site" content="@AxiomCollective" />
     <meta name="twitter:image" content="/favicon.png" />
+
+    <!-- Security headers -->
+    <meta http-equiv="X-Content-Type-Options" content="nosniff" />
+    <meta http-equiv="X-Frame-Options" content="DENY" />
+    <meta name="referrer" content="strict-origin-when-cross-origin" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' https: data:; font-src 'self'; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api-m.paypal.com https://api-m.sandbox.paypal.com; frame-src 'self' https://*.paypal.com https://*.sandbox.paypal.com; object-src 'none'; base-uri 'self';" />
   </head>
 
   <body>

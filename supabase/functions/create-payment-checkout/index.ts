@@ -2,12 +2,30 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+// Security: Restrict CORS to known application domains
+const ALLOWED_ORIGINS = (Deno.env.get("ALLOWED_ORIGINS") || "").split(",").map(o => o.trim()).filter(Boolean);
+
+function getCorsHeaders(req: Request) {
+  const origin = req.headers.get("origin") || "";
+  const allowedOrigin = ALLOWED_ORIGINS.includes(origin) ? origin : (ALLOWED_ORIGINS[0] || "");
+  return {
+    "Access-Control-Allow-Origin": allowedOrigin,
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  };
+}
+
+// Security: Validate origin against allowlist
+function validateOrigin(origin: string | null): string {
+  if (origin && ALLOWED_ORIGINS.includes(origin)) {
+    return origin;
+  }
+  // Fallback to first allowed origin if none match
+  return ALLOWED_ORIGINS[0] || "";
+}
 
 serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req);
+
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -18,13 +36,77 @@ serve(async (req) => {
   );
 
   try {
-    const authHeader = req.headers.get("Authorization")!;
+    // Security: Authenticate user
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) throw new Error("Missing authorization header");
     const token = authHeader.replace("Bearer ", "");
     const { data } = await supabaseClient.auth.getUser(token);
     const user = data.user;
     if (!user?.email) throw new Error("User not authenticated");
 
-    const { orderId, orderNumber, type, amount } = await req.json();
+    const { orderId, orderNumber, type } = await req.json();
+
+    if (!orderId || !orderNumber || !type) {
+      return new Response(JSON.stringify({ error: "Missing required fields" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 400,
+      });
+    }
+
+    // Security: Use service role to verify order ownership and fetch server-side amount
+    const supabaseAdmin = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
+    );
+
+    const { data: order, error: orderError } = await supabaseAdmin
+      .from("sales_orders")
+      .select("id, human_uid, subtotal, deposit_amount, deposit_required, customer_id, customers(user_id)")
+      .eq("id", orderId)
+      .single();
+
+    if (orderError || !order) {
+      return new Response(JSON.stringify({ error: "Order not found" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 404,
+      });
+    }
+
+    // Security: Verify user owns this order (IDOR protection)
+    const customer = order.customers as any;
+    const customerUserId = Array.isArray(customer) ? customer[0]?.user_id : customer?.user_id;
+    if (customerUserId !== user.id) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 403,
+      });
+    }
+
+    // Security: Determine amount server-side — never trust client-provided amount
+    let amount: number;
+    if (type === "deposit") {
+      amount = order.deposit_amount || 0;
+    } else {
+      // Final payment: fetch the invoice total
+      const { data: invoice } = await supabaseAdmin
+        .from("invoices")
+        .select("total")
+        .eq("so_id", orderId)
+        .eq("type", "final")
+        .eq("status", "unpaid")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      amount = invoice?.total || order.subtotal;
+    }
+
+    if (amount <= 0) {
+      return new Response(JSON.stringify({ error: "No amount due" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 400,
+      });
+    }
+
     console.log(`Creating ${type} payment checkout for order ${orderNumber}, amount: $${amount}`);
 
     const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
@@ -36,10 +118,10 @@ serve(async (req) => {
     let customerId;
     if (customers.data.length > 0) {
       customerId = customers.data[0].id;
-      console.log(`Found existing customer: ${customerId}`);
-    } else {
-      console.log(`No existing customer found for ${user.email}`);
     }
+
+    // Security: Validate origin for redirect URLs
+    const validatedOrigin = validateOrigin(req.headers.get("origin"));
 
     // Create checkout session
     const session = await stripe.checkout.sessions.create({
@@ -53,14 +135,14 @@ serve(async (req) => {
               name: `${type === 'deposit' ? 'Deposit' : 'Final Payment'} - Order ${orderNumber}`,
               description: `Payment for order ${orderNumber}`,
             },
-            unit_amount: Math.round(amount * 100), // Convert to cents
+            unit_amount: Math.round(amount * 100),
           },
           quantity: 1,
         },
       ],
       mode: "payment",
-      success_url: `${req.headers.get("origin")}/customer/orders/${orderId}?payment=success`,
-      cancel_url: `${req.headers.get("origin")}/customer/orders/${orderId}?payment=cancelled`,
+      success_url: `${validatedOrigin}/customer/orders/${orderId}?payment=success`,
+      cancel_url: `${validatedOrigin}/customer/orders/${orderId}?payment=cancelled`,
       metadata: {
         orderId,
         orderNumber,
@@ -69,16 +151,14 @@ serve(async (req) => {
       },
     });
 
-    console.log(`Checkout session created: ${session.id}`);
-
     return new Response(JSON.stringify({ url: session.url }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,
     });
   } catch (error) {
     console.error("Error creating checkout:", error);
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    return new Response(JSON.stringify({ error: errorMessage }), {
+    // Security: Generic error message to client
+    return new Response(JSON.stringify({ error: "Failed to create payment session" }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 500,
     });

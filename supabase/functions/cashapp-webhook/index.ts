@@ -1,12 +1,21 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-cashapp-signature",
-};
+// Security: Restrict CORS to known application domains
+const ALLOWED_ORIGINS = (Deno.env.get("ALLOWED_ORIGINS") || "").split(",").map(o => o.trim()).filter(Boolean);
+
+function getCorsHeaders(req: Request) {
+  const origin = req.headers.get("origin") || "";
+  const allowedOrigin = ALLOWED_ORIGINS.includes(origin) ? origin : (ALLOWED_ORIGINS[0] || "");
+  return {
+    "Access-Control-Allow-Origin": allowedOrigin,
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-cashapp-signature",
+  };
+}
 
 serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req);
+
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -112,6 +121,15 @@ serve(async (req) => {
     const signature = req.headers.get("x-cashapp-signature");
     const webhookSecret = Deno.env.get("CASHAPP_WEBHOOK_SECRET");
 
+    // Security: Fail-closed — reject if webhook secret is not configured
+    if (!webhookSecret) {
+      console.error("CASHAPP_WEBHOOK_SECRET is not configured");
+      return new Response(JSON.stringify({ error: "Webhook not configured" }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     if (!signature) {
       console.error("No signature provided");
       return new Response(JSON.stringify({ error: "No signature provided" }), {
@@ -121,7 +139,7 @@ serve(async (req) => {
     }
 
     const payload = await req.text();
-    
+
     // Verify webhook signature
     const encoder = new TextEncoder();
     const data = encoder.encode(payload);
@@ -132,12 +150,21 @@ serve(async (req) => {
       false,
       ["verify"]
     );
-    
-    const signatureBuffer = Uint8Array.from(
-      atob(signature),
-      (c) => c.charCodeAt(0)
-    );
-    
+
+    // Security: Wrap base64 decoding in try/catch
+    let signatureBuffer: Uint8Array;
+    try {
+      signatureBuffer = Uint8Array.from(
+        atob(signature),
+        (c) => c.charCodeAt(0)
+      );
+    } catch {
+      return new Response(JSON.stringify({ error: "Invalid signature format" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const isValid = await crypto.subtle.verify(
       "HMAC",
       key,
@@ -178,6 +205,23 @@ serve(async (req) => {
           status: 404,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
+      }
+
+      // Security: Idempotency check — skip if this payment was already recorded
+      const { data: existingTx } = await supabaseClient
+        .from("payment_transactions")
+        .select("id")
+        .eq("so_id", orderId)
+        .eq("payment_method", "cashapp")
+        .eq("metadata->>cashapp_payment_id", payment.id)
+        .maybeSingle();
+
+      if (existingTx) {
+        console.log(`CashApp payment ${payment.id} already processed, skipping`);
+        return new Response(
+          JSON.stringify({ received: true, duplicate: true }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
       }
 
       // Insert payment transaction record
@@ -276,9 +320,9 @@ serve(async (req) => {
     );
   } catch (error) {
     console.error("Error processing CashApp webhook:", error);
-    const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
+    // Security: Generic error message
     return new Response(
-      JSON.stringify({ error: errorMessage }),
+      JSON.stringify({ error: "Webhook processing failed" }),
       {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },

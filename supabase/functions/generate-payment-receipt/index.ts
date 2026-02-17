@@ -1,12 +1,21 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+// Security: Restrict CORS to known application domains
+const ALLOWED_ORIGINS = (Deno.env.get("ALLOWED_ORIGINS") || "").split(",").map(o => o.trim()).filter(Boolean);
+
+function getCorsHeaders(req: Request) {
+  const origin = req.headers.get("origin") || "";
+  const allowedOrigin = ALLOWED_ORIGINS.includes(origin) ? origin : (ALLOWED_ORIGINS[0] || "");
+  return {
+    "Access-Control-Allow-Origin": allowedOrigin,
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  };
+}
 
 serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req);
+
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -17,14 +26,14 @@ serve(async (req) => {
   );
 
   try {
-    const authHeader = req.headers.get("Authorization")!;
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) throw new Error("Missing authorization header");
     const token = authHeader.replace("Bearer ", "");
     const { data } = await supabaseClient.auth.getUser(token);
     const user = data.user;
     if (!user?.email) throw new Error("User not authenticated");
 
     const { transactionId } = await req.json();
-    console.log(`Generating PDF receipt for transaction ${transactionId}`);
 
     // Fetch transaction details
     const { data: transaction, error } = await supabaseClient
@@ -48,6 +57,27 @@ serve(async (req) => {
       .single();
 
     if (error) throw error;
+
+    // Security: Verify user owns this transaction's order
+    const supabaseAdmin = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
+    );
+    const { data: roles } = await supabaseAdmin
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", user.id);
+
+    const isAdminOrOperator = roles?.some(r => r.role === "admin" || r.role === "operator");
+    const txCustomer = transaction.sales_orders.customers as any;
+    const txCustomerUserId = Array.isArray(txCustomer) ? txCustomer[0]?.user_id : txCustomer?.user_id;
+
+    if (!isAdminOrOperator && txCustomerUserId !== user.id) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 403,
+      });
+    }
 
     const customers = transaction.sales_orders.customers as any;
     const customer = Array.isArray(customers) ? customers[0] : customers;
@@ -180,8 +210,8 @@ serve(async (req) => {
     });
   } catch (error) {
     console.error("Error generating receipt:", error);
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    return new Response(JSON.stringify({ error: errorMessage }), {
+    // Security: Generic error message
+    return new Response(JSON.stringify({ error: "Failed to generate receipt" }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 500,
     });

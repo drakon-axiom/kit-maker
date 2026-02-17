@@ -20,7 +20,7 @@ verify_jwt = true
 verify_jwt = true
 
 [functions.generate-quote]
-verify_jwt = false
+verify_jwt = true
 
 [functions.accept-quote]
 verify_jwt = true
@@ -53,13 +53,13 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.create-paypal-order]
-verify_jwt = false
+verify_jwt = true
 
 [functions.capture-paypal-payment]
-verify_jwt = false
+verify_jwt = true
 
 [functions.send-invoice-email]
 verify_jwt = true
 
 [functions.create-btcpay-invoice]
-verify_jwt = false
+verify_jwt = true

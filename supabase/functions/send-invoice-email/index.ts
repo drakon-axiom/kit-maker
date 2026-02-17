@@ -2,10 +2,22 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 import { SMTPClient } from "https://deno.land/x/denomailer@1.6.0/mod.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+// Security: Restrict CORS to known application domains
+const ALLOWED_ORIGINS = (Deno.env.get("ALLOWED_ORIGINS") || "").split(",").map(o => o.trim()).filter(Boolean);
+
+function getCorsHeaders(req: Request) {
+  const origin = req.headers.get("origin") || "";
+  const allowedOrigin = ALLOWED_ORIGINS.includes(origin) ? origin : (ALLOWED_ORIGINS[0] || "");
+  return {
+    "Access-Control-Allow-Origin": allowedOrigin,
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  };
+}
+
+// Security: Sanitize email header values to prevent CRLF injection
+function sanitizeHeaderValue(value: string): string {
+  return value.replace(/[\r\n]/g, "");
+}
 
 interface InvoiceEmailRequest {
   invoiceId: string;
@@ -99,11 +111,52 @@ const generateInvoiceEmailHtml = (
 };
 
 serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req);
+
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
+    // Security: Require admin authentication
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ success: false, error: "Authentication required" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const supabaseAuth = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_ANON_KEY")!
+    );
+    const token = authHeader.replace("Bearer ", "");
+    const { data: authData } = await supabaseAuth.auth.getUser(token);
+    if (!authData.user) {
+      return new Response(
+        JSON.stringify({ success: false, error: "Invalid authentication token" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Verify user has admin or operator role
+    const supabaseRoleCheck = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+    );
+    const { data: roles } = await supabaseRoleCheck
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", authData.user.id);
+
+    if (!roles || !roles.some(r => r.role === "admin" || r.role === "operator")) {
+      return new Response(
+        JSON.stringify({ success: false, error: "Insufficient permissions" }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const { invoiceId }: InvoiceEmailRequest = await req.json();
 
     if (!invoiceId) {
@@ -172,7 +225,7 @@ serve(async (req) => {
       throw new Error(`Invoice not found: ${invoiceError?.message || "Unknown error"}`);
     }
 
-    console.log("[send-invoice-email] Invoice data:", JSON.stringify(invoice, null, 2));
+    // Security: Don't log full invoice data
 
     const order = invoice.sales_orders;
     if (!order) {
@@ -318,15 +371,14 @@ serve(async (req) => {
 
       try {
         await client.send({
-          from: brandEmail || smtpUser,
-          to: customer.email,
-          subject: subject,
+          from: sanitizeHeaderValue(brandEmail || smtpUser),
+          to: sanitizeHeaderValue(customer.email),
+          subject: sanitizeHeaderValue(subject),
           content: "Please view this email in an HTML-compatible email client.",
           html: emailHtml,
         });
-        
+
         await client.close();
-        console.log(`[send-invoice-email] Email sent via brand SMTP to ${customer.email}`);
       } catch (smtpError: unknown) {
         console.error("[send-invoice-email] Brand SMTP error:", smtpError);
         await client.close();
@@ -366,15 +418,14 @@ serve(async (req) => {
 
       try {
         await client.send({
-          from: globalSmtpFrom || globalSmtpUser,
-          to: customer.email,
-          subject: subject,
+          from: sanitizeHeaderValue(globalSmtpFrom || globalSmtpUser),
+          to: sanitizeHeaderValue(customer.email),
+          subject: sanitizeHeaderValue(subject),
           content: "Please view this email in an HTML-compatible email client.",
           html: emailHtml,
         });
-        
+
         await client.close();
-        console.log(`[send-invoice-email] Email sent via global SMTP to ${customer.email}`);
       } catch (smtpError: unknown) {
         console.error("[send-invoice-email] Global SMTP error:", smtpError);
         await client.close();
@@ -394,11 +445,11 @@ serve(async (req) => {
     );
   } catch (error: unknown) {
     console.error("[send-invoice-email] Error:", error);
-    const errMsg = error instanceof Error ? error.message : "Failed to send invoice email";
+    // Security: Generic error message
     return new Response(
-      JSON.stringify({ 
-        success: false, 
-        error: errMsg 
+      JSON.stringify({
+        success: false,
+        error: "Failed to send invoice email"
       }),
       { 
         status: 500, 

@@ -106,9 +106,13 @@ export default function QuoteApproval() {
           description: "Thank you! Your quote has been approved.",
         });
         
-        // If there's a redirect URL (payment link), follow it
+        // If there's a redirect URL (payment link), validate and follow it
         if (response.redirected) {
-          window.location.href = response.url;
+          const redirectUrl = new URL(response.url);
+          // Security: Only follow redirects to same origin or known domains
+          if (redirectUrl.origin === window.location.origin || redirectUrl.hostname.endsWith('.supabase.co')) {
+            window.location.href = response.url;
+          }
         }
       } else {
         throw new Error("Failed to approve quote");

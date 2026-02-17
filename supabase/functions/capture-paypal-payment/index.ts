@@ -1,10 +1,17 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+// Security: Restrict CORS to known application domains
+const ALLOWED_ORIGINS = (Deno.env.get("ALLOWED_ORIGINS") || "").split(",").map(o => o.trim()).filter(Boolean);
+
+function getCorsHeaders(req: Request) {
+  const origin = req.headers.get("origin") || "";
+  const allowedOrigin = ALLOWED_ORIGINS.includes(origin) ? origin : (ALLOWED_ORIGINS[0] || "");
+  return {
+    "Access-Control-Allow-Origin": allowedOrigin,
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  };
+}
 
 interface CapturePaymentRequest {
   paypalOrderId: string;
@@ -63,16 +70,41 @@ async function capturePayPalOrder(accessToken: string, paypalOrderId: string, sa
 }
 
 serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req);
+
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { paypalOrderId, orderId, orderNumber, type, amount, brandId, customerEmail } = 
+    // Security: Authenticate user
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ error: 'Authentication required' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const supabaseAnonClient = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_ANON_KEY')!
+    );
+    const token = authHeader.replace("Bearer ", "");
+    const { data: userData } = await supabaseAnonClient.auth.getUser(token);
+    const user = userData.user;
+    if (!user) {
+      return new Response(
+        JSON.stringify({ error: 'Invalid authentication token' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const { paypalOrderId, orderId, orderNumber, type, brandId, customerEmail } =
       await req.json() as CapturePaymentRequest;
 
-    if (!paypalOrderId || !orderId || !orderNumber || !type || !amount || !brandId) {
+    if (!paypalOrderId || !orderId || !orderNumber || !type || !brandId) {
       return new Response(
         JSON.stringify({ error: 'Missing required fields' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -110,6 +142,46 @@ serve(async (req) => {
     const isSandbox = brand.paypal_client_id.startsWith('sb-') || 
                       brand.paypal_client_id.startsWith('AZ') === false;
 
+    // Security: Verify order ownership
+    const { data: orderData, error: orderCheckError } = await supabase
+      .from('sales_orders')
+      .select('id, subtotal, deposit_amount, customers(user_id)')
+      .eq('id', orderId)
+      .single();
+
+    if (orderCheckError || !orderData) {
+      return new Response(
+        JSON.stringify({ error: 'Order not found' }),
+        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const orderCustomer = orderData.customers as any;
+    const ownerUserId = Array.isArray(orderCustomer) ? orderCustomer[0]?.user_id : orderCustomer?.user_id;
+    if (ownerUserId !== user.id) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Security: Determine amount server-side
+    let amount: number;
+    if (type === 'deposit') {
+      amount = orderData.deposit_amount || 0;
+    } else {
+      const { data: invoiceData } = await supabase
+        .from('invoices')
+        .select('total')
+        .eq('so_id', orderId)
+        .eq('type', 'final')
+        .eq('status', 'unpaid')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      amount = invoiceData?.total || orderData.subtotal;
+    }
+
     console.log(`Capturing PayPal order ${paypalOrderId} for order ${orderNumber}`);
 
     // Get access token and capture payment
@@ -133,6 +205,21 @@ serve(async (req) => {
     const payerEmail = captureResult.payer?.email_address || customerEmail || 'unknown@paypal.com';
 
     console.log(`Payment captured successfully: ${captureId}`);
+
+    // Security: Idempotency check
+    const { data: existingTx } = await supabase
+      .from('payment_transactions')
+      .select('id')
+      .eq('stripe_payment_intent', captureId)
+      .maybeSingle();
+
+    if (existingTx) {
+      console.log(`PayPal capture ${captureId} already recorded, skipping`);
+      return new Response(
+        JSON.stringify({ success: true, captureId, payerEmail, duplicate: true }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     // Record the payment transaction
     const { error: txError } = await supabase
@@ -233,9 +320,9 @@ serve(async (req) => {
 
   } catch (error: unknown) {
     console.error('Error capturing PayPal payment:', error);
-    const message = error instanceof Error ? error.message : 'Internal server error';
+    // Security: Generic error message
     return new Response(
-      JSON.stringify({ error: message }),
+      JSON.stringify({ error: 'Failed to capture PayPal payment' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }

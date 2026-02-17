@@ -63,13 +63,29 @@ serve(async (req) => {
       const orderNumber = orderData?.human_uid;
       const amountPaid = session.amount_total ? session.amount_total / 100 : 0;
 
+      // Security: Idempotency check — skip if this payment intent was already recorded
+      const paymentIntentId = session.payment_intent as string;
+      const { data: existingTx } = await supabaseClient
+        .from("payment_transactions")
+        .select("id")
+        .eq("stripe_payment_intent", paymentIntentId)
+        .maybeSingle();
+
+      if (existingTx) {
+        console.log(`Payment intent ${paymentIntentId} already processed, skipping`);
+        return new Response(JSON.stringify({ received: true, duplicate: true }), {
+          headers: { "Content-Type": "application/json" },
+          status: 200,
+        });
+      }
+
       // Save payment transaction
       await supabaseClient.from("payment_transactions").insert({
         so_id: orderId,
         payment_type: paymentType,
         amount: amountPaid,
         payment_method: "stripe",
-        stripe_payment_intent: session.payment_intent as string,
+        stripe_payment_intent: paymentIntentId,
         stripe_session_id: session.id,
         customer_email: customerEmail,
         metadata: {
@@ -174,8 +190,8 @@ serve(async (req) => {
     });
   } catch (error) {
     console.error("Webhook error:", error);
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    return new Response(JSON.stringify({ error: errorMessage }), {
+    // Security: Generic error message
+    return new Response(JSON.stringify({ error: "Webhook processing failed" }), {
       status: 400,
     });
   }

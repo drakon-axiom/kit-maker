@@ -3,11 +3,28 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.80.0";
 import { SMTPClient } from "https://deno.land/x/denomailer@1.6.0/mod.ts";
 import { encode as base64Encode } from "https://deno.land/std@0.190.0/encoding/base64.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-};
+// Security: Restrict CORS to known application domains
+const ALLOWED_ORIGINS = (Deno.env.get("ALLOWED_ORIGINS") || "").split(",").map(o => o.trim()).filter(Boolean);
+
+function getCorsHeaders(req: Request) {
+  const origin = req.headers.get("origin") || "";
+  const allowedOrigin = ALLOWED_ORIGINS.includes(origin) ? origin : (ALLOWED_ORIGINS[0] || "");
+  return {
+    "Access-Control-Allow-Origin": allowedOrigin,
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+  };
+}
+
+// Security: Sanitize email header values to prevent CRLF injection
+function sanitizeHeaderValue(value: string): string {
+  return value.replace(/[\r\n]/g, "");
+}
+
+// Security: Basic email format validation
+function isValidEmail(email: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
 
 interface SmtpConfig {
   host: string;
@@ -198,6 +215,8 @@ function generatePasswordResetEmail(
 }
 
 serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req);
+
   // Handle CORS preflight
   if (req.method === "OPTIONS") {
     return new Response(null, { status: 204, headers: corsHeaders });
@@ -210,14 +229,16 @@ serve(async (req) => {
   try {
     const { email, redirectTo, brandId: requestedBrandId } = await req.json();
 
-    if (!email) {
+    // Security: Validate email format
+    if (!email || !isValidEmail(email)) {
       return new Response(
-        JSON.stringify({ error: "Email is required" }),
+        JSON.stringify({ error: "A valid email address is required" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    console.log(`Password reset requested for ${email}, requested brand: ${requestedBrandId || 'none'}`);
+    // Security: Don't log email addresses
+    console.log("Password reset requested");
 
     // Initialize Supabase client with service role
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
@@ -397,15 +418,16 @@ serve(async (req) => {
     const minifiedHtml = html.replace(/\n\s*/g, '').replace(/>\s+</g, '><');
 
     await client.send({
-      from: `${fromName} <${fromEmail}>`,
-      to: email,
-      subject: subject,
+      from: sanitizeHeaderValue(`${fromName} <${fromEmail}>`),
+      to: sanitizeHeaderValue(email),
+      subject: sanitizeHeaderValue(subject),
       html: minifiedHtml,
     });
 
     await client.close();
 
-    console.log(`Password reset email sent to ${email} using ${brand.name} SMTP`);
+    // Security: Don't log email address
+    console.log("Password reset email sent");
 
     return new Response(
       JSON.stringify({ success: true, message: "Password reset email sent" }),
@@ -414,8 +436,9 @@ serve(async (req) => {
 
   } catch (error: any) {
     console.error("Error in send-password-reset:", error);
+    // Security: Generic error message
     return new Response(
-      JSON.stringify({ error: error.message || "Failed to send password reset email" }),
+      JSON.stringify({ error: "Failed to send password reset email" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
